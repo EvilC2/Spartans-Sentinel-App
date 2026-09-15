@@ -6,7 +6,7 @@
 //   4. Settings / account list
 //   5. Sign out
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Pressable, ScrollView, Alert, Platform, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
 import { useTheme } from '../ThemeContext';
 import { fonts, shadow, tnum } from '../theme';
@@ -31,8 +31,9 @@ const toStu = (p: StudentProfile): Stu => ({
 
 export default function ProfileScreen({ onNavigate, topInset, onEditProfile }: ScreenProps) {
   const { c, mode, toggle } = useTheme();
-  const { profile, signOut: doSignOut, roles } = useProfile();
+  const { profile, signOut: doSignOut, roles, refreshRoles } = useProfile();
   const p = profile!;
+  useEffect(() => { refreshRoles(); }, []);   // pick up roles granted since last launch
   const stu = toStu(p);
   const [badges, setBadges] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
@@ -131,7 +132,11 @@ export default function ProfileScreen({ onNavigate, topInset, onEditProfile }: S
 // ────────────────────────────────────────────────────────────────
 const ProfileHeader = ({ stu, p, onBadges }: { stu: Stu; p: StudentProfile; onBadges: () => void }) => {
   const { c } = useTheme();
+  const { roles } = useProfile();
   const n = unlockedCount();
+  // App Club role pill: gold for owner, navy for any other server-issued role.
+  const rolePill = roles.includes('owner') ? { label: 'Owner', bg: c.goldTint, fg: c.gold, icon: 'shield' as IconName }
+    : roles.length ? { label: 'App Club', bg: c.navy50, fg: c.navy700, icon: 'shield' as IconName } : null;
   return (
     <View style={{
       paddingTop: 22, paddingHorizontal: 20, paddingBottom: 18,
@@ -157,6 +162,12 @@ const ProfileHeader = ({ stu, p, onBadges }: { stu: Stu; p: StudentProfile; onBa
           <Text style={{ fontSize: 13, color: c.ink3 }}>Homeroom {stu.homeroom}</Text>
           <Text style={{ fontSize: 13, color: c.ink4 }}>·</Text>
           <Text style={{ fontSize: 13, color: c.ink3 }}>{stu.pronouns}</Text>
+          {rolePill && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: rolePill.bg }}>
+              <Icon name={rolePill.icon} size={11} stroke={2.2} color={rolePill.fg} />
+              <Text style={{ fontSize: 11, fontWeight: '700', color: rolePill.fg, letterSpacing: 0.3 }}>{rolePill.label}</Text>
+            </View>
+          )}
         </View>
         <LevelLine />
       </View>
