@@ -1,17 +1,25 @@
 {
   "expo": {
-    "name": "SentinelApp",
-    "slug": "SentinelApp",
+    "name": "Spartans",
+    "slug": "spartans",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#FAF9F5",
+    "splash": {
+      "backgroundColor": "#FAF9F5",
+      "resizeMode": "contain",
+      "image": "./assets/splash-icon.png"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.sentinel.schoolapp"
     },
     "android": {
+      "package": "com.sentinel.schoolapp",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#0E2238",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -20,6 +28,19 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-font",
+      ["expo-camera", { "cameraPermission": "Spartans uses the camera to scan your student ID card and take your ID photo." }],
+      ["expo-image-picker", {
+        "photosPermission": "Spartans needs your photos to pick your ID photo.",
+        "cameraPermission": "Spartans uses the camera to take your ID photo."
+      }],
+      ["expo-sensors", { "motionPermission": "Spartans tilts badges with your phone." }],
+      ["expo-media-library", {
+        "savePhotosPermission": "Spartans saves badge pictures to your photos.",
+        "isAccessMediaLocationEnabled": false
+      }]
+    ]
   }
 }
