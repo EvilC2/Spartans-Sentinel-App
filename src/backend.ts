@@ -75,6 +75,10 @@ export const auth = {
     if (r.error) throw new Error(r.error.message);
     return r.data;
   },
+  updatePassword: async (password: string) => {
+    const r = await supabase.auth.updateUser({ password });
+    if (r.error) throw new Error(r.error.message);
+  },
   signOut: () => supabase.auth.signOut(),
   session: () => supabase.auth.getSession().then(r => r.data.session),
   onChange: (cb: (signedIn: boolean) => void) =>

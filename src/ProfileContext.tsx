@@ -1,7 +1,9 @@
-// Sentinel — student profile store.
+// Spartans — student profile store.
 // Holds what the intro flow collects (name, grade, email, the eight timetable
-// slots, extra classes) and persists it to AsyncStorage. `profile === null`
-// after load means the intro flow has not been completed yet.
+// slots, extra classes). AsyncStorage is the cache and the offline fallback;
+// when .env has Supabase keys the account and profile live on the server
+// (src/backend.ts) and the cache is refreshed on sign-in and on save.
+// `profile === null` after load means the intro flow has not been completed yet.
 //
 // Sentinel's timetable has 8 blocks on a Day 1 / Day 2 rotation:
 // 1-1 … 1-4 on Day 1 and 2-1 … 2-4 on Day 2. Block 1-1 is homeroom.
@@ -9,9 +11,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { hashPassword } from './auth';
+import { backendConfigured } from './supabase';
+import { auth as remoteAuth, profile as remoteProfile, admin as remoteAdmin, Role, RemoteProfile } from './backend';
 
 const KEY = 'sentinel-profile-v2';
 const SESSION_KEY = 'sentinel-session-v1';   // "1" while signed in on this device
+const ROLES_KEY = 'spartans-roles-v1';       // cached App Club roles
 
 export type Slot = '1-1' | '1-2' | '1-3' | '1-4' | '2-1' | '2-2' | '2-3' | '2-4';
 export const SLOTS: Slot[] = ['1-1', '1-2', '1-3', '1-4', '2-1', '2-2', '2-3', '2-4'];
@@ -123,43 +128,124 @@ type Ctx = {
   profile: StudentProfile | null;
   loaded: boolean;
   signedIn: boolean;
-  save: (p: StudentProfile) => Promise<void>;          // sign up / edit; also signs in
+  online: boolean;            // last backend call succeeded (false = running on cache)
+  roles: Role[];              // App Club Admin roles bound to this account (server-issued)
+  save: (p: StudentProfile, password?: string) => Promise<void>;   // sign up / edit; also signs in
   signIn: (identifier: string, password: string) => Promise<string | null>; // null = ok, else error text
   signOut: () => Promise<void>;                         // keeps the account on the device
   clear: () => Promise<void>;                           // deletes the account from the device
+  redeemInvite: (code: string) => Promise<Role>;        // App Club Admin: bind a role to this account
+  refreshRoles: () => Promise<void>;
 };
 
 const ProfileCtx = createContext<Ctx>({
-  profile: null, loaded: false, signedIn: false,
+  profile: null, loaded: false, signedIn: false, online: false, roles: [],
   save: async () => {}, signIn: async () => 'Not ready', signOut: async () => {}, clear: async () => {},
+  redeemInvite: async () => { throw new Error('Not ready'); }, refreshRoles: async () => {},
 });
+
+// Server row → the shape the app already uses. Server wins on conflict; local
+// only keeps things the server never sees (password hash, photo file path).
+const fromRemote = (r: RemoteProfile, local: StudentProfile | null): StudentProfile => ({
+  ...(local || emptyProfile()),
+  firstName: r.first_name, lastName: r.last_name, grade: r.grade,
+  pronouns: r.pronouns || local?.pronouns, studentId: r.student_id || local?.studentId,
+  email: r.email, artonaUrl: r.artona_url || local?.artonaUrl,
+  courses: Array.isArray(r.timetable) && r.timetable.length === SLOTS.length ? r.timetable : (local?.courses || emptyCourses()),
+  extraCourses: Array.isArray(r.extras) ? r.extras : (local?.extraCourses || []),
+});
+const toRemote = (p: StudentProfile) => ({
+  first_name: p.firstName, last_name: p.lastName, grade: p.grade,
+  pronouns: p.pronouns || null, student_id: p.studentId || null, artona_url: p.artonaUrl || null,
+  timetable: p.courses, extras: p.extraCourses,
+});
+
+// "johnd907" → full address; a full address passes through; a student number
+// resolves only against the account cached on this device.
+const toEmail = (identifier: string, local: StudentProfile | null): string | null => {
+  const id = identifier.trim().toLowerCase();
+  if (!id) return null;
+  if (id.includes('@')) return id;
+  if (/^\d+$/.test(id)) return id === (local?.studentId || '') ? (local?.email || null) : null;
+  return `${id}@${EMAIL_DOMAIN}`;
+};
 
 export const ProfileProvider = ({ children }: { children: React.ReactNode }) => {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [signedIn, setSignedIn] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [online, setOnline] = useState(false);
+  const [roles, setRoles] = useState<Role[]>([]);
+
+  const cacheRoles = (r: Role[]) => { setRoles(r); AsyncStorage.setItem(ROLES_KEY, JSON.stringify(r)).catch(() => {}); };
+
+  // Pull the server copy of the profile + roles; quietly keep the cache if offline.
+  const sync = async (local: StudentProfile | null) => {
+    if (!backendConfigured) return;
+    try {
+      const r = await remoteProfile.me();
+      if (r) {
+        const merged = fromRemote(r, local);
+        setProfile(merged);
+        await AsyncStorage.setItem(KEY, JSON.stringify(merged));
+      }
+      cacheRoles(await remoteAdmin.myRoles());
+      setOnline(true);
+    } catch {
+      setOnline(false);
+    }
+  };
 
   useEffect(() => {
-    Promise.all([AsyncStorage.getItem(KEY), AsyncStorage.getItem(SESSION_KEY)])
-      .then(([v, s]) => {
+    Promise.all([AsyncStorage.getItem(KEY), AsyncStorage.getItem(SESSION_KEY), AsyncStorage.getItem(ROLES_KEY)])
+      .then(async ([v, s, r]) => {
+        let local: StudentProfile | null = null;
         if (v) {
           const p = JSON.parse(v) as StudentProfile;
           if (p && Array.isArray(p.courses) && p.courses.length === SLOTS.length) {
-            setProfile({ ...p, extraCourses: p.extraCourses || [] });
+            local = { ...p, extraCourses: p.extraCourses || [] };
+            setProfile(local);
             setSignedIn(s === '1');
           }
         }
+        if (r) { try { setRoles(JSON.parse(r)); } catch {} }
+        if (s === '1' && backendConfigured && (await remoteAuth.session())) await sync(local);
       })
       .catch(() => {})
       .finally(() => setLoaded(true));
   }, []);
 
-  const save = async (p: StudentProfile) => {
+  // Sign up (no session yet) or update (session exists). Throws with a
+  // readable message if the server refuses; the local copy is saved first so
+  // nothing typed is lost.
+  const save = async (p: StudentProfile, password?: string) => {
     setProfile(p);
     setSignedIn(true);
     await AsyncStorage.multiSet([[KEY, JSON.stringify(p)], [SESSION_KEY, '1']]);
+    if (!backendConfigured || !p.email) return;
+    try {
+      const session = await remoteAuth.session();
+      if (!session) {
+        if (!password) throw new Error('Password required to create the account.');
+        const res = await remoteAuth.signUp(p.email, password, {
+          first_name: p.firstName, last_name: p.lastName, grade: p.grade,
+          pronouns: p.pronouns, student_id: p.studentId,
+        });
+        // Email confirmation still on → no session yet. The account exists;
+        // the timetable is pushed on first sign-in.
+        if (!res.session) { setOnline(true); return; }
+      } else if (password) {
+        await remoteAuth.updatePassword(password);
+      }
+      await remoteProfile.update(toRemote(p));
+      await sync(p);
+    } catch (e) {
+      setOnline(false);
+      throw e;
+    }
   };
-  const signIn = async (identifier: string, password: string) => {
+
+  const localSignIn = async (identifier: string, password: string) => {
     if (!profile) return 'No account on this device yet. Sign up first.';
     const id = identifier.trim().toLowerCase();
     const idOk = id && (
@@ -173,18 +259,57 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     await AsyncStorage.setItem(SESSION_KEY, '1');
     return null;
   };
+
+  const signIn = async (identifier: string, password: string) => {
+    if (!backendConfigured) return localSignIn(identifier, password);
+    const email = toEmail(identifier, profile);
+    if (!email) return 'Use your school email (johnd907 or the full address).';
+    try {
+      await remoteAuth.signIn(email, password);
+    } catch (e: any) {
+      const msg = String(e?.message || '');
+      // Server reachable but said no → real error. Unreachable → cached account.
+      if (/network|fetch|timeout/i.test(msg)) return localSignIn(identifier, password);
+      return /invalid login/i.test(msg) ? 'Wrong email or password.' : msg;
+    }
+    const same = (profile?.email || '').toLowerCase() === email;
+    const base = { ...(same && profile ? profile : emptyProfile()), email, passwordHash: hashPassword(password) };
+    setProfile(base);
+    setSignedIn(true);
+    await AsyncStorage.multiSet([[KEY, JSON.stringify(base)], [SESSION_KEY, '1']]);
+    // Account made on this device before the server had it (or while email
+    // confirmation was pending): push the timetable up once.
+    if (same && base.courses.some(k => k.name)) {
+      const r = await remoteProfile.me().catch(() => null);
+      if (r && (!Array.isArray(r.timetable) || r.timetable.length === 0)) await remoteProfile.update(toRemote(base)).catch(() => {});
+    }
+    await sync(base);
+    return null;
+  };
+
   const signOut = async () => {
     setSignedIn(false);
     await AsyncStorage.removeItem(SESSION_KEY);
+    if (backendConfigured) await remoteAuth.signOut().catch(() => {});
   };
   const clear = async () => {
     setProfile(null);
     setSignedIn(false);
-    await AsyncStorage.multiRemove([KEY, SESSION_KEY]);
+    cacheRoles([]);
+    await AsyncStorage.multiRemove([KEY, SESSION_KEY, ROLES_KEY]);
+    if (backendConfigured) await remoteAuth.signOut().catch(() => {});
   };
 
+  const redeemInvite = async (code: string) => {
+    if (!backendConfigured) throw new Error('Backend not configured on this build.');
+    const role = await remoteAdmin.redeemInvite(code);
+    cacheRoles(await remoteAdmin.myRoles());
+    return role;
+  };
+  const refreshRoles = async () => { await sync(profile); };
+
   return (
-    <ProfileCtx.Provider value={{ profile, loaded, signedIn, save, signIn, signOut, clear }}>
+    <ProfileCtx.Provider value={{ profile, loaded, signedIn, online, roles, save, signIn, signOut, clear, redeemInvite, refreshRoles }}>
       {children}
     </ProfileCtx.Provider>
   );

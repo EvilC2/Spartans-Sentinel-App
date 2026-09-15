@@ -3,7 +3,7 @@
 //   Sign up: 1 About you (or scan the student ID card) · 2 School email, password, student # ·
 //     3 ID photo · 4 Day 1 blocks · 5 Day 2 blocks · 6 Classes outside the timetable · 7 Review.
 //   Sign in: school email or student number (barcode scan works too) + password. Checks the
-//     account saved on this device; sessions persist until Sign out.
+//     Spartans account (server, cached on this device); sessions persist until Sign out.
 //   Deliberately plain: function over looks. Re-used from Settings to edit.
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -132,6 +132,7 @@ const Questionnaire = ({ initial, onDone, onCancel, onBackToStart, topInset }: P
     : emptyProfile());
   const [i, setI] = useState(0);
   const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);   // talking to the server on Finish
   const [emailLocal, setEmailLocal] = useState(() => (initial?.email || '').split('@')[0]);
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
@@ -224,6 +225,7 @@ const Questionnaire = ({ initial, onDone, onCancel, onBackToStart, topInset }: P
   };
 
   const next = async () => {
+    if (busy) return;
     const e = validate();
     if (e) { setErr(e); return; }
     setErr(null);
@@ -238,7 +240,15 @@ const Questionnaire = ({ initial, onDone, onCancel, onBackToStart, topInset }: P
         courses: p.courses.map(k => ({ ...k, name: k.name.trim(), teacher: k.teacher.trim(), room: k.room.trim() })),
         extraCourses: p.extraCourses.map(k => ({ name: k.name.trim(), teacher: k.teacher.trim() })).filter(k => k.name),
       };
-      await save(clean);
+      try {
+        setBusy(true);
+        await save(clean, password || undefined);
+      } catch (e: any) {
+        setErr(String(e?.message || 'Could not reach the server. Check your connection and try again.'));
+        return;
+      } finally {
+        setBusy(false);
+      }
       onDone();
       return;
     }
@@ -312,7 +322,7 @@ const Questionnaire = ({ initial, onDone, onCancel, onBackToStart, topInset }: P
             <Text style={{ fontSize: 13, color: c.navy700, fontWeight: '600' }}>{showPw ? 'Hide' : 'Show'}</Text>
           </Pressable>
         </View>
-        <Text style={{ fontSize: 12, color: c.ink4, marginTop: 6 }}>Used to sign in on this device. Only you know it.</Text>
+        <Text style={{ fontSize: 12, color: c.ink4, marginTop: 6 }}>Used to sign in on any device. Only you know it.</Text>
         <ConfirmPassword
           visible={password.length > 0}
           value={confirm}
@@ -515,7 +525,7 @@ const Questionnaire = ({ initial, onDone, onCancel, onBackToStart, topInset }: P
         ) : (
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 24 }}>
             <Btn label="Back" onPress={back} secondary />
-            <Btn label={step === 'review' ? 'Finish' : 'Next'} onPress={next} />
+            <Btn label={step === 'review' ? (busy ? 'Saving…' : 'Finish') : 'Next'} onPress={next} />
           </View>
         )}
       </ScrollView>
@@ -532,7 +542,7 @@ const Questionnaire = ({ initial, onDone, onCancel, onBackToStart, topInset }: P
 
 // ────────────────────────────────────────────────────────────────
 // Sign in: email or student number (scan works) + password, against the
-// account saved on this device.
+// Spartans account on the server (falls back to the cached device account offline).
 // ────────────────────────────────────────────────────────────────
 const SignIn = ({ topInset, onDone, onBack }: { topInset: number; onDone: () => void; onBack: () => void }) => {
   const { c } = useTheme();
@@ -560,7 +570,7 @@ const SignIn = ({ topInset, onDone, onBack }: { topInset: number; onDone: () => 
         <Text style={{ fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase', fontWeight: '700', color: c.ink3 }}>Sign in</Text>
         <Text style={{ fontFamily: fonts.serif, fontSize: 28, color: c.ink, marginTop: 4, marginBottom: 12 }}>Welcome back</Text>
         <Text style={{ fontSize: 14, color: c.ink3, lineHeight: 20 }}>
-          {profile ? `Signed up on this device as ${fullName(profile)}.` : 'No account on this device yet. Go back and sign up.'}
+          {profile ? `Last signed in here as ${fullName(profile)}.` : 'Sign in with the school email and password you signed up with.'}
         </Text>
 
         <Text style={labelStyleFor(c)}>School email or student number</Text>

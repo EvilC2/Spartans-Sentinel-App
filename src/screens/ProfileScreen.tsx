@@ -7,7 +7,7 @@
 //   5. Sign out
 
 import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView, Alert, Platform } from 'react-native';
+import { View, Text, Pressable, ScrollView, Alert, Platform, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
 import { useTheme } from '../ThemeContext';
 import { fonts, shadow, tnum } from '../theme';
 import { Icon, IconName, Check } from '../components/Icon';
@@ -31,10 +31,11 @@ const toStu = (p: StudentProfile): Stu => ({
 
 export default function ProfileScreen({ onNavigate, topInset, onEditProfile }: ScreenProps) {
   const { c, mode, toggle } = useTheme();
-  const { profile, signOut: doSignOut } = useProfile();
+  const { profile, signOut: doSignOut, roles } = useProfile();
   const p = profile!;
   const stu = toStu(p);
   const [badges, setBadges] = useState(false);
+  const [adminOpen, setAdminOpen] = useState(false);
   const sheet = useClassSheet();
 
   const signOut = () => {
@@ -90,7 +91,7 @@ export default function ProfileScreen({ onNavigate, topInset, onEditProfile }: S
       {/* ── Settings list ───────────────────────────────────── */}
       <SectionHeader title="Settings" />
       <View style={{ paddingHorizontal: 20 }}>
-        <SettingsList mode={mode} onToggleTheme={toggle} onEditProfile={onEditProfile} email={p.email} />
+        <SettingsList mode={mode} onToggleTheme={toggle} onEditProfile={onEditProfile} email={p.email} roles={roles} onAdmin={() => setAdminOpen(true)} />
       </View>
 
       {/* ── Sign out ────────────────────────────────────────── */}
@@ -120,6 +121,7 @@ export default function ProfileScreen({ onNavigate, topInset, onEditProfile }: S
       </Text>
 
       <BadgesSheet visible={badges} onClose={() => setBadges(false)} />
+      <AdminSheet visible={adminOpen} onClose={() => setAdminOpen(false)} />
     </ScrollView>
   );
 }
@@ -266,8 +268,8 @@ const LevelLine = () => {
 // Settings list — Appearance row toggles light/dark
 // ────────────────────────────────────────────────────────────────
 const SettingsList = ({
-  mode, onToggleTheme, onEditProfile, email,
-}: { mode: 'light' | 'dark'; onToggleTheme: () => void; onEditProfile: () => void; email?: string }) => {
+  mode, onToggleTheme, onEditProfile, email, roles, onAdmin,
+}: { mode: 'light' | 'dark'; onToggleTheme: () => void; onEditProfile: () => void; email?: string; roles: string[]; onAdmin: () => void }) => {
   const { c } = useTheme();
   const items: {
     label: string; icon: IconName; sub: string | null; onPress?: () => void;
@@ -282,7 +284,10 @@ const SettingsList = ({
     },
     { label: 'Linked apps', icon: 'grid', sub: 'MyEdBC · Office 365' },
     { label: 'Help & support', icon: 'compass', sub: null },
-    { label: 'App Club Admin', icon: 'shield', sub: 'School App Club members: enter your invite code (phase 2)' },
+    {
+      label: 'App Club Admin', icon: 'shield', onPress: onAdmin,
+      sub: roles.length ? `Roles: ${roles.join(', ')}` : 'School App Club members: enter your invite code',
+    },
   ];
 
   return (
@@ -330,5 +335,120 @@ const SettingsRow = ({ it, isLast }: { it: any; isLast: boolean }) => {
       </View>
       <Icon name="chev-r" size={16} stroke={1.8} color={c.ink4} />
     </Pressable>
+  );
+};
+
+// ────────────────────────────────────────────────────────────────
+// App Club Admin — redeem an invite code. The code binds one role to this
+// account on the server (single use, expires); the server also decides what
+// that role may write. Owners can mint codes here too.
+// ────────────────────────────────────────────────────────────────
+const ROLE_OPTIONS = ['trivia', 'polls', 'news', 'menu', 'popups', 'badges', 'library', 'owner'] as const;
+
+const AdminSheet = ({ visible, onClose }: { visible: boolean; onClose: () => void }) => {
+  const { c } = useTheme();
+  const { roles, redeemInvite, online } = useProfile();
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [minted, setMinted] = useState<string | null>(null);
+  const isOwner = roles.includes('owner');
+
+  const redeem = async () => {
+    if (busy || !code.trim()) return;
+    setBusy(true); setMsg(null);
+    try {
+      const role = await redeemInvite(code);
+      setMsg({ ok: true, text: `You now have the ${role} role.` });
+      setCode('');
+    } catch (e: any) {
+      setMsg({ ok: false, text: String(e?.message || 'Could not redeem that code.') });
+    } finally { setBusy(false); }
+  };
+
+  const mint = async (role: string) => {
+    if (busy) return;
+    setBusy(true); setMsg(null);
+    try {
+      const { admin } = await import('../backend');
+      setMinted(await admin.createInvite(role as any));
+    } catch (e: any) {
+      setMsg({ ok: false, text: String(e?.message || 'Could not create a code.') });
+    } finally { setBusy(false); }
+  };
+
+  const field = { borderWidth: 1, borderColor: c.line, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: c.ink, backgroundColor: c.surface } as const;
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: c.paper }}>
+        <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 28, gap: 12 }} keyboardShouldPersistTaps="handled">
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={{ fontFamily: fonts.serif, fontSize: 26, color: c.ink }}>App Club Admin</Text>
+            <Pressable onPress={onClose} hitSlop={12}><Text style={{ fontSize: 15, color: c.navy700, fontWeight: '600' }}>Done</Text></Pressable>
+          </View>
+          <Text style={{ fontSize: 14, color: c.ink3, lineHeight: 20 }}>
+            {roles.length ? `Your roles: ${roles.join(', ')}.` : 'No roles yet.'}
+            {' '}Got an invite code from the club? Enter it once; the role sticks to this account.
+          </Text>
+          {!online && (
+            <Text style={{ fontSize: 13, color: c.crimson }}>Offline — codes need a connection.</Text>
+          )}
+
+          <TextInput
+            value={code}
+            onChangeText={t => setCode(t.toUpperCase())}
+            placeholder="INVITE CODE"
+            placeholderTextColor={c.ink4}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            style={field}
+            onSubmitEditing={redeem}
+          />
+          <Pressable
+            onPress={redeem}
+            disabled={busy || !code.trim()}
+            style={({ pressed }) => ({
+              backgroundColor: c.navy700, borderRadius: 12, paddingVertical: 13, alignItems: 'center',
+              opacity: busy || !code.trim() ? 0.5 : pressed ? 0.85 : 1,
+            })}
+          >
+            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>{busy ? 'Checking…' : 'Redeem code'}</Text>
+          </Pressable>
+          {msg && (
+            <Text style={{ fontSize: 14, color: msg.ok ? c.moss : c.crimson }}>{msg.text}</Text>
+          )}
+
+          {isOwner && (
+            <View style={{ marginTop: 20, gap: 10 }}>
+              <SectionHeader title="Create an invite code" />
+              <Text style={{ fontSize: 13, color: c.ink3, lineHeight: 18 }}>
+                Owner only. Tap a role; the code works once and expires in 7 days. Send it to the member privately.
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                {ROLE_OPTIONS.map(r => (
+                  <Pressable
+                    key={r}
+                    onPress={() => mint(r)}
+                    style={({ pressed }) => ({
+                      paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999,
+                      borderWidth: 1, borderColor: c.line, backgroundColor: pressed ? c.navy50 : c.surface,
+                    })}
+                  >
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: c.ink }}>{r}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              {minted && (
+                <View style={{ borderWidth: 1, borderColor: c.line, borderRadius: 12, padding: 14, backgroundColor: c.surface }}>
+                  <Text style={{ fontSize: 12, color: c.ink3 }}>New code</Text>
+                  <Text selectable style={[{ fontSize: 24, fontWeight: '700', color: c.ink, letterSpacing: 2 }, tnum]}>{minted}</Text>
+                </View>
+              )}
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </Modal>
   );
 };
