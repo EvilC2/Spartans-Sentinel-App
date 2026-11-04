@@ -4,8 +4,13 @@
 // clock, so a previewed time keeps ticking. Remove once the live card has
 // been signed off — nothing else depends on this file except useToday and
 // the floating play button on the home screen.
+// `tools`: whether the TEMP controls show at all. Off until a developer
+// switches them on in App Club → Developer tools; remembered on this phone.
 
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const TOOLS_KEY = 'spartans-temp-tools-v1';
 
 type Ctx = {
   offsetMs: number;                       // 0 = live
@@ -13,14 +18,23 @@ type Ctx = {
   setTimeOfDay: (h: number, m: number) => void;
   shiftMinutes: (mins: number) => void;
   clear: () => void;
+  tools: boolean;
+  setTools: (on: boolean) => void;
 };
 
 const PreviewCtx = createContext<Ctx>({
-  offsetMs: 0, active: false, setTimeOfDay: () => {}, shiftMinutes: () => {}, clear: () => {},
+  offsetMs: 0, active: false, setTimeOfDay: () => {}, shiftMinutes: () => {}, clear: () => {}, tools: false, setTools: () => {},
 });
 
 export const PreviewTimeProvider = ({ children }: { children: React.ReactNode }) => {
   const [offsetMs, setOffset] = useState(0);
+  const [tools, setToolsState] = useState(false);
+  useEffect(() => { AsyncStorage.getItem(TOOLS_KEY).then(v => setToolsState(v === '1')).catch(() => {}); }, []);
+  const setTools = useCallback((on: boolean) => {
+    setToolsState(on);
+    if (!on) setOffset(0);
+    AsyncStorage.setItem(TOOLS_KEY, on ? '1' : '0').catch(() => {});
+  }, []);
 
   const setTimeOfDay = useCallback((h: number, m: number) => {
     const real = new Date();
@@ -31,8 +45,8 @@ export const PreviewTimeProvider = ({ children }: { children: React.ReactNode })
   const clear = useCallback(() => setOffset(0), []);
 
   const value = useMemo(() => ({
-    offsetMs, active: offsetMs !== 0, setTimeOfDay, shiftMinutes, clear,
-  }), [offsetMs, setTimeOfDay, shiftMinutes, clear]);
+    offsetMs, active: offsetMs !== 0, setTimeOfDay, shiftMinutes, clear, tools, setTools,
+  }), [offsetMs, setTimeOfDay, shiftMinutes, clear, tools, setTools]);
 
   return <PreviewCtx.Provider value={value}>{children}</PreviewCtx.Provider>;
 };

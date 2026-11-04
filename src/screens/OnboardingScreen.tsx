@@ -1,10 +1,14 @@
 // Spartans — sign up / sign in.
-// Splash ("Spartans · Sentinel Secondary's unofficial app", Sign up / Sign in) →
+// Splash (same art as the loading screen, see components/SplashHero, + Sign up / Sign in) →
 //   Sign up: 1 About you (or scan the student ID card) · 2 School email, password, student # ·
 //     3 ID photo · 4 Day 1 blocks · 5 Day 2 blocks · 6 Classes outside the timetable · 7 Review.
 //   Sign in: school email or student number (barcode scan works too) + password. Checks the
 //     Spartans account (server, cached on this device); sessions persist until Sign out.
-//   Deliberately plain: function over looks. Re-used from Settings to edit.
+//   Deliberately plain: function over looks.
+// ProfileEditor re-uses the same pages from Settings, split in two: Edit profile
+//   (About you · School ID · Photo) and Edit classes (Day 1 · Day 2 · Outside).
+//   No steps or review: jump between tabs, Save any time. The password is not
+//   here; it lives in Settings → Account & privacy.
 
 import React, { useEffect, useRef, useState } from 'react';
 import {
@@ -13,8 +17,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { useTheme } from '../ThemeContext';
 import { fonts } from '../theme';
-import { SentinelCrestLarge } from '../components/Crest';
-import { SpartanMark } from '../components/Chrome';
+import { SplashBackground, SilverSpartan, SplashTitle } from '../components/SplashHero';
 import {
   StudentProfile, emptyProfile, Slot, SLOTS, HOMEROOM_SLOT, Course, ExtraCourse, useProfile,
   fullName, EMAIL_DOMAIN, isValidEmailLocal, roomProblem, normalizeRoom, matchRooms, roomShort,
@@ -25,6 +28,7 @@ import { Icon } from '../components/Icon';
 import IdScanner, { ScanMode, ScanResult } from '../components/IdScanner';
 import { Portrait } from '../components/StudentIdCard';
 import { ocrAvailable, persistPhoto } from '../idScan';
+import { ask } from '../confirm';
 
 type Props = {
   initial?: StudentProfile | null;
@@ -33,10 +37,19 @@ type Props = {
   topInset: number;
 };
 
+export type EditWhat = 'profile' | 'classes';
+
 const GRADES = [8, 9, 10, 11, 12];
 const PRONOUNS = ['he/him', 'she/her', 'they/them'];
 const STEPS = ['about', 'school', 'photo', 'day1', 'day2', 'extras', 'review'] as const;
 type StepId = typeof STEPS[number];
+const EDIT_STEPS: Record<EditWhat, readonly StepId[]> = {
+  profile: ['about', 'school', 'photo'],
+  classes: ['day1', 'day2', 'extras'],
+};
+const TAB_LABEL: Record<StepId, string> = {
+  about: 'About you', school: 'School ID', photo: 'Photo', day1: 'Day 1', day2: 'Day 2', extras: 'Outside', review: 'Review',
+};
 
 // ════════════════════════════════════════════════════════════════
 export default function OnboardingScreen({ initial, onDone, onCancel, topInset }: Props) {
@@ -54,6 +67,12 @@ export default function OnboardingScreen({ initial, onDone, onCancel, topInset }
   );
 }
 
+// Settings → Edit profile / Edit classes.
+export function ProfileEditor({ what, onDone, onCancel, topInset }: { what: EditWhat; onDone: () => void; onCancel: () => void; topInset: number }) {
+  const { profile } = useProfile();
+  return <Questionnaire initial={profile} edit={what} onDone={onDone} onCancel={onCancel} topInset={topInset} />;
+}
+
 // ────────────────────────────────────────────────────────────────
 // Splash — crest + school name + Enter. Enter plays a short animation
 // (crest swells, card lifts, everything fades) and then hands off.
@@ -65,13 +84,13 @@ const Splash = ({ topInset, onEnter }: { topInset: number; onEnter: (m: 'signup'
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    Animated.timing(intro, { toValue: 1, duration: 600, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    Animated.timing(intro, { toValue: 1, duration: 350, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, [intro]);
 
   const enter = (m: 'signup' | 'signin') => {
     if (busy) return;
     setBusy(true);
-    Animated.timing(t, { toValue: 1, duration: 650, easing: Easing.inOut(Easing.cubic), useNativeDriver: true })
+    Animated.timing(t, { toValue: 1, duration: 320, easing: Easing.inOut(Easing.cubic), useNativeDriver: true })
       .start(() => onEnter(m));
   };
 
@@ -81,23 +100,12 @@ const Splash = ({ topInset, onEnter }: { topInset: number; onEnter: (m: 'signup'
   const introRise = intro.interpolate({ inputRange: [0, 1], outputRange: [16, 0] });
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.navy900, alignItems: 'center', justifyContent: 'center', paddingTop: topInset }}>
+    <SplashBackground style={{ alignItems: 'center', justifyContent: 'center', paddingTop: topInset }}>
       <Animated.View style={{ alignItems: 'center', opacity: Animated.multiply(intro, fade), transform: [{ translateY: Animated.add(introRise, rise) }] }}>
         <Animated.View style={{ transform: [{ scale: crestScale }], marginBottom: 28 }}>
-          <SpartanMark size={72} color="#fff" />
+          <SilverSpartan />
         </Animated.View>
-        <Text style={{ fontSize: 11, letterSpacing: 2.4, textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', fontWeight: '600' }}>
-          Sentinel Secondary
-        </Text>
-        <Text style={{ fontFamily: fonts.serif, fontSize: 44, color: '#fff', marginTop: 4, textAlign: 'center', letterSpacing: -1 }}>
-          Spartans
-        </Text>
-        <Text style={{ fontFamily: 'Newsreader_400Regular_Italic', fontSize: 15, color: 'rgba(255,255,255,0.6)', marginTop: 6 }}>
-          Sentinel Secondary's unofficial app
-        </Text>
-        <View style={{ marginTop: 14, opacity: 0.35 }}>
-          <SentinelCrestLarge color="#fff" size={26} />
-        </View>
+        <SplashTitle />
         <Pressable
           onPress={() => enter('signup')}
           style={({ pressed }) => ({
@@ -117,14 +125,14 @@ const Splash = ({ topInset, onEnter }: { topInset: number; onEnter: (m: 'signup'
           <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', letterSpacing: 0.4 }}>Sign in</Text>
         </Pressable>
       </Animated.View>
-    </View>
+    </SplashBackground>
   );
 };
 
 // ────────────────────────────────────────────────────────────────
 // Questionnaire
 // ────────────────────────────────────────────────────────────────
-const Questionnaire = ({ initial, onDone, onCancel, onBackToStart, topInset }: Props & { onBackToStart?: () => void }) => {
+const Questionnaire = ({ initial, onDone, onCancel, onBackToStart, topInset, edit }: Props & { onBackToStart?: () => void; edit?: EditWhat }) => {
   const { c } = useTheme();
   const { save } = useProfile();
   const [p, setP] = useState<StudentProfile>(() => initial
@@ -141,7 +149,8 @@ const Questionnaire = ({ initial, onDone, onCancel, onBackToStart, topInset }: P
   const emailRef = useRef<TextInput>(null);
   const [scan, setScan] = useState<ScanMode | null>(null);
   const [note, setNote] = useState<string | null>(null);   // "Filled from your card: …"
-  const step: StepId = STEPS[i];
+  const steps = edit ? EDIT_STEPS[edit] : STEPS;
+  const step: StepId = steps[i];
 
   const set = (patch: Partial<StudentProfile>) => setP(x => ({ ...x, ...patch }));
   const setCourse = (slot: Slot, patch: Partial<Course>) =>
@@ -202,10 +211,10 @@ const Questionnaire = ({ initial, onDone, onCancel, onBackToStart, topInset }: P
     set({ photoUri: await persistPhoto(res.assets[0].uri) });
   };
 
-  const validate = (): string | null => {
-    if (step === 'about' && !p.firstName.trim()) return 'First name is required.';
-    if (step === 'about' && !p.lastName.trim()) return 'Last name is required.';
-    if (step === 'school') {
+  const validate = (s: StepId = step): string | null => {
+    if (s === 'about' && !p.firstName.trim()) return 'First name is required.';
+    if (s === 'about' && !p.lastName.trim()) return 'Last name is required.';
+    if (s === 'school') {
       if (!emailLocal.trim()) return 'School email is required.';
       if (!emailOk) return 'Email should be your name, last initial and 3 digits, like johnd907.';
       if (!initial || password) {
@@ -213,8 +222,8 @@ const Questionnaire = ({ initial, onDone, onCancel, onBackToStart, topInset }: P
         if (confirm !== password) return 'The two passwords do not match.';
       }
     }
-    if (step === 'day1' || step === 'day2') {
-      const day = step === 'day1' ? '1-' : '2-';
+    if (s === 'day1' || s === 'day2') {
+      const day = s === 'day1' ? '1-' : '2-';
       const mine = p.courses.filter(k => k.slot.startsWith(day));
       const missing = mine.filter(k => !k.spare && !k.name.trim()).map(k => k.slot);
       if (missing.length) return `Enter a course for block ${missing.join(', ')}, or mark it Spare.`;
@@ -224,279 +233,408 @@ const Questionnaire = ({ initial, onDone, onCancel, onBackToStart, topInset }: P
     return null;
   };
 
+  const finish = async () => {
+    const clean: StudentProfile = {
+      ...p,
+      firstName: p.firstName.trim(), lastName: p.lastName.trim(),
+      pronouns: p.pronouns?.trim(), studentId: p.studentId?.trim(),
+      email: email || initial?.email || '',
+      passwordHash: password ? hashPassword(password) : (initial?.passwordHash || ''),
+      courses: p.courses.map(k => ({ ...k, name: k.name.trim(), teacher: k.teacher.trim(), room: k.room.trim() })),
+      extraCourses: p.extraCourses.map(k => ({ name: k.name.trim(), teacher: k.teacher.trim(), kind: k.kind })).filter(k => k.name),
+    };
+    try {
+      setBusy(true);
+      await save(clean, password || undefined);
+    } catch (e: any) {
+      setErr(String(e?.message || 'Could not reach the server. Check your connection and try again.'));
+      return;
+    } finally {
+      setBusy(false);
+    }
+    onDone();
+  };
+
   const next = async () => {
     if (busy) return;
     const e = validate();
     if (e) { setErr(e); return; }
     setErr(null);
     setNote(null);
-    if (step === 'review') {
-      const clean: StudentProfile = {
-        ...p,
-        firstName: p.firstName.trim(), lastName: p.lastName.trim(),
-        pronouns: p.pronouns?.trim(), studentId: p.studentId?.trim(),
-        email,
-        passwordHash: password ? hashPassword(password) : (initial?.passwordHash || ''),
-        courses: p.courses.map(k => ({ ...k, name: k.name.trim(), teacher: k.teacher.trim(), room: k.room.trim() })),
-        extraCourses: p.extraCourses.map(k => ({ name: k.name.trim(), teacher: k.teacher.trim() })).filter(k => k.name),
-      };
-      try {
-        setBusy(true);
-        await save(clean, password || undefined);
-      } catch (e: any) {
-        setErr(String(e?.message || 'Could not reach the server. Check your connection and try again.'));
-        return;
-      } finally {
-        setBusy(false);
-      }
-      onDone();
-      return;
-    }
+    if (step === 'review') { await finish(); return; }
     setI(i + 1);
+  };
+
+  // Edit mode: check every tab, jump to the first one with a problem.
+  const saveEdits = async () => {
+    if (busy) return;
+    for (let j = 0; j < steps.length; j++) {
+      const e = validate(steps[j]);
+      if (e) { setI(j); setErr(e); return; }
+    }
+    setErr(null);
+    setNote(null);
+    await finish();
+  };
+  const dirty = () => !!initial && (
+    JSON.stringify(p) !== JSON.stringify(initial) || emailLocal !== (initial.email || '').split('@')[0] || password !== ''
+  );
+  const cancelEdits = async () => {
+    if (dirty() && !(await ask('Discard changes?', 'Nothing you changed here will be saved.', 'Discard', true))) return;
+    onCancel?.();
   };
   const back = () => { setErr(null); setNote(null); setI(Math.max(0, i - 1)); };
 
-  let title = '';
-  let body: React.ReactNode = null;
+  const view = (s: StepId) => {
+    let title = '';
+    let body: React.ReactNode = null;
 
-  if (step === 'about') {
-    title = initial ? 'Edit your profile' : 'Welcome to Spartans';
-    body = (
-      <View>
-        <Text style={{ fontSize: 14, color: c.ink3, lineHeight: 20 }}>
-          {initial ? 'Change anything below.' : "Sentinel Secondary's unofficial app, run by the School App Club. Tell us who you are. You can change this later in Settings."}
-        </Text>
-        <ScanCard
-          title="Scan your student ID card"
-          sub={ocrAvailable ? 'Fills in your name, grade, homeroom and student number.' : 'Reads your student number from the barcode.'}
-          onPress={() => setScan('card')}
-        />
-        <Text style={{ fontSize: 12, color: c.ink4, marginTop: 12, textAlign: 'center' }}>or type it in</Text>
-        <Field l="First name" value={p.firstName} onChange={v => set({ firstName: v })} placeholder="John" />
-        <Field l="Last name" value={p.lastName} onChange={v => set({ lastName: v })} placeholder="Doe" />
-        <Text style={labelStyleFor(c)}>Grade</Text>
-        <Choice options={GRADES.map(String)} value={String(p.grade)} onChange={v => set({ grade: Number(v) })} />
-        <Text style={labelStyleFor(c)}>Pronouns (optional)</Text>
-        <Choice options={PRONOUNS} value={p.pronouns} onChange={v => set({ pronouns: v })} allowNone />
-        <TextInput
-          value={PRONOUNS.includes(p.pronouns || '') ? '' : p.pronouns || ''}
-          onChangeText={v => set({ pronouns: v })}
-          placeholder="or type your own"
-          placeholderTextColor={c.ink4}
-          autoCapitalize="none"
-          style={[inputStyleFor(c), { marginTop: 8 }]}
-        />
-      </View>
-    );
-  } else if (step === 'school') {
-    title = 'School email & password';
-    body = (
-      <View>
-        <Text style={{ fontSize: 14, color: c.ink3, lineHeight: 20 }}>
-          Your school email and a password for this app.
-        </Text>
-        <Text style={labelStyleFor(c)}>School email</Text>
-        <EmailRow
-          inputRef={emailRef}
-          value={emailLocal}
-          onChangeText={v => setEmailLocal(v.replace(/[^A-Za-z0-9]/g, '').toLowerCase())}
-        />
-        <EmailLegend />
-        {!!emailLocal && !emailOk && (
-          <Text style={{ fontSize: 12, color: c.crimson, marginTop: 6 }}>Should be letters then 3 digits, like johnd907.</Text>
-        )}
-
-        <Text style={labelStyleFor(c)}>{initial ? 'New password (leave blank to keep)' : 'Password'}</Text>
-        <View style={[inputStyleFor(c), { flexDirection: 'row', alignItems: 'center', paddingVertical: 0 }]}>
-          <TextInput
-            value={password}
-            onChangeText={setPassword}
-            placeholder={`At least ${MIN_PASSWORD} characters`}
-            placeholderTextColor={c.ink4}
-            secureTextEntry={!showPw}
-            autoCapitalize="none"
-            autoCorrect={false}
-            style={{ flex: 1, fontSize: 16, color: c.ink, paddingVertical: 11 }}
+    if (s === 'about') {
+      title = edit ? 'About you' : initial ? 'Edit your profile' : 'Welcome to Spartans';
+      body = (
+        <View>
+          <Text style={{ fontSize: 14, color: c.ink3, lineHeight: 20 }}>
+            {initial ? 'Change anything below.' : "Sentinel Secondary's unofficial app, run by the School App Club. Tell us who you are. You can change this later in Settings."}
+          </Text>
+          <ScanCard
+            title="Scan your student ID card"
+            sub={ocrAvailable ? 'Fills in your name, grade, homeroom and student number.' : 'Reads your student number from the barcode.'}
+            onPress={() => setScan('card')}
           />
-          <Pressable onPress={() => setShowPw(v => !v)} hitSlop={8}>
-            <Text style={{ fontSize: 13, color: c.navy700, fontWeight: '600' }}>{showPw ? 'Hide' : 'Show'}</Text>
-          </Pressable>
+          <Text style={{ fontSize: 12, color: c.ink4, marginTop: 12, textAlign: 'center' }}>or type it in</Text>
+          <Field l="First name" value={p.firstName} onChange={v => set({ firstName: v })} placeholder="John" />
+          <Field l="Last name" value={p.lastName} onChange={v => set({ lastName: v })} placeholder="Doe" />
+          <Text style={labelStyleFor(c)}>Grade</Text>
+          <Choice options={GRADES.map(String)} value={String(p.grade)} onChange={v => set({ grade: Number(v) })} />
+          <Text style={labelStyleFor(c)}>Pronouns (optional)</Text>
+          <Choice options={PRONOUNS} value={p.pronouns} onChange={v => set({ pronouns: v })} allowNone />
+          <TextInput
+            value={PRONOUNS.includes(p.pronouns || '') ? '' : p.pronouns || ''}
+            onChangeText={v => set({ pronouns: v })}
+            placeholder="or type your own"
+            placeholderTextColor={c.ink4}
+            autoCapitalize="none"
+            style={[inputStyleFor(c), { marginTop: 8 }]}
+          />
         </View>
-        <Text style={{ fontSize: 12, color: c.ink4, marginTop: 6 }}>Used to sign in on any device. Only you know it.</Text>
-        <ConfirmPassword
-          visible={password.length > 0}
-          value={confirm}
-          onChange={setConfirm}
-          show={showPw}
-          match={confirm.length > 0 && confirm === password}
-          mismatch={confirm.length > 0 && confirm !== password}
-        />
-
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
-          <View style={{ flex: 1 }}>
-            <Field l="Student number (optional)" value={p.studentId} onChange={v => set({ studentId: v.replace(/\D/g, '').slice(0, 8) })} placeholder="1234567" keyboard="number-pad" />
-          </View>
-          <Pressable
-            onPress={() => setScan('barcode')}
-            style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, backgroundColor: c.navy700, opacity: pressed ? 0.7 : 1 })}
-          >
-            <Icon name="scan" size={16} stroke={2} color="#fff" />
-            <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Scan</Text>
-          </Pressable>
-        </View>
-        <Text style={{ fontSize: 12, color: c.ink4, marginTop: 6 }}>The 7 digits under the barcode on your ID card.</Text>
-      </View>
-    );
-  } else if (step === 'photo') {
-    title = 'Your ID photo';
-    body = (
-      <View>
-        <Text style={{ fontSize: 14, color: c.ink3, lineHeight: 20 }}>
-          For your digital student ID. Optional.
-        </Text>
-        <View style={{ alignItems: 'center', marginTop: 20 }}>
-          <Portrait p={p} w={120} h={150} />
-        </View>
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
-          <PhotoBtn icon="camera" label="Take photo" onPress={() => pickPhoto(true)} />
-          <PhotoBtn icon="image" label="Upload photo" onPress={() => pickPhoto(false)} />
-        </View>
-        {!!p.photoUri && (
-          <Pressable onPress={() => set({ photoUri: '' })} hitSlop={8} style={{ alignSelf: 'center', marginTop: 12 }}>
-            <Text style={{ fontSize: 13, color: c.crimson, fontWeight: '600' }}>Remove photo</Text>
-          </Pressable>
-        )}
-        <Pressable
-          onPress={() => setScan('qr')}
-          style={({ pressed }) => ({ flexDirection: 'row', gap: 12, alignItems: 'center', marginTop: 18, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: c.line, backgroundColor: c.paper2, opacity: pressed ? 0.7 : 1 })}
-        >
-          <View style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: c.navy50, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name="qr" size={18} stroke={1.8} color={c.navy700} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: c.ink }}>Want your official school photo?</Text>
-            <Text style={{ fontSize: 12, color: c.ink3, lineHeight: 17, marginTop: 2 }}>
-              Scan the QR on the back of your card, save the portrait, then tap Upload photo.
-            </Text>
-          </View>
-          <Icon name="chev-r" size={16} stroke={1.8} color={c.ink4} />
-        </Pressable>
-        {!!p.artonaUrl && (
-          <Pressable onPress={() => Linking.openURL(p.artonaUrl!).catch(() => {})} hitSlop={6} style={{ marginTop: 8 }}>
-            <Text style={{ fontSize: 12, color: c.navy700, fontWeight: '600' }}>Open your saved portrait link again</Text>
-          </Pressable>
-        )}
-      </View>
-    );
-  } else if (step === 'day1' || step === 'day2') {
-    const day = step === 'day1' ? 1 : 2;
-    title = `Day ${day} blocks`;
-    body = (
-      <View>
-        {SLOTS.filter(sl => sl.startsWith(`${day}-`)).map(slot => {
-          const k = p.courses.find(x => x.slot === slot)!;
-          const rp = k.spare ? null : roomProblem(k.room);
-          return (
-            <View key={slot} style={{ borderWidth: 1, borderColor: c.line, borderRadius: 12, padding: 12, marginTop: 10, backgroundColor: c.paper2 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: k.color }} />
-                <Text style={{ fontSize: 13, fontWeight: '700', color: c.ink }}>Block {slot}</Text>
-                {slot === HOMEROOM_SLOT && (
-                  <Text style={{ fontSize: 11, fontWeight: '500', color: c.ink3, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 }}>Homeroom</Text>
-                )}
-                <View style={{ flex: 1 }} />
-                <SpareToggle on={!!k.spare} onChange={v => setSpare(slot, v)} />
+      );
+    } else if (s === 'school') {
+      title = edit ? 'School email & student number' : 'School email & password';
+      body = (
+        <View>
+          <Text style={{ fontSize: 14, color: c.ink3, lineHeight: 20 }}>
+            {edit ? 'To change your password, go to Settings → Account & privacy.' : 'Your school email and a password for this app.'}
+          </Text>
+          <Text style={labelStyleFor(c)}>School email</Text>
+          {edit && !!initial?.email ? (
+            <>
+              {/* The email is the sign-in, so it is shown, not edited. */}
+              <View style={[inputStyleFor(c), { backgroundColor: c.paper2 }]}>
+                <Text style={{ fontSize: 16, color: c.ink2 }} numberOfLines={1}>{initial.email}</Text>
               </View>
-              {!k.spare && (
-                <>
-                  <AutoField
-                    l={slot.endsWith('-4') ? 'Course or academy' : 'Course'}
-                    value={k.name}
-                    onChange={v => setCourse(slot, { name: v })}
-                    suggest={q => matchCourses(q, p.grade, { lastBlock: slot.endsWith('-4') })}
-                    placeholder={slot.endsWith('-4') ? 'Chemistry 11 or Soccer Academy' : 'Chemistry 11'}
-                    hint={slot.endsWith('-4') ? 'Academies run in the last block. Type "academy" to pick one.' : undefined}
-                  />
-                  <AutoField
-                    l="Teacher"
-                    value={k.teacher}
-                    onChange={v => setCourse(slot, { teacher: v })}
-                    suggest={q => matchTeachers(q).map(teacherLabel)}
-                    placeholder="Last name"
-                  />
-                  <AutoField
-                    l="Room"
-                    value={k.room}
-                    onChange={v => setCourse(slot, { room: normalizeRoom(v) })}
-                    suggest={matchRooms}
-                    placeholder="213, 149A or PORT"
-                    autoCap="characters"
-                    error={rp}
-                  />
-                </>
+              <Text style={{ fontSize: 12, color: c.ink4, marginTop: 6 }}>This is how you sign in, so it can't be changed.</Text>
+            </>
+          ) : (
+            <>
+              <EmailRow
+                inputRef={emailRef}
+                value={emailLocal}
+                onChangeText={v => setEmailLocal(v.replace(/[^A-Za-z0-9]/g, '').toLowerCase())}
+              />
+              <EmailLegend />
+              {!!emailLocal && !emailOk && (
+                <Text style={{ fontSize: 12, color: c.crimson, marginTop: 6 }}>Should be letters then 3 digits, like johnd907.</Text>
               )}
-              {k.spare && <Text style={{ fontSize: 13, color: c.ink3, marginTop: 8 }}>Spare block</Text>}
+            </>
+          )}
+
+          {!edit && <>
+          <Text style={labelStyleFor(c)}>{initial ? 'New password (leave blank to keep)' : 'Password'}</Text>
+          <View style={[inputStyleFor(c), { flexDirection: 'row', alignItems: 'center', paddingVertical: 0 }]}>
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder={`At least ${MIN_PASSWORD} characters`}
+              placeholderTextColor={c.ink4}
+              secureTextEntry={!showPw}
+              autoCapitalize="none"
+              autoCorrect={false}
+              style={{ flex: 1, fontSize: 16, color: c.ink, paddingVertical: 11 }}
+            />
+            <Pressable onPress={() => setShowPw(v => !v)} hitSlop={8}>
+              <Text style={{ fontSize: 13, color: c.navy700, fontWeight: '600' }}>{showPw ? 'Hide' : 'Show'}</Text>
+            </Pressable>
+          </View>
+          <Text style={{ fontSize: 12, color: c.ink4, marginTop: 6 }}>Used to sign in on any device. Only you know it.</Text>
+          <ConfirmPassword
+            visible={password.length > 0}
+            value={confirm}
+            onChange={setConfirm}
+            show={showPw}
+            match={confirm.length > 0 && confirm === password}
+            mismatch={confirm.length > 0 && confirm !== password}
+          />
+          </>}
+
+          <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
+            <View style={{ flex: 1 }}>
+              <Field l="Student number (optional)" value={p.studentId} onChange={v => set({ studentId: v.replace(/\D/g, '').slice(0, 8) })} placeholder="1234567" keyboard="number-pad" />
             </View>
-          );
-        })}
-      </View>
-    );
-  } else if (step === 'extras') {
-    title = 'Anything outside the timetable?';
-    body = (
-      <View>
-        <Text style={{ fontSize: 14, color: c.ink3, lineHeight: 20 }}>
-          Classes, clubs and teams outside your 8 blocks: Theatre Company, Choir, YELL, Student Council, a Spartans team. Optional.
-        </Text>
-        {p.extraCourses.map((x, idx) => (
-          <View key={idx} style={{ borderWidth: 1, borderColor: c.line, borderRadius: 12, padding: 12, marginTop: 12, backgroundColor: c.paper2 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Text style={{ fontSize: 13, fontWeight: '700', color: c.ink }}>Extra class {idx + 1}</Text>
-              <Pressable onPress={() => set({ extraCourses: p.extraCourses.filter((_, j) => j !== idx) })} hitSlop={8}>
-                <Text style={{ fontSize: 13, color: c.crimson, fontWeight: '600' }}>Remove</Text>
-              </Pressable>
+            <Pressable
+              onPress={() => setScan('barcode')}
+              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 10, backgroundColor: c.navy700, opacity: pressed ? 0.7 : 1 })}
+            >
+              <Icon name="scan" size={16} stroke={2} color="#fff" />
+              <Text style={{ color: '#fff', fontWeight: '600', fontSize: 14 }}>Scan</Text>
+            </Pressable>
+          </View>
+          <Text style={{ fontSize: 12, color: c.ink4, marginTop: 6 }}>The 7 digits under the barcode on your ID card.</Text>
+        </View>
+      );
+    } else if (s === 'photo') {
+      title = 'Your ID photo';
+      body = (
+        <View>
+          <Text style={{ fontSize: 14, color: c.ink3, lineHeight: 20 }}>
+            For your digital student ID. Optional.
+          </Text>
+          <View style={{ alignItems: 'center', marginTop: 20 }}>
+            <Portrait p={p} w={120} h={150} />
+          </View>
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
+            <PhotoBtn icon="camera" label="Take photo" onPress={() => pickPhoto(true)} />
+            <PhotoBtn icon="image" label="Upload photo" onPress={() => pickPhoto(false)} />
+          </View>
+          {!!p.photoUri && (
+            <Pressable onPress={() => set({ photoUri: '' })} hitSlop={8} style={{ alignSelf: 'center', marginTop: 12 }}>
+              <Text style={{ fontSize: 13, color: c.crimson, fontWeight: '600' }}>Remove photo</Text>
+            </Pressable>
+          )}
+          <Pressable
+            onPress={() => setScan('qr')}
+            style={({ pressed }) => ({ flexDirection: 'row', gap: 12, alignItems: 'center', marginTop: 18, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: c.line, backgroundColor: c.paper2, opacity: pressed ? 0.7 : 1 })}
+          >
+            <View style={{ width: 34, height: 34, borderRadius: 9, backgroundColor: c.navy50, alignItems: 'center', justifyContent: 'center' }}>
+              <Icon name="qr" size={18} stroke={1.8} color={c.navy700} />
             </View>
-            <AutoField l="Class, club or team" value={x.name} onChange={v => setExtra(idx, { name: v })} suggest={q => matchExtras(q, p.grade)} placeholder="Theatre Company, YELL, Sr. Boys Soccer" />
-            <AutoField l="Teacher" value={x.teacher} onChange={v => setExtra(idx, { teacher: v })} suggest={q => matchTeachers(q).map(teacherLabel)} placeholder="Last name" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 13, fontWeight: '600', color: c.ink }}>Want your official school photo?</Text>
+              <Text style={{ fontSize: 12, color: c.ink3, lineHeight: 17, marginTop: 2 }}>
+                Scan the QR on the back of your card, save the portrait, then tap Upload photo.
+              </Text>
+            </View>
+            <Icon name="chev-r" size={16} stroke={1.8} color={c.ink4} />
+          </Pressable>
+          {!!p.artonaUrl && (
+            <Pressable onPress={() => Linking.openURL(p.artonaUrl!).catch(() => {})} hitSlop={6} style={{ marginTop: 8 }}>
+              <Text style={{ fontSize: 12, color: c.navy700, fontWeight: '600' }}>Open your saved portrait link again</Text>
+            </Pressable>
+          )}
+        </View>
+      );
+    } else if (s === 'day1' || s === 'day2') {
+      const day = s === 'day1' ? 1 : 2;
+      title = `Day ${day} blocks`;
+      body = (
+        <View>
+          {SLOTS.filter(sl => sl.startsWith(`${day}-`)).map(slot => {
+            const k = p.courses.find(x => x.slot === slot)!;
+            const rp = k.spare ? null : roomProblem(k.room);
+            return (
+              <View key={slot} style={{ borderWidth: 1, borderColor: c.line, borderRadius: 12, padding: 12, marginTop: 10, backgroundColor: c.paper2 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: k.color }} />
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: c.ink }}>Block {slot}</Text>
+                  {slot === HOMEROOM_SLOT && (
+                    <Text style={{ fontSize: 11, fontWeight: '500', color: c.ink3, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999 }}>Homeroom</Text>
+                  )}
+                  <View style={{ flex: 1 }} />
+                  <SpareToggle on={!!k.spare} onChange={v => setSpare(slot, v)} />
+                </View>
+                {!k.spare && (
+                  <>
+                    <AutoField
+                      l={slot.endsWith('-4') ? 'Course or academy' : 'Course'}
+                      value={k.name}
+                      onChange={v => setCourse(slot, { name: v })}
+                      suggest={q => matchCourses(q, p.grade, { lastBlock: slot.endsWith('-4') })}
+                      placeholder={slot.endsWith('-4') ? 'Chemistry 11 or Soccer Academy' : 'Chemistry 11'}
+                      hint={slot.endsWith('-4') ? 'Academies run in the last block. Type "academy" to pick one.' : undefined}
+                    />
+                    <AutoField
+                      l="Teacher"
+                      value={k.teacher}
+                      onChange={v => setCourse(slot, { teacher: v })}
+                      suggest={q => matchTeachers(q).map(teacherLabel)}
+                      placeholder="Last name"
+                    />
+                    <AutoField
+                      l="Room"
+                      value={k.room}
+                      onChange={v => setCourse(slot, { room: normalizeRoom(v) })}
+                      suggest={matchRooms}
+                      placeholder="213, 149A or PORT"
+                      autoCap="characters"
+                      error={rp}
+                    />
+                  </>
+                )}
+                {k.spare && <Text style={{ fontSize: 13, color: c.ink3, marginTop: 8 }}>Spare block</Text>}
+              </View>
+            );
+          })}
+        </View>
+      );
+    } else if (s === 'extras') {
+      title = edit ? 'Outside the timetable' : 'Anything outside the timetable?';
+      body = (
+        <View>
+          <Text style={{ fontSize: 14, color: c.ink3, lineHeight: 20 }}>
+            Classes, clubs and teams outside your 8 blocks: YELL, Careers, an online course, Theatre Company, Student Council, a Spartans team. Optional. You can add more later from Programs.
+          </Text>
+          {p.extraCourses.map((x, idx) => {
+            const online = x.kind === 'online';
+            return (
+              <View key={idx} style={{ borderWidth: 1, borderColor: c.line, borderRadius: 12, padding: 12, marginTop: 12, backgroundColor: c.paper2 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: c.ink }}>Outside the timetable {idx + 1}</Text>
+                  <Pressable onPress={() => set({ extraCourses: p.extraCourses.filter((_, j) => j !== idx) })} hitSlop={8}>
+                    <Text style={{ fontSize: 13, color: c.crimson, fontWeight: '600' }}>Remove</Text>
+                  </Pressable>
+                </View>
+                {/* Online toggle: the course list is huge, so an online course is any
+                    course with this flipped on rather than a second list. */}
+                <View style={{ flexDirection: 'row', gap: 6, marginTop: 10 }}>
+                  {([['In school', false], ['Online course', true]] as [string, boolean][]).map(([label, isOnline]) => {
+                    const on = online === isOnline;
+                    return (
+                      <Pressable
+                        key={label}
+                        onPress={() => setExtra(idx, { kind: isOnline ? 'online' : undefined })}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: on }}
+                        style={({ pressed }) => ({
+                          paddingHorizontal: 11, height: 30, borderRadius: 15, justifyContent: 'center',
+                          backgroundColor: on ? c.navy700 : c.paper, borderWidth: 1, borderColor: on ? c.navy700 : c.line, opacity: pressed ? 0.6 : 1,
+                        })}
+                      >
+                        <Text style={{ fontSize: 12.5, fontWeight: '600', color: on ? '#fff' : c.ink2 }}>{label}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <AutoField
+                  l={online ? 'Online course' : 'Class, club or team'}
+                  value={x.name}
+                  onChange={v => setExtra(idx, { name: v })}
+                  suggest={q => online ? matchCourses(q, p.grade) : matchExtras(q, p.grade)}
+                  placeholder={online ? 'Psychology 12, Pre-Calculus 11' : 'YELL, Theatre Company, Sr. Boys Soccer'}
+                />
+                <AutoField l="Teacher" value={x.teacher} onChange={v => setExtra(idx, { teacher: v })} suggest={q => matchTeachers(q).map(teacherLabel)} placeholder="Last name" />
+              </View>
+            );
+          })}
+          <Pressable
+            onPress={() => set({ extraCourses: [...p.extraCourses, { name: '', teacher: '' }] })}
+            style={({ pressed }) => ({ marginTop: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: c.ink4, alignItems: 'center', opacity: pressed ? 0.6 : 1 })}
+          >
+            <Text style={{ color: c.navy700, fontWeight: '600', fontSize: 14 }}>+ Add a class, club or team</Text>
+          </Pressable>
+        </View>
+      );
+    } else {
+      title = 'Check it over';
+      body = (
+        <View>
+          <Row k="Name" v={fullName(p)} />
+          <Row k="Grade" v={String(p.grade)} />
+          {!!p.pronouns && <Row k="Pronouns" v={p.pronouns} />}
+          {!!email && <Row k="Email" v={email} />}
+          <Row k="Password" v={password ? '•'.repeat(password.length) : initial?.passwordHash ? 'Unchanged' : 'none'} />
+          {!!p.studentId && <Row k="Student #" v={p.studentId} />}
+          <Row k="ID photo" v={p.photoUri ? 'Added' : 'Initials for now'} />
+          <Row k="Homeroom" v={p.courses.find(k => k.slot === HOMEROOM_SLOT)?.room || 'none'} />
+          {([1, 2] as const).map(day => (
+            <View key={day}>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: c.ink3, marginTop: 16, marginBottom: 4, letterSpacing: 0.5, textTransform: 'uppercase' }}>Day {day}</Text>
+              {p.courses.filter(k => k.slot.startsWith(`${day}-`)).map(k => (
+                <Row key={k.slot} k={`Block ${k.slot}`} v={[k.name, k.teacher, k.room ? roomShort(k.room) : ''].filter(Boolean).join(' · ')} color={k.color} />
+              ))}
+            </View>
+          ))}
+          {p.extraCourses.some(x => x.name.trim()) && (
+            <View>
+              <Text style={{ fontSize: 12, fontWeight: '700', color: c.ink3, marginTop: 16, marginBottom: 4, letterSpacing: 0.5, textTransform: 'uppercase' }}>Outside the timetable</Text>
+              {p.extraCourses.filter(x => x.name.trim()).map((x, j) => (
+                <Row key={j} k={x.kind === 'online' ? 'Online' : 'Extra'} v={[x.name, x.teacher].filter(Boolean).join(' · ')} />
+              ))}
+            </View>
+          )}
+        </View>
+      );
+    }
+    return { title, body };
+  };
+  const { title, body } = view(step);
+
+  const overlays = (
+    <>
+      <IdScanner
+        visible={scan !== null}
+        mode={scan || 'card'}
+        onResult={r => (scan === 'qr' ? applyQr(r) : applyScan(r))}
+        onClose={() => setScan(null)}
+      />
+      <ScanSuccess trigger={flash} />
+    </>
+  );
+
+  if (edit) {
+    return (
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: c.paper }}>
+        {/* Top bar: Cancel · title · Save */}
+        <View style={{ paddingTop: Math.max(topInset, 20) + 6, paddingHorizontal: 16, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: c.line, backgroundColor: c.paper }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', height: 40 }}>
+            <Pressable onPress={cancelEdits} hitSlop={10} accessibilityRole="button" style={{ minWidth: 64 }}>
+              <Text style={{ fontSize: 16, color: c.ink2 }}>Cancel</Text>
+            </Pressable>
+            <Text style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: c.ink, letterSpacing: -0.3 }}>
+              {edit === 'profile' ? 'Edit profile' : 'Edit classes'}
+            </Text>
+            <Pressable onPress={saveEdits} disabled={busy} hitSlop={10} accessibilityRole="button" style={{ minWidth: 64, alignItems: 'flex-end', opacity: busy ? 0.5 : 1 }}>
+              <Text style={{ fontSize: 16, color: c.navy700, fontWeight: '700' }}>{busy ? 'Saving…' : 'Save'}</Text>
+            </Pressable>
           </View>
-        ))}
-        <Pressable
-          onPress={() => set({ extraCourses: [...p.extraCourses, { name: '', teacher: '' }] })}
-          style={({ pressed }) => ({ marginTop: 14, paddingVertical: 12, borderRadius: 12, borderWidth: 1, borderStyle: 'dashed', borderColor: c.ink4, alignItems: 'center', opacity: pressed ? 0.6 : 1 })}
-        >
-          <Text style={{ color: c.navy700, fontWeight: '600', fontSize: 14 }}>+ Add a class, club or team</Text>
-        </Pressable>
-      </View>
-    );
-  } else {
-    title = 'Check it over';
-    body = (
-      <View>
-        <Row k="Name" v={fullName(p)} />
-        <Row k="Grade" v={String(p.grade)} />
-        {!!p.pronouns && <Row k="Pronouns" v={p.pronouns} />}
-        {!!email && <Row k="Email" v={email} />}
-        <Row k="Password" v={password ? '•'.repeat(password.length) : initial?.passwordHash ? 'Unchanged' : 'none'} />
-        {!!p.studentId && <Row k="Student #" v={p.studentId} />}
-        <Row k="ID photo" v={p.photoUri ? 'Added' : 'Initials for now'} />
-        <Row k="Homeroom" v={p.courses.find(k => k.slot === HOMEROOM_SLOT)?.room || 'none'} />
-        {([1, 2] as const).map(day => (
-          <View key={day}>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: c.ink3, marginTop: 16, marginBottom: 4, letterSpacing: 0.5, textTransform: 'uppercase' }}>Day {day}</Text>
-            {p.courses.filter(k => k.slot.startsWith(`${day}-`)).map(k => (
-              <Row key={k.slot} k={`Block ${k.slot}`} v={[k.name, k.teacher, k.room ? roomShort(k.room) : ''].filter(Boolean).join(' · ')} color={k.color} />
-            ))}
+          {/* Tabs: jump anywhere, no order */}
+          <View style={{ flexDirection: 'row', marginTop: 8, padding: 3, borderRadius: 12, backgroundColor: c.paper2, borderWidth: 1, borderColor: c.line }}>
+            {steps.map((s, j) => {
+              const on = j === i;
+              return (
+                <Pressable
+                  key={s}
+                  onPress={() => { setErr(null); setNote(null); setI(j); }}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: on }}
+                  style={{ flex: 1, paddingVertical: 8, borderRadius: 9, alignItems: 'center', backgroundColor: on ? c.surface : 'transparent', borderWidth: on ? 1 : 0, borderColor: c.line }}
+                >
+                  <Text style={{ fontSize: 13.5, fontWeight: on ? '700' : '500', color: on ? c.ink : c.ink3 }}>{TAB_LABEL[s]}</Text>
+                </Pressable>
+              );
+            })}
           </View>
-        ))}
-        {p.extraCourses.some(x => x.name.trim()) && (
-          <View>
-            <Text style={{ fontSize: 12, fontWeight: '700', color: c.ink3, marginTop: 16, marginBottom: 4, letterSpacing: 0.5, textTransform: 'uppercase' }}>Outside the timetable</Text>
-            {p.extraCourses.filter(x => x.name.trim()).map((x, j) => (
-              <Row key={j} k="Extra" v={[x.name, x.teacher].filter(Boolean).join(' · ')} />
-            ))}
+        </View>
+        <ScrollView contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
+          <Text style={{ fontFamily: fonts.serif, fontSize: 24, color: c.ink, marginBottom: 8 }}>{title}</Text>
+          {body}
+          {!!note && <Text style={{ color: c.moss, marginTop: 14, fontSize: 13, fontWeight: '500' }}>{note}</Text>}
+          {!!err && <Text style={{ color: c.crimson, marginTop: 14, fontSize: 13, fontWeight: '500' }}>{err}</Text>}
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 24 }}>
+            <Btn label="Cancel" onPress={cancelEdits} secondary />
+            <Btn label={busy ? 'Saving…' : 'Save changes'} onPress={saveEdits} />
           </View>
-        )}
-      </View>
+        </ScrollView>
+        {overlays}
+      </KeyboardAvoidingView>
     );
   }
 
@@ -507,7 +645,7 @@ const Questionnaire = ({ initial, onDone, onCancel, onBackToStart, topInset }: P
         keyboardShouldPersistTaps="handled"
       >
         <Text style={{ fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase', fontWeight: '700', color: c.ink3 }}>
-          Step {i + 1} of {STEPS.length}
+          Step {i + 1} of {steps.length}
         </Text>
         <Text style={{ fontFamily: fonts.serif, fontSize: 28, color: c.ink, marginTop: 4, marginBottom: 12 }}>{title}</Text>
 
@@ -529,13 +667,7 @@ const Questionnaire = ({ initial, onDone, onCancel, onBackToStart, topInset }: P
           </View>
         )}
       </ScrollView>
-      <IdScanner
-        visible={scan !== null}
-        mode={scan || 'card'}
-        onResult={r => (scan === 'qr' ? applyQr(r) : applyScan(r))}
-        onClose={() => setScan(null)}
-      />
-      <ScanSuccess trigger={flash} />
+      {overlays}
     </KeyboardAvoidingView>
   );
 };

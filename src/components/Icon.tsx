@@ -13,7 +13,9 @@ export type IconName =
   | 'sparkle' | 'tasks' | 'contacts' | 'play' | 'mail' | 'copy'
   | 'sun' | 'moon' | 'cloud' | 'cloud-sun' | 'fog' | 'drizzle' | 'rain' | 'snow' | 'storm'
   | 'camera' | 'scan' | 'qr' | 'image' | 'flash' | 'id' | 'badge' | 'share' | 'download' | 'more' | 'message'
-  | 'helmet' | 'users' | 'shield' | 'chart' | 'grad' | 'week' | 'check-circle' | 'edit' | 'trash' | 'check';
+  | 'users' | 'shield' | 'chart' | 'grad' | 'week' | 'check-circle' | 'edit' | 'trash' | 'check'
+  | 'minus' | 'tag' | 'eye' | 'lock'
+  | 'swap' | 'elevator' | 'walk' | 'door' | 'stairs';
 
 type Props = {
   name: IconName | string;
@@ -55,6 +57,13 @@ export const Icon = ({ name, size = 22, stroke = 1.6, color = '#000', style }: P
       case 'chev-l': return <Path {...p} d="M15 5l-7 7 7 7" />;
       case 'chev-d': return <Path {...p} d="M5 9l7 7 7-7" />;
       case 'plus':   return <Path {...p} d="M12 5v14M5 12h14" />;
+      case 'minus':  return <Path {...p} d="M5 12h14" />;
+      case 'eye':
+        return (<><Path {...p} d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><Circle {...p} cx={12} cy={12} r={3} /></>);
+      case 'lock':
+        return (<><Rect {...p} x={5} y={10.5} width={14} height={10} rx={2.5} /><Path {...p} d="M8 10.5V8a4 4 0 0 1 8 0v2.5" /></>);
+      case 'tag':
+        return (<><Path {...p} d="M20 12 12 20l-8-8V4h8z" /><Circle {...p} cx={8.5} cy={8.5} r={1.4} /></>);
       case 'search':
         return (<><Circle {...p} cx={11} cy={11} r={6} /><Path {...p} d="m20 20-4.3-4.3" /></>);
       case 'pin':
@@ -144,13 +153,6 @@ export const Icon = ({ name, size = 22, stroke = 1.6, color = '#000', style }: P
         return <Path {...p} d="M13 3L5 13.5h6L10 21l8-10.5h-6z" />;
       case 'id':
         return (<><Rect {...p} x={3} y={5.5} width={18} height={13} rx={2.5} /><Circle {...p} cx={8.5} cy={11} r={2} /><Path {...p} d="M6 15.5c.6-1.2 1.5-1.8 2.5-1.8s1.9.6 2.5 1.8M14 10h4M14 13.5h4" /></>);
-      // Spartan helmet — placeholder brand mark until the real Spartans logo lands.
-      case 'helmet':
-        return (<>
-          <Path {...p} d="M6 13V9.5A6 6 0 0 1 18 9.5V13l-1.5 5.5H7.5z" />
-          <Path {...p} d="M12 3.5c-2 0-3.5 1.2-3.5 3V9h7V6.5c0-1.8-1.5-3-3.5-3z" />
-          <Path {...p} d="M9 13h6M10.5 13v4M13.5 13v4" />
-        </>);
       case 'users':
         return (<>
           <Circle {...p} cx={9} cy={9} r={3.2} />
@@ -172,6 +174,17 @@ export const Icon = ({ name, size = 22, stroke = 1.6, color = '#000', style }: P
         return (<><Path {...p} d="M4 20h4l10.5-10.5a2 2 0 0 0 0-2.8l-1.2-1.2a2 2 0 0 0-2.8 0L4 16z" /><Path {...p} d="M13.5 7.5l3 3" /></>);
       case 'trash':
         return (<><Path {...p} d="M5 7h14M9.5 7V4.5h5V7M7 7l.8 12h8.4L17 7" /><Path {...p} d="M10.3 10.5v6M13.7 10.5v6" /></>);
+      // map
+      case 'swap':
+        return (<><Path {...p} d="M7 4v13M4 14l3 3.5L10 14" /><Path {...p} d="M17 20V7M14 10l3-3.5L20 10" /></>);
+      case 'elevator':
+        return (<><Rect {...p} x={4} y={3.5} width={16} height={17} rx={2.5} /><Path {...p} d="M9 11.5 12 8l3 3.5M9 14.5l3 3.5 3-3.5" /></>);
+      case 'walk':
+        return (<><Circle {...p} cx={13.5} cy={4.5} r={1.8} /><Path {...p} d="M10.5 21l1.8-6.5L9 12l1.2-4.5 3.5 1 2.8 2.8 2.5-.3" /><Path {...p} d="M9 12l-2.5 3.5M12.3 14.5l3.2 2.5 1.2 4" /></>);
+      case 'door':
+        return (<><Path {...p} d="M5 20V4h11v16" /><Path {...p} d="M16 20h3M5 20h-2M13 12.5v.01" /></>);
+      case 'stairs':
+        return <Path {...p} d="M3.5 20h4v-4h4v-4h4V8h4.5" />;
       default:
         return null;
     }

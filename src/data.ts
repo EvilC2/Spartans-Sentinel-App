@@ -43,33 +43,34 @@ const SENTINEL = {
 
   // ── Homework ─────────────────────────────────────────────────────
   // Mock items keyed by timetable slot; the group header shows the student's own course.
+  // `due` is an ISO date: each one is also a calendar event whose source is the class (src/programs.ts).
   homework: [
     {
       slot: '1-1',
       items: [
-        { id: 'h1', title: 'Reading response (500 words)', due: 'Tomorrow', priority: 'high', done: false },
-        { id: 'h2', title: 'Annotate the handout',           due: 'Fri Sep 18', priority: 'med', done: false },
-        { id: 'h3', title: 'Quiz prep · units 9–10',           due: 'Mon Sep 21', priority: 'low', done: true },
+        { id: 'h1', title: 'Reading response (500 words)', due: '2026-09-18', priority: 'high', done: false },
+        { id: 'h2', title: 'Annotate the handout',           due: '2026-09-18', priority: 'med', done: false },
+        { id: 'h3', title: 'Quiz prep · units 9–10',           due: '2026-09-21', priority: 'low', done: true },
       ],
     },
     {
       slot: '1-2',
       items: [
-        { id: 'h4', title: 'Problem set 9.4 · #1–18 odd',            due: 'Tomorrow', priority: 'high', done: false },
-        { id: 'h5', title: 'Lab write-up',             due: 'Thu Sep 17', priority: 'med', done: false },
+        { id: 'h4', title: 'Problem set 9.4 · #1–18 odd',            due: '2026-09-18', priority: 'high', done: false },
+        { id: 'h5', title: 'Lab write-up',             due: '2026-09-17', priority: 'med', done: false },
       ],
     },
     {
       slot: '1-3',
       items: [
-        { id: 'h6', title: 'Lab — data table',         due: 'Wed Sep 16', priority: 'high', done: false },
-        { id: 'h7', title: 'Read ch. 8.2–8.4',                       due: 'Fri Sep 18', priority: 'low', done: false },
+        { id: 'h6', title: 'Lab: data table',         due: '2026-09-16', priority: 'high', done: false },
+        { id: 'h7', title: 'Read ch. 8.2–8.4',                       due: '2026-09-18', priority: 'low', done: false },
       ],
     },
     {
       slot: '1-4',
       items: [
-        { id: 'h8', title: 'Presentation — practice with partner', due: 'Thu Sep 17', priority: 'med', done: false },
+        { id: 'h8', title: 'Presentation: practice with partner', due: '2026-09-17', priority: 'med', done: false },
       ],
     },
   ],
@@ -178,6 +179,13 @@ const SENTINEL = {
       id: 'b4', kind: 'poll',
       prompt: 'Best spot to eat lunch?',
       options: ['Cafeteria', 'Courtyard', 'Library steps', 'Anywhere but here'],
+    },
+    {
+      id: 'b5', kind: 'trivia',
+      prompt: 'Are you going to join the App Club?',
+      options: ['Yes', 'Maybe', 'Tell me more', 'Already in'],
+      answer: 0,
+      explain: 'We meet Thursdays at lunch in Room 214. Bring ideas, bugs, or snacks.',
     },
   ],
 

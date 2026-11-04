@@ -3,9 +3,11 @@
 // real staff directory in src/staff.ts), then the people everyone needs:
 // counsellors (yours is flagged), admin, office, library, and the school's
 // main lines. Tapping a row copies the email and opens the mail app.
+// The search box at the top looks through the whole staff directory (any
+// teacher, not only yours) by first name, last name, role or email.
 
 import React, { useMemo, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Linking, Platform } from 'react-native';
+import { View, Text, Pressable, ScrollView, Linking, Platform, TextInput } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '../ThemeContext';
 import { fonts, shadow, tnum } from '../theme';
@@ -36,6 +38,7 @@ export default function ContactsScreen({ topInset }: ScreenProps) {
   const { c } = useTheme();
   const { profile } = useProfile();
   const [copied, setCopied] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
 
   // ── My teachers: one row per distinct teacher on the timetable ──
   const teachers = useMemo<Row[]>(() => {
@@ -84,6 +87,22 @@ export default function ContactsScreen({ topInset }: ScreenProps) {
     { key: 'tel', name: 'Call the school', role: SCHOOL.phone, email: SCHOOL.phone, initials: '☎', phone: SCHOOL.phoneRaw },
   ];
 
+  // Every word typed must appear somewhere in the person's name, role or email.
+  const results = useMemo<Row[]>(() => {
+    const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+    if (!words.length) return [];
+    const all = [...teachers, ...STAFF.map(s => fromStaff(s, { role: s.range ? `${s.role} · ${s.range}` : s.role }))];
+    const seen = new Set<string>();
+    return all.filter(r => {
+      if (seen.has(r.email)) return false;
+      const hay = `${r.name} ${r.role} ${r.email}`.toLowerCase();
+      if (!words.every(w => hay.includes(w))) return false;
+      seen.add(r.email);
+      return true;
+    }).sort((a, b) => a.name.localeCompare(b.name));
+  }, [query, teachers]);
+  const searching = query.trim().length > 0;
+
   const onRow = async (r: Row) => {
     try { await Clipboard.setStringAsync(r.email); } catch { /* clipboard unavailable — still open mail */ }
     setCopied(r.key);
@@ -97,18 +116,19 @@ export default function ContactsScreen({ topInset }: ScreenProps) {
       style={{ flex: 1, backgroundColor: c.paper }}
       contentContainerStyle={{ paddingBottom: 110 }}
       showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="handled"
+      keyboardDismissMode="on-drag"
     >
       <AppHeader topInset={topInset} title="Contacts" back />
+      <View style={{ height: 14 }} />
 
-      <View style={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: 6 }}>
-        <Text style={{ fontFamily: fonts.serif, fontSize: 30, lineHeight: 34, letterSpacing: -0.7, color: c.ink }}>
-          Contacts
-        </Text>
-        <Text style={{ fontSize: 13, color: c.ink3, marginTop: 4, letterSpacing: -0.1 }}>
-          Tap a row to copy the email and open Mail
-        </Text>
-      </View>
+      <SearchBox value={query} onChange={setQuery} />
 
+      {searching ? (
+        <Section title={results.length ? `${results.length} found` : 'No matches'} icon="search" rows={results} copied={copied} onRow={onRow}
+          empty={`No staff match "${query.trim()}". Try a first or last name.`} />
+      ) : (
+      <>
       <Section title="My teachers" icon="book" rows={teachers} copied={copied} onRow={onRow}
         empty="Add your classes in Profile to see your teachers here." />
       <Section title="Counselling" icon="compass" rows={counselling} copied={copied} onRow={onRow} />
@@ -116,6 +136,8 @@ export default function ContactsScreen({ topInset }: ScreenProps) {
       <Section title="Office" icon="mail" rows={office} copied={copied} onRow={onRow} />
       <Section title="Library & careers" icon="book" rows={library} copied={copied} onRow={onRow} />
       <Section title="School" icon="phone" rows={school} copied={copied} onRow={onRow} />
+      </>
+      )}
 
       <Text style={{ paddingTop: 24, paddingHorizontal: 20, textAlign: 'center', fontSize: 12, color: c.ink4, letterSpacing: 0.2, lineHeight: 17 }}>
         {SCHOOL.address}{'\n'}Directory from the school staff page · Sep 2026
@@ -125,6 +147,35 @@ export default function ContactsScreen({ topInset }: ScreenProps) {
 }
 
 // ────────────────────────────────────────────────────────────────
+const SearchBox = ({ value, onChange }: { value: string; onChange: (v: string) => void }) => {
+  const { c } = useTheme();
+  return (
+    <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
+      <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, paddingHorizontal: 12, borderRadius: 14, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line }, shadow.sm]}>
+        <Icon name="search" size={17} stroke={1.9} color={c.ink3} />
+        <TextInput
+          value={value}
+          onChangeText={onChange}
+          placeholder="Search any teacher or staff"
+          placeholderTextColor={c.ink4}
+          autoCorrect={false}
+          autoCapitalize="none"
+          returnKeyType="search"
+          clearButtonMode="never"
+          accessibilityLabel="Search staff"
+          style={{ flex: 1, fontSize: 15, color: c.ink, paddingVertical: 0 }}
+        />
+        {!!value && (
+          <Pressable onPress={() => onChange('')} hitSlop={10} accessibilityLabel="Clear search"
+            style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: c.paper2, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="close" size={12} stroke={2.2} color={c.ink3} />
+          </Pressable>
+        )}
+      </View>
+    </View>
+  );
+};
+
 const Section = ({
   title, icon, rows, copied, onRow, empty,
 }: { title: string; icon: IconName; rows: Row[]; copied: string | null; onRow: (r: Row) => void; empty?: string }) => {

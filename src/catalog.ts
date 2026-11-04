@@ -60,6 +60,10 @@ export const COURSES: string[] = [
   'Orchestral Strings 12', 'Visual Arts 12', 'AP Capstone Research 12', 'Career Life Connections 12A',
   'Career Life Connections 12B', 'Work Experience 12A', 'Work Experience 12B', 'Senior Mentorship 12',
   'Student Leadership', 'Study Block',
+  // ── New in the 2026–2027 Course Handbook ──
+  'Entrepreneurship & Marketing 9', 'Computer Studies 9', 'Woodwork 9', 'Français langue 10',
+  'Physical Education 10: Strength & Power', 'Data Science, Python & AI 11', 'R&B Band 11', 'R&B Band 12',
+  'Composition & Production 12', 'Media Arts 12: Yearbook', 'Français langue seconde-immersion 12', 'Youth Work in Trades',
 ];
 
 // District Premier Academies (westvancouverschools.ca/programs/academies, Sep 2026).

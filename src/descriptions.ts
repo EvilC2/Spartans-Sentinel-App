@@ -1,7 +1,9 @@
-// Spartans — one-paragraph course descriptions for the class card.
-// Exact text per course is meant to come from the Sentinel Course Book; until
-// that is loaded, describeCourse() falls back to a subject-level blurb keyed
-// off the course name so the card never shows an empty line.
+// Spartans — course descriptions for the class card and Programs.
+// courseInfo() returns the Sentinel Course Book text (src/courseBook.ts,
+// generated, don't hand-edit) when the course is in it, and otherwise falls
+// back to a subject-level blurb keyed off the name so the card is never empty.
+
+import { COURSE_BOOK } from './courseBook';
 
 const EXACT: Record<string, string> = {
   'Study Block': 'A spare. No class this block: use it for homework, the library, or FIT-style catch-up.',
@@ -37,8 +39,23 @@ const SUBJECT: [RegExp, string][] = [
   [/capstone/i, 'AP Capstone: independent research, academic writing and presentation skills.'],
   [/leadership|council|committee/i, 'Student leadership: run events, represent students and build school spirit.'],
   [/club/i, 'A student club. Meets at lunch or after school; check the club for its schedule.'],
-  [/basketball|soccer|rugby|volleyball|cross country|track|swim|tennis|golf|ultimate|hockey|badminton|ski/i, 'A Spartans team. Practices and games through the season; results post to the Buzz.'],
+  [/basketball|soccer|rugby|volleyball|cross country|track|swim|tennis|golf|ultimate|hockey|badminton|ski/i, 'A Spartans team. Practices and games through the season; results post to Announcements.'],
 ];
+
+export type CourseInfo = { desc: string; prereq?: string; fee?: string; official: boolean };
+
+// Many 2026-27 entries open with "$75 Course Fee Applies." Shown as its own
+// line so the description starts with the course.
+const LEAD_FEE = /^\$(\d+) Course Fee Applies\.?\s*/;
+
+export const courseInfo = (name: string): CourseInfo => {
+  const hit = COURSE_BOOK[name.trim()];
+  if (hit) {
+    const m = LEAD_FEE.exec(hit.desc);
+    return m ? { ...hit, desc: hit.desc.slice(m[0].length), fee: `$${m[1]}`, official: true } : { ...hit, official: true };
+  }
+  return { desc: describeCourse(name), official: false };
+};
 
 export const describeCourse = (name: string): string => {
   const n = name.trim();

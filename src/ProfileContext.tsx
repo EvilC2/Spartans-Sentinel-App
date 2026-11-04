@@ -10,7 +10,9 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { hashPassword } from './auth';
+import { hashPassword, MIN_PASSWORD } from './auth';
+import { setXpGrade } from './xp';
+import { AvatarSpec, avatarOf } from './components/Avatar';
 import { backendConfigured } from './supabase';
 import { auth as remoteAuth, profile as remoteProfile, admin as remoteAdmin, Role, RemoteProfile } from './backend';
 
@@ -32,7 +34,11 @@ export type Course = {
   spare?: boolean;   // no class this block; name is "Spare", teacher/room empty
 };
 
-export type ExtraCourse = { name: string; teacher: string };
+// `kind` is set by Add programs or the sign-up Online toggle; rows without it
+// are classified by name (src/programs.ts). 'program' is the old spelling of
+// 'outside' and still reads.
+export type ExtraKind = 'outside' | 'online' | 'sport' | 'music' | 'extra' | 'club' | 'program';
+export type ExtraCourse = { name: string; teacher: string; kind?: ExtraKind };
 
 export type StudentProfile = {
   firstName: string;
@@ -42,8 +48,13 @@ export type StudentProfile = {
   studentId?: string;
   email?: string;         // full address, e.g. johnd907@edu.sd45.bc.ca
   passwordHash?: string;  // salted SHA-256, see auth.ts
-  photoUri?: string;      // ID photo (copied into the document directory)
+  photoUri?: string;      // ID photo (copied into the document directory); also your profile photo
+  photoUrl?: string;      // that photo on the server, what friends see (migration 0015)
+  photoFrom?: string;     // the photoUri photoUrl was uploaded from; differs → upload again
   artonaUrl?: string;     // portrait link from the QR on the back of the card
+  friendCode?: string;    // server-issued, 8 chars; the only way friends add you
+  pinnedBadges?: string[]; // up to four badge ids shown under your name on Social
+  avatar?: AvatarSpec;     // colour + emoji friends see when there is no photo
   courses: Course[];      // exactly one per slot
   extraCourses: ExtraCourse[];  // outside the timetable (Theatre Company, Choir, academies…)
 };
@@ -115,13 +126,95 @@ export const roomProblem = (v: string): string | null => {
 // "Last, First" → "Ms. Last" is not knowable; show "Last" for compact rows.
 export const teacherShort = (t: string) => t.includes(',') ? t.split(',')[0].trim() : t;
 
-// Short tag for the hero tiles: "Chemistry 11" → "CHEM", "Pre-Calculus 12" → "PREC".
-export const shortName = (name: string) => {
-  if (/^spare$/i.test(name.trim())) return 'SPARE';
-  const w = name.replace(/\(.*?\)/g, '').replace(/\d+[AB]?/g, '').trim().split(/\s+/).filter(Boolean);
-  if (w.length === 0) return '—';
-  if (w.length === 1) return w[0].replace(/[^A-Za-z]/g, '').slice(0, 4).toUpperCase() || '—';
-  return w.map(x => x.replace(/[^A-Za-z]/g, '')[0] || '').join('').slice(0, 4).toUpperCase();
+// Short tag for the hero tiles: "Chemistry 11" → "Chem 11", "Economic Theory 12" → "Econ T", "French 12" → "Frnch 12".
+// Word part is 5 letters max so the tag fits a quarter-width tile at 15pt. Courses that only run
+// once (English, French, Socials) share a tag on purpose: you never carry two at the same time.
+// Key = course name with grade digits and (parenthesised) notes removed, lower-cased.
+const SHORT_TAGS: Record<string, string> = {
+  // English
+  'english': 'Eng', 'english studies': 'Eng', 'english first peoples': 'Eng', 'literary studies': 'Eng',
+  'pre-ap literary studies': 'Eng', 'ap literary studies': 'AP Lit', 'efp literary studies & writing': 'Eng',
+  'pre-ap efp literary studies & writing': 'Eng', 'academic writing': 'Writ', 'composition & production': 'C&P',
+  'creative writing': 'CrWri', 'ap english language & composition': 'AP Lang', 'ap english literature & composition': 'AP Lit',
+  'english language development': 'ELD', 'language & cultural literacy': 'LCL', 'self-efficacy': 'Self',
+  // Math
+  'mathematics': 'Math', 'mathematics enriched': 'Math+', 'mathématiques': 'Math', 'workplace mathematics': 'Math',
+  'apprenticeship mathematics': 'Math', 'foundations of mathematics': 'Found', 'foundations of mathematics & pre-calculus': 'Math',
+  'pre-ap foundations of mathematics & pre-calculus': 'Math', 'pre-calculus': 'PreC', 'pre-calculus honours': 'PreC',
+  'pre-ap pre-calculus': 'PreC', 'ap pre-calculus': 'AP PreC', 'calculus': 'Calc', 'ap calculus ab': 'AP Calc',
+  'ap calculus bc': 'AP Calc', 'ap statistics': 'AP Stat',
+  // Science
+  'science': 'Sci', 'sciences': 'Sci', 'chemistry': 'Chem', 'ap chemistry': 'AP Chem', 'physics': 'Phys',
+  'ap physics honours': 'AP Phys', 'life sciences': 'Bio', 'ap life sciences': 'AP Bio', 'ap biology': 'AP Bio',
+  'earth science': 'Earth', 'anatomy & physiology': 'Anat', 'geology': 'Geol', 'ap psychology': 'AP Psy',
+  // Socials
+  'social studies': 'SS', 'sciences humaines': 'SH', 'explorations en sciences humaines et sociales': 'SH',
+  '20th century world history': 'Hist', 'bc first peoples': 'BCFP', 'comparative cultures': 'Cult', 'economics': 'Econ',
+  'economic theory': 'Econ T', 'genocide studies': 'Geno', 'human geography': 'HGeo', 'law studies': 'Law',
+  'études du droit': 'Droit', 'philosophy': 'Phil', 'social justice': 'SJ',
+  // Languages
+  'french': 'Frnch', 'français langue': 'FRAL', 'langue et culture de la francophonie': 'FRAL',
+  'ap french language & culture': 'AP Fr', 'spanish': 'Span', 'introductory spanish': 'Span', 'japanese': 'Jpn',
+  'introductory japanese': 'Jpn', 'ap japanese language & culture': 'AP Jpn', 'mandarin': 'Mand',
+  'introductory mandarin': 'Mand', 'ap chinese language & culture': 'AP Chin', 'introductory farsi': 'Farsi',
+  // PE
+  'physical & health education': 'PE', 'physical education: girls fitness': 'PE', 'active living': 'Activ',
+  'fitness & conditioning': 'Fit',
+  // Careers
+  'career education': 'CE', 'career life education': 'CLE', 'éducation au choix de carrière et de vie': 'CLE',
+  'career life connections': 'CLC', 'work experience': 'Work', 'senior mentorship': 'Mentr', 'student leadership': 'Lead',
+  'study block': 'Study',
+  // Business / tech / ADST
+  'applied design, skills & technology': 'ADST', 'entrepreneurship & marketing': 'Entre', 'marketing & promotion': 'Mktg',
+  'accounting': 'Acct', 'e-commerce': 'ECom', 'computers & communication devices': 'Comp', 'computer studies': 'Comp',
+  'computer information systems': 'CIS', 'computer programming': 'Prog', 'ap computer science a': 'AP CSA',
+  'ap computer science principles': 'AP CSP', 'ap capstone seminar': 'AP Cap', 'ap capstone research': 'AP Cap',
+  'textiles': 'Tex', 'woodwork': 'Wood', 'drafting': 'Draft', 'food studies': 'Foods',
+  // Arts
+  'arts education': 'Art', 'arts education: visual arts': 'Art', 'arts education: ceramics & sculpture': 'Ceram',
+  'arts education: media arts': 'Media', 'visual arts': 'Art', 'media arts': 'Media', 'media arts: yearbook': 'Yrbk',
+  'photography': 'Photo', 'ceramics': 'Ceram', 'studio arts 2-d': 'Art2D', 'studio arts 3-d': 'Art3D',
+  'art studio': 'AP Art', 'ap drawing': 'AP Draw', 'ap 2-d art & design': 'AP 2D', 'ap 3-d art & design': 'AP 3D',
+  'drama': 'Drama', 'theatre company': 'TheCo', 'theatre production': 'ThPro', 'directing & script development': 'Direc',
+  'dance': 'Dance', 'dance technique & performance': 'Dance', 'music': 'Music', 'concert band': 'Band', 'jazz band': 'Jazz',
+  'jazz stage band': 'Jazz', 'orchestra': 'Orch', 'orchestral strings': 'Orch', 'concert choir': 'Choir',
+  // Academies
+  'badminton academy': 'Bdmtn', 'baseball academy': 'Bsbl', 'basketball academy': 'Bball', 'fencing academy': 'Fence',
+  'field hockey academy': 'FHock', 'volleyball academy': 'Vball', 'mechatronics robotics academy': 'Robot',
+  'soccer academy': 'Soccr', 'tennis academy': 'Tenis',
+  // Extras (clubs, teams)
+  'yell': 'YELL', 'student council': 'StuCo', 'grad committee': 'Grad', 'yearbook': 'Yrbk', 'sentinel sun': 'Sun',
+  'multicultural club': 'Multi', 'rotary interact club': 'Rotry', 'science club': 'Sci', 'robotics club': 'Robot',
+  'debate club': 'Debat', 'model un': 'MUN', 'chess club': 'Chess', 'math club': 'Math', 'peer tutoring': 'Tutor',
+  'leadership': 'Lead', 'link crew': 'Link', 'basketball': 'Bball', 'soccer': 'Soccr', 'rugby': 'Rugby',
+  'volleyball': 'Vball', 'cross country': 'XC', 'track & field': 'Track', 'swimming': 'Swim', 'tennis': 'Tenis',
+  'golf': 'Golf', 'ultimate': 'Ulti', 'field hockey': 'FHock', 'badminton': 'Bdmtn', 'ski & snowboard': 'Ski',
+  'french immersion': 'FI', 'exchange program': 'Exchg',
+};
+
+const GRADE_RE = /\b\d{1,2}[AB]?(?:\/\d{1,2})*\b(?!-)/g;   // "12", "12A", "8/9", "10/11/12"; not "2-D"
+const NOISE_RE = /^(sr\.?|jr\.?|boys|girls|the)\s+/i;   // "Sr. Boys Basketball" → "Basketball"
+
+export const shortName = (name: string, opts: { grade?: boolean } = {}): string => {
+  const withGrade = opts.grade !== false;
+  if (/^spare$/i.test(name.trim())) return 'Spare';
+  const noParen = name.replace(/\(.*?\)/g, '');
+  const grades = [...new Set(noParen.match(/\b\d{1,2}[AB]?\b(?!-)/g) || [])];
+  // Only a single plain grade goes on the tag; "8/9" and "10/11/12" are left off.
+  const grade = withGrade && grades.length === 1 ? grades[0] : '';
+  let base = noParen.replace(GRADE_RE, ' ').replace(/\s+/g, ' ').replace(/\s+:/, ':').replace(/[\s:]+$/, '').trim();
+  while (NOISE_RE.test(base)) base = base.replace(NOISE_RE, '');
+  const key = base.toLowerCase();
+  let tag = SHORT_TAGS[key];
+  if (!tag) {
+    // Unknown course (typed by hand): first real word, 5 letters, title case.
+    const w = base.split(/\s+/).map(x => x.replace(/[^A-Za-z&+]/g, '')).filter(Boolean);
+    if (w.length === 0) return '—';
+    const first = w[0].slice(0, 5);
+    tag = /^[A-Z]{2,5}$/.test(first) ? first : first[0].toUpperCase() + first.slice(1).toLowerCase();
+  }
+  // Two-word tags ("AP Chem", "Econ T") are already full width; no grade on those.
+  return grade && !tag.includes(' ') ? `${tag} ${grade}` : tag;
 };
 
 type Ctx = {
@@ -134,13 +227,18 @@ type Ctx = {
   signIn: (identifier: string, password: string) => Promise<string | null>; // null = ok, else error text
   signOut: () => Promise<void>;                         // keeps the account on the device
   clear: () => Promise<void>;                           // deletes the account from the device
+  changePassword: (current: string, next: string) => Promise<string | null>; // null = ok, else error text
+  deleteAccount: () => Promise<string | null>;          // server account + everything on this device
   redeemInvite: (code: string) => Promise<Role>;        // App Club Admin: bind a role to this account
   refreshRoles: () => Promise<void>;
+  setPinnedBadges: (ids: string[]) => Promise<void>;   // Social: up to four badges under your name
+  setAvatar: (a: AvatarSpec) => Promise<void>;          // Social: what friends see instead of a photo
 };
 
 const ProfileCtx = createContext<Ctx>({
   profile: null, loaded: false, signedIn: false, online: false, roles: [],
-  save: async () => {}, signIn: async () => 'Not ready', signOut: async () => {}, clear: async () => {},
+  save: async () => {}, setPinnedBadges: async () => {}, setAvatar: async () => {}, signIn: async () => 'Not ready', signOut: async () => {}, clear: async () => {},
+  changePassword: async () => 'Not ready', deleteAccount: async () => 'Not ready',
   redeemInvite: async () => { throw new Error('Not ready'); }, refreshRoles: async () => {},
 });
 
@@ -150,15 +248,30 @@ const fromRemote = (r: RemoteProfile, local: StudentProfile | null): StudentProf
   ...(local || emptyProfile()),
   firstName: r.first_name, lastName: r.last_name, grade: r.grade,
   pronouns: r.pronouns || local?.pronouns, studentId: r.student_id || local?.studentId,
-  email: r.email, artonaUrl: r.artona_url || local?.artonaUrl,
+  email: r.email, artonaUrl: r.artona_url || local?.artonaUrl, friendCode: r.friend_code || local?.friendCode,
   courses: Array.isArray(r.timetable) && r.timetable.length === SLOTS.length ? r.timetable : (local?.courses || emptyCourses()),
   extraCourses: Array.isArray(r.extras) ? r.extras : (local?.extraCourses || []),
+  pinnedBadges: Array.isArray(r.pinned_badges) ? r.pinned_badges : (local?.pinnedBadges || []),
+  ...(r.avatar ? { avatar: avatarOf(r.avatar) } : local?.avatar ? { avatar: local.avatar } : {}),
+  photoUrl: r.photo_url || undefined,
 });
 const toRemote = (p: StudentProfile) => ({
   first_name: p.firstName, last_name: p.lastName, grade: p.grade,
   pronouns: p.pronouns || null, student_id: p.studentId || null, artona_url: p.artonaUrl || null,
-  timetable: p.courses, extras: p.extraCourses,
-});
+  timetable: p.courses, extras: p.extraCourses, pinned_badges: p.pinnedBadges || [],
+});   // avatar goes up on its own (setAvatar), so a server without 0014 can't fail a save
+
+// A photo on this phone as bytes for upload. Native: the file in the app's
+// documents; web: a blob: or data: URL.
+const readPhoto = async (uri: string): Promise<{ bytes: ArrayBuffer | Blob; type: string }> => {
+  const type = /\.png($|\?)/i.test(uri) ? 'image/png' : 'image/jpeg';
+  if (uri.startsWith('file:')) {
+    const { File } = await import('expo-file-system');
+    return { bytes: await new File(uri).arrayBuffer(), type };
+  }
+  const blob = await (await fetch(uri)).blob();
+  return { bytes: blob, type: blob.type || type };
+};
 
 // "johnd907" → full address; a full address passes through; a student number
 // resolves only against the account cached on this device.
@@ -170,12 +283,20 @@ const toEmail = (identifier: string, local: StudentProfile | null): string | nul
   return `${id}@${EMAIL_DOMAIN}`;
 };
 
-export const ProfileProvider = ({ children }: { children: React.ReactNode }) => {
+// Everything the app keeps on the device for one student. Theme stays: it is
+// a device preference, not account data.
+const isAccountKey = (k: string) => /^(spartans|sentinel)-/.test(k) && k !== 'sentinel-theme';
+
+// `onReset` lets the app remount the stores below this provider after a wipe,
+// so no grades, pins or events from the deleted account linger in memory.
+export const ProfileProvider = ({ children, onReset }: { children: React.ReactNode; onReset?: () => void }) => {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
   const [signedIn, setSignedIn] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [online, setOnline] = useState(false);
   const [roles, setRoles] = useState<Role[]>([]);
+
+  useEffect(() => { setXpGrade(profile?.grade ?? 8); }, [profile?.grade]);
 
   const cacheRoles = (r: Role[]) => { setRoles(r); AsyncStorage.setItem(ROLES_KEY, JSON.stringify(r)).catch(() => {}); };
 
@@ -183,13 +304,15 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
   const sync = async (local: StudentProfile | null) => {
     if (!backendConfigured) return;
     try {
-      const r = await remoteProfile.me();
+      // No server session (offline sign-in): running on the device copy.
+      if (!(await remoteAuth.session())) { setOnline(false); return; }
+      const [r, myRoles] = await Promise.all([remoteProfile.me(), remoteAdmin.myRoles()]);
       if (r) {
         const merged = fromRemote(r, local);
         setProfile(merged);
         await AsyncStorage.setItem(KEY, JSON.stringify(merged));
       }
-      cacheRoles(await remoteAdmin.myRoles());
+      cacheRoles(myRoles);
       setOnline(true);
     } catch {
       setOnline(false);
@@ -209,7 +332,10 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
           }
         }
         if (r) { try { setRoles(JSON.parse(r)); } catch {} }
-        if (s === '1' && backendConfigured && (await remoteAuth.session())) await sync(local);
+        // Not awaited: the app opens on the device copy straight away and the
+        // server copy lands a moment later. Waiting here held the splash up
+        // for three round trips on every launch.
+        if (s === '1') sync(local);
       })
       .catch(() => {})
       .finally(() => setLoaded(true));
@@ -226,7 +352,9 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     try {
       const session = await remoteAuth.session();
       if (!session) {
-        if (!password) throw new Error('Password required to create the account.');
+        // Editing while signed in on the cached account only (offline sign-in):
+        // the change is saved on this device; nothing to send yet.
+        if (!password) { setOnline(false); return; }
         const res = await remoteAuth.signUp(p.email, password, {
           first_name: p.firstName, last_name: p.lastName, grade: p.grade,
           pronouns: p.pronouns, student_id: p.studentId,
@@ -279,11 +407,17 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     await AsyncStorage.multiSet([[KEY, JSON.stringify(base)], [SESSION_KEY, '1']]);
     // Account made on this device before the server had it (or while email
     // confirmation was pending): push the timetable up once.
-    if (same && base.courses.some(k => k.name)) {
-      const r = await remoteProfile.me().catch(() => null);
-      if (r && (!Array.isArray(r.timetable) || r.timetable.length === 0)) await remoteProfile.update(toRemote(base)).catch(() => {});
-    }
-    await sync(base);
+    const hasLocal = same && base.courses.some(k => k.name);
+    const finish = async () => {
+      if (hasLocal) {
+        const r = await remoteProfile.me().catch(() => null);
+        if (r && (!Array.isArray(r.timetable) || r.timetable.length === 0)) await remoteProfile.update(toRemote(base)).catch(() => {});
+      }
+      await sync(base);
+    };
+    // This device already has the timetable: go straight in and let the server
+    // copy catch up behind. A new device has nothing to show, so it waits.
+    if (hasLocal) finish().catch(() => {}); else await finish();
     return null;
   };
 
@@ -300,6 +434,51 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
     if (backendConfigured) await remoteAuth.signOut().catch(() => {});
   };
 
+  // Settings → Account & privacy. The current password is checked against the
+  // device copy (always set after sign-in), or against the server if missing.
+  const changePassword = async (current: string, next: string) => {
+    if (!profile) return 'Not signed in.';
+    if (next.length < MIN_PASSWORD) return `New password needs at least ${MIN_PASSWORD} characters.`;
+    if (profile.passwordHash) {
+      if (hashPassword(current) !== profile.passwordHash) return 'Current password is wrong.';
+    } else if (backendConfigured && profile.email) {
+      try { await remoteAuth.signIn(profile.email, current); } catch { return 'Current password is wrong.'; }
+    }
+    if (backendConfigured && profile.email && (await remoteAuth.session().catch(() => null))) {
+      try { await remoteAuth.updatePassword(next); }
+      catch (e: any) { return String(e?.message || 'Could not reach the server. Try again when you are online.'); }
+    } else if (backendConfigured) {
+      return 'Sign out and back in while online, then try again.';
+    }
+    const p = { ...profile, passwordHash: hashPassword(next) };
+    setProfile(p);
+    await AsyncStorage.setItem(KEY, JSON.stringify(p));
+    return null;
+  };
+
+  // Server first: if that fails nothing local is touched, so the student is
+  // never left with a server account they can no longer see.
+  const deleteAccount = async () => {
+    if (backendConfigured) {
+      if (!(await remoteAuth.session().catch(() => null))) return 'Sign out and back in while online, then try again.';
+      try { await remoteAuth.deleteAccount(); }
+      catch (e: any) {
+        const msg = String(e?.message || '');
+        return /network|fetch|timeout/i.test(msg) || !msg
+          ? 'Could not reach the server. Connect to the internet and try again.'
+          : msg;
+      }
+    }
+    const keys = (await AsyncStorage.getAllKeys().catch(() => [] as readonly string[])).filter(isAccountKey);
+    await AsyncStorage.multiRemove(keys).catch(() => {});
+    setProfile(null);
+    setSignedIn(false);
+    setRoles([]);
+    setOnline(false);
+    onReset?.();
+    return null;
+  };
+
   const redeemInvite = async (code: string) => {
     if (!backendConfigured) throw new Error('Backend not configured on this build.');
     const role = await remoteAdmin.redeemInvite(code);
@@ -308,8 +487,65 @@ export const ProfileProvider = ({ children }: { children: React.ReactNode }) => 
   };
   const refreshRoles = async () => { await sync(profile); };
 
+  // Pins are a profile field, saved here and pushed to the server when there
+  // is a session. Never signs anyone in or up.
+  const setPinnedBadges = async (ids: string[]) => {
+    if (!profile) return;
+    const next = { ...profile, pinnedBadges: ids.slice(0, 4) };   // MAX_PINNED in social.ts
+    setProfile(next);
+    await AsyncStorage.setItem(KEY, JSON.stringify(next)).catch(() => {});
+    if (!backendConfigured) return;
+    try {
+      if (await remoteAuth.session()) await remoteProfile.update({ pinned_badges: next.pinnedBadges });
+    } catch { /* offline: pushed with the next save */ }
+  };
+
+  // Profile photo → friends. Uploads when the photo on this phone changes
+  // (or was never sent), clears the server copy when it's removed. A failure
+  // just waits for the next launch or change.
+  useEffect(() => {
+    if (!backendConfigured || !profile || !online) return;
+    const local = profile.photoUri || '';
+    // Only a change made on this phone counts, so signing in on a phone with
+    // no photo never wipes the one friends already see.
+    if (local === (profile.photoFrom || '')) return;
+    let stale = false;
+    (async () => {
+      try {
+        if (!(await remoteAuth.session())) return;
+        let url: string | null = null;
+        if (local) {
+          const { bytes, type } = await readPhoto(local);
+          url = await remoteProfile.uploadPhoto(bytes, type);
+        } else {
+          await remoteProfile.removePhoto().catch(() => {});
+        }
+        await remoteProfile.update({ photo_url: url });
+        if (stale) return;
+        setProfile(p => {
+          if (!p || (p.photoUri || '') !== local) return p;
+          const next = { ...p, photoUrl: url || undefined, photoFrom: local };
+          AsyncStorage.setItem(KEY, JSON.stringify(next)).catch(() => {});
+          return next;
+        });
+      } catch { /* offline or 0015 not run yet */ }
+    })();
+    return () => { stale = true; };
+  }, [online, profile?.photoUri, profile?.photoFrom]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setAvatar = async (a: AvatarSpec) => {
+    if (!profile) return;
+    const next = { ...profile, avatar: avatarOf(a) };
+    setProfile(next);
+    await AsyncStorage.setItem(KEY, JSON.stringify(next)).catch(() => {});
+    if (!backendConfigured) return;
+    try {
+      if (await remoteAuth.session()) await remoteProfile.update({ avatar: next.avatar });
+    } catch { /* offline: pushed with the next save */ }
+  };
+
   return (
-    <ProfileCtx.Provider value={{ profile, loaded, signedIn, online, roles, save, signIn, signOut, clear, redeemInvite, refreshRoles }}>
+    <ProfileCtx.Provider value={{ profile, loaded, signedIn, online, roles, save, signIn, signOut, clear, changePassword, deleteAccount, redeemInvite, refreshRoles, setPinnedBadges, setAvatar }}>
       {children}
     </ProfileCtx.Provider>
   );

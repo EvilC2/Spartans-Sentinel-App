@@ -26,11 +26,12 @@ type Props = {
   mode: ScanMode;
   onResult: (r: ScanResult) => void;
   onClose: () => void;
+  hint?: string;               // replaces the line under the frame
 };
 
 const ONE_D: BarcodeType[] = ['code39', 'code128', 'code93', 'itf14', 'codabar', 'ean13', 'upc_a'];
 
-export default function IdScanner({ visible, mode, onResult, onClose }: Props) {
+export default function IdScanner({ visible, mode, onResult, onClose, hint: hintText }: Props) {
   const { c } = useTheme();
   const { width, height } = useWindowDimensions();
   const [perm, requestPerm] = useCameraPermissions();
@@ -98,7 +99,7 @@ export default function IdScanner({ visible, mode, onResult, onClose }: Props) {
   const frameH = mode === 'qr' ? frameW * 0.75 : frameW / 1.586;
   const top = Math.max(120, (height - frameH) / 2 - 40);
 
-  const hint = mode === 'qr'
+  const hint = hintText ? hintText : mode === 'qr'
     ? 'Flip your card over and line up the QR code.'
     : mode === 'barcode'
       ? 'Line up the barcode along the bottom of your card.'

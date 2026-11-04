@@ -2,24 +2,22 @@
   "expo": {
     "name": "Spartans",
     "slug": "spartans",
-    "version": "1.0.0",
+    "version": "1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "backgroundColor": "#FAF9F5",
-    "splash": {
-      "backgroundColor": "#FAF9F5",
-      "resizeMode": "contain",
-      "image": "./assets/splash-icon.png"
-    },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.sentinel.schoolapp"
+      "bundleIdentifier": "com.clivebrownhill.spartans",
+      "config": {
+        "usesNonExemptEncryption": false
+      }
     },
     "android": {
       "package": "com.sentinel.schoolapp",
       "adaptiveIcon": {
-        "backgroundColor": "#0E2238",
+        "backgroundColor": "#021F6B",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -31,16 +29,46 @@
     },
     "plugins": [
       "expo-font",
-      ["expo-camera", { "cameraPermission": "Spartans uses the camera to scan your student ID card and take your ID photo." }],
-      ["expo-image-picker", {
-        "photosPermission": "Spartans needs your photos to pick your ID photo.",
-        "cameraPermission": "Spartans uses the camera to take your ID photo."
-      }],
-      ["expo-sensors", { "motionPermission": "Spartans tilts badges with your phone." }],
-      ["expo-media-library", {
-        "savePhotosPermission": "Spartans saves badge pictures to your photos.",
-        "isAccessMediaLocationEnabled": false
-      }]
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Spartans uses the camera to scan your student ID card and take your ID photo."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Spartans needs your photos to pick your ID photo.",
+          "cameraPermission": "Spartans uses the camera to take your ID photo."
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Spartans tilts badges with your phone."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#1A3A5C"
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "savePhotosPermission": "Spartans saves badge pictures to your photos.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#021F6B",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200
+        }
+      ]
     ]
   }
 }

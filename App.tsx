@@ -1,6 +1,7 @@
 // Spartans — functioning app shell.
-// Five tabs (Home, Buzz, Calendar, Social, More) plus sub-screens reached from
-// More, the header or Quick links (Contacts, Homework, Me, Day view). Theme
+// Six tabs (Home, Programs, Calendar, Announcements, Social, More) plus
+// sub-screens reached from More, the header, Quick links or a program row
+// (Contacts, Homework, Me, Day view, Program). The Buzz lives on Home only. Theme
 // (light/dark) lives in ThemeContext and persists to AsyncStorage. The student
 // profile (from the sign-up flow) lives in ProfileContext; until one exists the
 // shell shows OnboardingScreen instead.
@@ -8,7 +9,7 @@
 // The web build's `.app-frame` (max-width 430, centred, shadowed on desktop)
 // is kept so tablets and the web target still show the phone-width column.
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, StatusBar, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
@@ -21,43 +22,59 @@ import {
 import { ThemeProvider, useTheme } from './src/ThemeContext';
 import { ProfileProvider, useProfile } from './src/ProfileContext';
 import { PreviewTimeProvider } from './src/PreviewTime';
-import { PinsProvider, GradesProvider, EventsProvider } from './src/stores';
+import { PinsProvider, GradesProvider, EventsProvider, HomeworkProvider } from './src/stores';
 import { ClassSheetProvider } from './src/components/ClassCard';
 import { NavProvider, useNav } from './src/nav';
+import { FriendsProvider } from './src/social';
+import { NotifyProvider } from './src/notify/NotifyProvider';
+import { ContentProvider } from './src/content';
 import { FRAME_MAX_WIDTH, shadow } from './src/theme';
 import { TabBar, TabId } from './src/components/Chrome';
 import HomeScreen from './src/screens/HomeScreen';
 import CalendarScreen from './src/screens/CalendarScreen';
 import HomeworkScreen from './src/screens/HomeworkScreen';
-import BuzzScreen from './src/screens/NewsScreen';
+import AnnouncementsScreen from './src/screens/NewsScreen';
+import ProgramsScreen from './src/screens/ProgramsScreen';
 import ContactsScreen from './src/screens/ContactsScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import MoreScreen from './src/screens/MoreScreen';
 import SocialScreen from './src/screens/SocialScreen';
-import DayViewScreen from './src/screens/DayViewScreen';
-import OnboardingScreen from './src/screens/OnboardingScreen';
+import MapScreen from './src/screens/MapScreen';
+import LunchScreen from './src/screens/LunchScreen';
+import AdminScreen from './src/screens/AdminScreen';
+import OnboardingScreen, { ProfileEditor, EditWhat } from './src/screens/OnboardingScreen';
+import { LoadingSplash } from './src/components/SplashHero';
 
 export type ScreenProps = {
   onNavigate: (t: TabId) => void;
   topInset: number;
-  onEditProfile: () => void;
+  onEdit: (what: EditWhat) => void;   // Settings → Edit profile / Edit classes
 };
+
+// The loading splash stays up at least this long, even if the profile loads sooner.
+const SPLASH_MIN_MS = 2000;
 
 function Shell() {
   const { c, mode } = useTheme();
-  const { profile, loaded, signedIn } = useProfile();
+  const { profile, loaded: profileLoaded, signedIn } = useProfile();
+  const [splashHeld, setSplashHeld] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setSplashHeld(false), SPLASH_MIN_MS);
+    return () => clearTimeout(t);
+  }, []);
+  const loaded = profileLoaded && !splashHeld;
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const nav = useNav();
   const tab = nav.tab;
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState<EditWhat | null>(null);
 
   const wide = width > 500;
   const screenProps: ScreenProps = {
-    onNavigate: nav.go, topInset: insets.top, onEditProfile: () => setEditing(true),
+    onNavigate: nav.go, topInset: insets.top, onEdit: setEditing,
   };
 
-  const showIntro = loaded && (!profile || !signedIn || editing);
+  const showIntro = loaded && (!profile || !signedIn);
 
   return (
     <View style={{
@@ -77,28 +94,39 @@ function Shell() {
         backgroundColor: c.paper,
         overflow: 'hidden',
       }, wide ? shadow.lg : shadow.none]}>
-        {!loaded && null}
+        {!loaded && <LoadingSplash />}
 
         {showIntro && (
           <OnboardingScreen
-            initial={editing ? profile : null}
             topInset={insets.top}
-            onDone={() => { setEditing(false); nav.go('home'); }}
-            onCancel={editing ? () => setEditing(false) : undefined}
+            onDone={() => { setEditing(null); nav.go('home'); }}
+          />
+        )}
+
+        {/* Settings editors cover the tabs; Save or Cancel returns to where you were. */}
+        {!showIntro && editing && (
+          <ProfileEditor
+            what={editing}
+            topInset={insets.top}
+            onDone={() => setEditing(null)}
+            onCancel={() => setEditing(null)}
           />
         )}
 
         {loaded && profile && signedIn && !editing && (
           <>
             {tab === 'home' && <HomeScreen {...screenProps} />}
-            {(tab === 'buzz' || tab === 'news') && <BuzzScreen {...screenProps} />}
+            {tab === 'programs' && <ProgramsScreen {...screenProps} />}
+            {tab === 'announcements' && <AnnouncementsScreen {...screenProps} />}
             {tab === 'calendar' && <CalendarScreen {...screenProps} />}
             {tab === 'social' && <SocialScreen {...screenProps} />}
             {tab === 'more' && <MoreScreen {...screenProps} />}
             {tab === 'homework' && <HomeworkScreen {...screenProps} />}
             {tab === 'contacts' && <ContactsScreen {...screenProps} />}
-            {tab === 'dayview' && <DayViewScreen {...screenProps} />}
+            {tab === 'lunch' && <LunchScreen {...screenProps} />}
             {tab === 'me' && <ProfileScreen {...screenProps} />}
+            {tab === 'map' && <MapScreen {...screenProps} />}
+            {tab === 'admin' && <AdminScreen {...screenProps} />}
             <TabBar active={tab} onNavigate={nav.go} bottomInset={insets.bottom} />
           </>
         )}
@@ -108,6 +136,9 @@ function Shell() {
 }
 
 export default function App() {
+  // Bumped after an account is deleted: remounts every store below the
+  // profile so nothing from the old account stays in memory.
+  const [epoch, setEpoch] = useState(0);
   const [fontsLoaded] = useFonts({
     Newsreader_400Regular,
     Newsreader_400Regular_Italic,
@@ -119,19 +150,27 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <ProfileProvider>
-          <PreviewTimeProvider>
+        <ProfileProvider onReset={() => setEpoch(e => e + 1)}>
+          <PreviewTimeProvider key={epoch}>
+            <ContentProvider>
             <PinsProvider>
               <GradesProvider>
-                <EventsProvider>
-                  <NavProvider>
-                    <ClassSheetProvider>
-                      <Shell />
-                    </ClassSheetProvider>
-                  </NavProvider>
-                </EventsProvider>
+                <HomeworkProvider>
+                  <EventsProvider>
+                    <NavProvider>
+                      <ClassSheetProvider>
+                        <FriendsProvider>
+                          <NotifyProvider>
+                            <Shell />
+                          </NotifyProvider>
+                        </FriendsProvider>
+                      </ClassSheetProvider>
+                    </NavProvider>
+                  </EventsProvider>
+                </HomeworkProvider>
               </GradesProvider>
             </PinsProvider>
+            </ContentProvider>
           </PreviewTimeProvider>
         </ProfileProvider>
       </ThemeProvider>

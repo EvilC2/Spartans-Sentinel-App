@@ -2,7 +2,7 @@
 // CSS custom properties became two plain objects (light / dark) read through
 // useTheme(). Every `var(--ink)` in the web build is now `c.ink`.
 
-import { Platform } from 'react-native';
+import { Platform, ViewStyle } from 'react-native';
 
 export type Mode = 'light' | 'dark';
 
@@ -36,7 +36,12 @@ const light = {
   surface: '#FFFFFF',
   goldTint: '#F6EBD3',
   crimsonTint: '#F4E3E0',
+  mossTint: '#E6EFDF',
   skyTint: '#E4F1FC',
+  // text links, filled action buttons and warnings; brighter twins in dark
+  link: '#1A3A5C',
+  action: '#1A3A5C',
+  danger: '#A23E3E',
   // outside the 430px frame, on tablets / web
   backdrop: '#F0EEE9',
   hatch: 'rgba(14,34,56,0.06)',
@@ -58,7 +63,11 @@ const dark: typeof light = {
   surface: '#161D26',
   goldTint: '#2A2415',
   crimsonTint: '#2A1717',
+  mossTint: '#17241A',
   skyTint: '#12263A',
+  link: '#8FBDF0',
+  action: '#2F6FB8',
+  danger: '#EF8A8A',
   backdrop: '#06090D',
   hatch: 'rgba(255,255,255,0.07)',
   tabBarBg: 'rgba(12,17,23,0.85)',
@@ -79,6 +88,16 @@ export const fonts = {
 };
 
 export const radii = { sm: 10, md: 14, lg: 20, xl: 26 };
+
+// Shadow that follows a PNG's shape, not its box. iOS draws layer shadows
+// from the pixels when the view has no background; Android and web need a
+// drop-shadow filter. PNG_SHADOW is the deep one for badges on Social.
+export const pngShadow = (y: number, blur: number, alpha: number) => Platform.select<ViewStyle>({
+  ios: { shadowColor: '#06121F', shadowOffset: { width: 0, height: y }, shadowOpacity: alpha, shadowRadius: blur },
+  android: { filter: [{ dropShadow: { offsetX: 0, offsetY: y, standardDeviation: blur, color: `rgba(6,18,31,${alpha})` } }] } as ViewStyle,
+  default: { filter: `drop-shadow(0px ${y}px ${blur}px rgba(6,18,31,${alpha}))` } as unknown as ViewStyle,
+});
+export const PNG_SHADOW = pngShadow(10, 11, 0.6);
 
 // CSS box-shadows → RN shadow* (iOS) + elevation (Android). The web build
 // layered two shadows per token; RN takes one, so opacity is nudged up to

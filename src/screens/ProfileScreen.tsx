@@ -1,23 +1,32 @@
 // Spartans — Me / Profile screen (from the header avatar, not a tab)
 // Sections (top → bottom):
-//   1. Profile header (name, grade, photo) + badge button → BadgesSheet
+//   1. Profile header (name, grade, photo) + badge button → BadgesSheet,
+//      then your pinned badges (tap to change)
 //   2. Digital student ID card (StudentIdCard — tap to flip to the QR side)
 //   3. My timetable — table: block # | Day 1 class | Day 2 class (tap a cell for the class card)
-//   4. Settings / account list
-//   5. Sign out
+//   4. Settings (Settings.tsx): Appearance, Notifications, Linked apps, App Club
+//      Admin, then Edit profile / Edit classes / Account & privacy, Sign out,
+//      Help & feedback
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, Pressable, ScrollView, Alert, Platform, Modal, TextInput, KeyboardAvoidingView } from 'react-native';
+import { View, Text, Pressable, ScrollView } from 'react-native';
 import { useTheme } from '../ThemeContext';
-import { fonts, shadow, tnum } from '../theme';
-import { Icon, IconName, Check } from '../components/Icon';
+import { fonts, shadow, tnum, pngShadow } from '../theme';
+import { Icon, IconName } from '../components/Icon';
 import { StudentIdCard, Portrait } from '../components/StudentIdCard';
 import { SectionHeader } from '../components/Chrome';
 import { AppHeader } from '../components/AppHeader';
 import { useClassSheet } from '../components/ClassCard';
-import { levelState, levelTitle } from '../xp';
+import { XpSheet } from '../components/XpSheet';
+import { XpBar } from '../components/XpBar';
 import { useProfile, StudentProfile, Course, fullName, gradeLabel, homeroom, teacherShort, roomShort, courseAt, Slot } from '../ProfileContext';
 import { BadgesSheet, unlockedCount } from './BadgesScreen';
+import { BadgeIcon, BadgeArt } from '../components/BadgeArt';
+import { Badge, isUnlocked } from '../badges';
+import { badgeOf, MAX_PINNED } from '../social';
+import { useEarnedVersion } from '../earned';
+import { SettingsSection } from './Settings';
+import { isTop, mainRole, roleLabel } from '../ranks';
 import type { ScreenProps } from '../../App';
 
 // Shape the card/header components read. Built from the saved profile.
@@ -29,25 +38,15 @@ const toStu = (p: StudentProfile): Stu => ({
   pronouns: p.pronouns || '',
 });
 
-export default function ProfileScreen({ onNavigate, topInset, onEditProfile }: ScreenProps) {
-  const { c, mode, toggle } = useTheme();
-  const { profile, signOut: doSignOut, roles, refreshRoles } = useProfile();
+export default function ProfileScreen({ onNavigate, topInset, onEdit }: ScreenProps) {
+  const { c } = useTheme();
+  const { profile, refreshRoles } = useProfile();
   const p = profile!;
   useEffect(() => { refreshRoles(); }, []);   // pick up roles granted since last launch
   const stu = toStu(p);
   const [badges, setBadges] = useState(false);
-  const [adminOpen, setAdminOpen] = useState(false);
+  const [xp, setXp] = useState(false);
   const sheet = useClassSheet();
-
-  const signOut = () => {
-    const msg = 'Your account stays on this device. Sign back in with your school email or student number and your password.';
-    // RN-web has no Alert; fall back to the browser confirm.
-    if (Platform.OS === 'web') { if (typeof confirm === 'function' && confirm(`Sign out?\n\n${msg}`)) doSignOut(); return; }
-    Alert.alert('Sign out?', msg, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: () => { doSignOut(); } },
-    ]);
-  };
 
   return (
     <ScrollView
@@ -58,7 +57,8 @@ export default function ProfileScreen({ onNavigate, topInset, onEditProfile }: S
       <AppHeader topInset={topInset} title="Profile" back />
 
       {/* ── Profile header ──────────────────────────────────── */}
-      <ProfileHeader stu={stu} p={p} onBadges={() => setBadges(true)} />
+      <ProfileHeader stu={stu} p={p} onBadges={() => setBadges(true)} onXp={() => setXp(true)} />
+      <PinnedBadges p={p} onPress={() => setBadges(true)} />
 
       {/* ── Student ID card ─────────────────────────────────── */}
       <View style={{ paddingTop: 4, paddingHorizontal: 20 }}>
@@ -89,40 +89,11 @@ export default function ProfileScreen({ onNavigate, topInset, onEditProfile }: S
         </>
       )}
 
-      {/* ── Settings list ───────────────────────────────────── */}
-      <SectionHeader title="Settings" />
-      <View style={{ paddingHorizontal: 20 }}>
-        <SettingsList mode={mode} onToggleTheme={toggle} onEditProfile={onEditProfile} email={p.email} roles={roles} onAdmin={() => setAdminOpen(true)} />
-      </View>
-
-      {/* ── Sign out ────────────────────────────────────────── */}
-      <View style={{ paddingTop: 20, paddingHorizontal: 20, paddingBottom: 8 }}>
-        <Pressable
-          onPress={signOut}
-          style={({ pressed }) => ({
-            paddingVertical: 13, paddingHorizontal: 16,
-            borderWidth: 1, borderColor: c.line, borderRadius: 14,
-            alignItems: 'center',
-            opacity: pressed ? 0.6 : 1,
-          })}
-        >
-          <Text style={{
-            color: c.crimson, fontSize: 14, fontWeight: '600', letterSpacing: -0.1,
-          }}>
-            Sign out
-          </Text>
-        </Pressable>
-      </View>
-
-      <Text style={{
-        paddingTop: 14, paddingHorizontal: 20, paddingBottom: 8,
-        textAlign: 'center', fontSize: 11, color: c.ink4, letterSpacing: 0.3,
-      }}>
-        Spartans · Sentinel Secondary's unofficial app · v3.0
-      </Text>
+      {/* ── Settings ────────────────────────────────────────── */}
+      <SettingsSection onEdit={onEdit} />
 
       <BadgesSheet visible={badges} onClose={() => setBadges(false)} />
-      <AdminSheet visible={adminOpen} onClose={() => setAdminOpen(false)} />
+      <XpSheet visible={xp} onClose={() => setXp(false)} />
     </ScrollView>
   );
 }
@@ -130,12 +101,14 @@ export default function ProfileScreen({ onNavigate, topInset, onEditProfile }: S
 // ────────────────────────────────────────────────────────────────
 // Profile header — name, grade, photo
 // ────────────────────────────────────────────────────────────────
-const ProfileHeader = ({ stu, p, onBadges }: { stu: Stu; p: StudentProfile; onBadges: () => void }) => {
+const ProfileHeader = ({ stu, p, onBadges, onXp }: { stu: Stu; p: StudentProfile; onXp: () => void; onBadges: () => void }) => {
   const { c } = useTheme();
   const { roles } = useProfile();
   const n = unlockedCount();
-  // App Club role pill: gold for owner, navy for any other server-issued role.
-  const rolePill = roles.includes('owner') ? { label: 'Owner', bg: c.goldTint, fg: c.gold, icon: 'shield' as IconName }
+  // App Club role pill: gold for the top roles (President, Teacher Sponsor;
+  // the app's owner reads as President), navy for any other club role.
+  const top = isTop(roles) ? mainRole(roles) : null;
+  const rolePill = top ? { label: roleLabel(top), bg: c.goldTint, fg: c.gold, icon: 'shield' as IconName }
     : roles.length ? { label: 'App Club', bg: c.navy50, fg: c.navy700, icon: 'shield' as IconName } : null;
   return (
     <View style={{
@@ -169,27 +142,43 @@ const ProfileHeader = ({ stu, p, onBadges }: { stu: Stu; p: StudentProfile; onBa
             </View>
           )}
         </View>
-        <LevelLine />
+        <XpBar rank onPress={onXp} style={{ marginTop: 10 }} />
       </View>
       {/* Badge button — right of the name, above the ID card */}
       <Pressable
         onPress={onBadges}
-        hitSlop={6}
-        style={({ pressed }) => [{
-          alignItems: 'center', justifyContent: 'center',
-          width: 48, height: 48, borderRadius: 14,
-          backgroundColor: c.surface, borderWidth: 1, borderColor: c.line,
-          opacity: pressed ? 0.6 : 1,
-        }, shadow.sm]}
+        hitSlop={8}
+        accessibilityRole="button"
+        accessibilityLabel={`Badges, ${n} unlocked`}
+        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
       >
-        <Icon name="badge" size={22} stroke={1.7} color={c.gold} />
-        <View style={{
-          position: 'absolute', top: -6, right: -6, minWidth: 18, height: 18, borderRadius: 9,
-          paddingHorizontal: 5, backgroundColor: c.navy700, borderWidth: 1.5, borderColor: c.paper,
-          alignItems: 'center', justifyContent: 'center',
-        }}>
-          <Text style={[{ fontSize: 10, fontWeight: '700', color: '#fff' }, tnum]}>{n}</Text>
-        </View>
+        <BadgeIcon size={50} />
+      </Pressable>
+    </View>
+  );
+};
+
+// ────────────────────────────────────────────────────────────────
+// Pinned badges — the ones friends see under your name, small, in a row.
+// Tap to change.
+// ────────────────────────────────────────────────────────────────
+const PinnedBadges = ({ p, onPress }: { p: StudentProfile; onPress: () => void }) => {
+  const { c } = useTheme();
+  useEarnedVersion();
+  const pinned = (p.pinnedBadges || []).map(badgeOf).filter((b): b is Badge => !!b && isUnlocked(b)).slice(0, MAX_PINNED);
+  return (
+    <View style={{ paddingHorizontal: 20, paddingBottom: 16 }}>
+      <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={pinned.length ? `Pinned badges: ${pinned.map(b => b.title).join(', ')}. Change` : 'Pin up to four badges'}
+        style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, alignSelf: 'flex-start', opacity: pressed ? 0.7 : 1 })}>
+        {pinned.map(b => (
+          <View key={b.id} style={pngShadow(5, 6, 0.4)}><BadgeArt badge={b} size={40} /></View>
+        ))}
+        {pinned.length < MAX_PINNED && (
+          <View style={{ height: 40, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: pinned.length ? 2 : 0 }}>
+            <Icon name="plus" size={14} stroke={2.2} color={c.gold} />
+            {!pinned.length && <Text style={{ fontSize: 13.5, fontWeight: '700', color: c.gold }}>Pin badges</Text>}
+          </View>
+        )}
       </Pressable>
     </View>
   );
@@ -255,211 +244,5 @@ const TableCell = ({ k, slot, divider = false, onPress }: { k?: Course; slot: st
         </Text>
       </View>
     </Pressable>
-  );
-};
-
-// Level + XP bar under the name. Local XP from unlocked badges (src/xp.ts).
-const LevelLine = () => {
-  const { c } = useTheme();
-  const lv = levelState();
-  return (
-    <View style={{ marginTop: 8 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
-        <Text style={[{ fontSize: 12.5, fontWeight: '700', color: c.navy700 }, tnum]}>Level {lv.level} · {levelTitle(lv.level)}</Text>
-        <Text style={[{ fontSize: 11, color: c.ink4 }, tnum]}>{lv.xp} XP · {lv.toNext} to next</Text>
-      </View>
-      <View style={{ marginTop: 4, height: 5, borderRadius: 3, backgroundColor: c.line2, overflow: 'hidden' }}>
-        <View style={{ width: `${Math.round(lv.progress * 100)}%`, height: '100%', backgroundColor: c.gold, borderRadius: 3 }} />
-      </View>
-    </View>
-  );
-};
-
-// ────────────────────────────────────────────────────────────────
-// Settings list — Appearance row toggles light/dark
-// ────────────────────────────────────────────────────────────────
-const SettingsList = ({
-  mode, onToggleTheme, onEditProfile, email, roles, onAdmin,
-}: { mode: 'light' | 'dark'; onToggleTheme: () => void; onEditProfile: () => void; email?: string; roles: string[]; onAdmin: () => void }) => {
-  const { c } = useTheme();
-  const items: {
-    label: string; icon: IconName; sub: string | null; onPress?: () => void;
-  }[] = [
-    { label: 'Edit profile & classes', icon: 'me', sub: 'Name, grade, email, all 8 blocks', onPress: onEditProfile },
-    { label: 'Notifications', icon: 'bell', sub: 'Announcements, homework, events' },
-    { label: 'Account & privacy', icon: 'me', sub: email || 'No school email set' },
-    {
-      label: 'Appearance', icon: 'sparkle',
-      sub: mode === 'dark' ? 'Dark · Tap to switch to light' : 'Light · Tap to switch to dark',
-      onPress: onToggleTheme,
-    },
-    { label: 'Linked apps', icon: 'grid', sub: 'MyEdBC · Office 365' },
-    { label: 'Help & support', icon: 'compass', sub: null },
-    {
-      label: 'App Club Admin', icon: 'shield', onPress: onAdmin,
-      sub: roles.length ? `Roles: ${roles.join(', ')}` : 'School App Club members: enter your invite code',
-    },
-  ];
-
-  return (
-    <View style={[{
-      backgroundColor: c.surface,
-      borderWidth: 1, borderColor: c.line,
-      borderRadius: 16, overflow: 'hidden',
-    }, shadow.sm]}>
-      {items.map((it, i) => (
-        <SettingsRow key={it.label} it={it} isLast={i === items.length - 1} />
-      ))}
-    </View>
-  );
-};
-
-const SettingsRow = ({ it, isLast }: { it: any; isLast: boolean }) => {
-  const { c } = useTheme();
-  return (
-    <Pressable
-      onPress={it.onPress}
-      style={({ pressed }) => ({
-        flexDirection: 'row', gap: 12, alignItems: 'center',
-        paddingVertical: 12, paddingHorizontal: 14,
-        borderBottomWidth: isLast ? 0 : 1,
-        borderBottomColor: c.line2,
-        opacity: pressed && it.onPress ? 0.7 : 1,
-      })}
-    >
-      <View style={{
-        width: 32, height: 32, borderRadius: 9,
-        backgroundColor: c.navy50,
-        alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Icon name={it.icon} size={17} stroke={1.8} color={c.navy700} />
-      </View>
-      <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={{ fontSize: 14, fontWeight: '500', color: c.ink, letterSpacing: -0.1 }}>
-          {it.label}
-        </Text>
-        {!!it.sub && (
-          <Text numberOfLines={1} style={{ fontSize: 12, color: c.ink3, marginTop: 1 }}>
-            {it.sub}
-          </Text>
-        )}
-      </View>
-      <Icon name="chev-r" size={16} stroke={1.8} color={c.ink4} />
-    </Pressable>
-  );
-};
-
-// ────────────────────────────────────────────────────────────────
-// App Club Admin — redeem an invite code. The code binds one role to this
-// account on the server (single use, expires); the server also decides what
-// that role may write. Owners can mint codes here too.
-// ────────────────────────────────────────────────────────────────
-const ROLE_OPTIONS = ['trivia', 'polls', 'news', 'menu', 'popups', 'badges', 'library', 'owner'] as const;
-
-const AdminSheet = ({ visible, onClose }: { visible: boolean; onClose: () => void }) => {
-  const { c } = useTheme();
-  const { roles, redeemInvite, online } = useProfile();
-  const [code, setCode] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [minted, setMinted] = useState<string | null>(null);
-  const isOwner = roles.includes('owner');
-
-  const redeem = async () => {
-    if (busy || !code.trim()) return;
-    setBusy(true); setMsg(null);
-    try {
-      const role = await redeemInvite(code);
-      setMsg({ ok: true, text: `You now have the ${role} role.` });
-      setCode('');
-    } catch (e: any) {
-      setMsg({ ok: false, text: String(e?.message || 'Could not redeem that code.') });
-    } finally { setBusy(false); }
-  };
-
-  const mint = async (role: string) => {
-    if (busy) return;
-    setBusy(true); setMsg(null);
-    try {
-      const { admin } = await import('../backend');
-      setMinted(await admin.createInvite(role as any));
-    } catch (e: any) {
-      setMsg({ ok: false, text: String(e?.message || 'Could not create a code.') });
-    } finally { setBusy(false); }
-  };
-
-  const field = { borderWidth: 1, borderColor: c.line, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: c.ink, backgroundColor: c.surface } as const;
-
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: c.paper }}>
-        <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 28, gap: 12 }} keyboardShouldPersistTaps="handled">
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <Text style={{ fontFamily: fonts.serif, fontSize: 26, color: c.ink }}>App Club Admin</Text>
-            <Pressable onPress={onClose} hitSlop={12}><Text style={{ fontSize: 15, color: c.navy700, fontWeight: '600' }}>Done</Text></Pressable>
-          </View>
-          <Text style={{ fontSize: 14, color: c.ink3, lineHeight: 20 }}>
-            {roles.length ? `Your roles: ${roles.join(', ')}.` : 'No roles yet.'}
-            {' '}Got an invite code from the club? Enter it once; the role sticks to this account.
-          </Text>
-          {!online && (
-            <Text style={{ fontSize: 13, color: c.crimson }}>Offline — codes need a connection.</Text>
-          )}
-
-          <TextInput
-            value={code}
-            onChangeText={t => setCode(t.toUpperCase())}
-            placeholder="INVITE CODE"
-            placeholderTextColor={c.ink4}
-            autoCapitalize="characters"
-            autoCorrect={false}
-            style={field}
-            onSubmitEditing={redeem}
-          />
-          <Pressable
-            onPress={redeem}
-            disabled={busy || !code.trim()}
-            style={({ pressed }) => ({
-              backgroundColor: c.navy700, borderRadius: 12, paddingVertical: 13, alignItems: 'center',
-              opacity: busy || !code.trim() ? 0.5 : pressed ? 0.85 : 1,
-            })}
-          >
-            <Text style={{ color: '#fff', fontWeight: '700', fontSize: 15 }}>{busy ? 'Checking…' : 'Redeem code'}</Text>
-          </Pressable>
-          {msg && (
-            <Text style={{ fontSize: 14, color: msg.ok ? c.moss : c.crimson }}>{msg.text}</Text>
-          )}
-
-          {isOwner && (
-            <View style={{ marginTop: 20, gap: 10 }}>
-              <SectionHeader title="Create an invite code" />
-              <Text style={{ fontSize: 13, color: c.ink3, lineHeight: 18 }}>
-                Owner only. Tap a role; the code works once and expires in 7 days. Send it to the member privately.
-              </Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                {ROLE_OPTIONS.map(r => (
-                  <Pressable
-                    key={r}
-                    onPress={() => mint(r)}
-                    style={({ pressed }) => ({
-                      paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999,
-                      borderWidth: 1, borderColor: c.line, backgroundColor: pressed ? c.navy50 : c.surface,
-                    })}
-                  >
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: c.ink }}>{r}</Text>
-                  </Pressable>
-                ))}
-              </View>
-              {minted && (
-                <View style={{ borderWidth: 1, borderColor: c.line, borderRadius: 12, padding: 14, backgroundColor: c.surface }}>
-                  <Text style={{ fontSize: 12, color: c.ink3 }}>New code</Text>
-                  <Text selectable style={[{ fontSize: 24, fontWeight: '700', color: c.ink, letterSpacing: 2 }, tnum]}>{minted}</Text>
-                </View>
-              )}
-            </View>
-          )}
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </Modal>
   );
 };

@@ -1,35 +1,49 @@
-// Spartans — The Buzz tab.
-// The rotating Buzz window (trivia, polls, did-you-know, banner news) on top,
-// then the announcements feed: Athletics, Academic, General, Events. A
-// featured pinned post sits first in a heavier card; the rest scroll below as
-// a grouped list. Admin posts carry a small verified mark. Tapping a card
-// expands it inline (state-managed locally — expanded id).
+// Spartans — Announcements tab.
+// The announcements feed: Athletics, Academic, General, Events, plus a
+// "My programs" filter that keeps only posts mentioning something the student
+// is in. A featured pinned post sits first in a heavier card; the rest scroll
+// below as a grouped list. Admin posts carry a small verified mark. Tapping a
+// card expands it inline (state-managed locally — expanded id).
+// Posts come from App Club Admin (src/content): every live news post placed in
+// Announcements. Opening one counts as a read for the admin's numbers.
+// The Buzz window (trivia, polls) lives on Home only; it is not a tab.
 
-import React, { useState } from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
-import S from '../data';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, Pressable, ScrollView, Image } from 'react-native';
 import { useTheme } from '../ThemeContext';
-import { fonts, shadow, Palette } from '../theme';
+import { fonts, shadow, tnum, Palette } from '../theme';
 import { Icon, Check } from '../components/Icon';
 import { TabId } from '../components/Chrome';
 import { AppHeader } from '../components/AppHeader';
-import { Buzz, BuzzSlide } from '../components/Buzz';
+import { useProfile } from '../ProfileContext';
+import { programsFor, matchesProgram } from '../programs';
+import { useContent, PostOf } from '../content';
 
 type Props = { onNavigate: (t: TabId) => void; topInset: number };
 
-const FILTERS = ['All', 'Athletics', 'Academic', 'General', 'Events'];
+const MINE = 'My programs';
+const FILTERS = ['All', MINE, 'Athletics', 'Academic', 'General', 'Events'];
 
-export default function BuzzScreen({ onNavigate, topInset }: Props) {
+export default function AnnouncementsScreen({ onNavigate, topInset }: Props) {
   const { c } = useTheme();
+  const { profile } = useProfile();
   const [filter, setFilter] = useState('All');
   const [expanded, setExpanded] = useState<string | null>(null);
-  const fun = S.buzz as BuzzSlide[];
+  const programs = programsFor(profile);
+  const mine = (n: any) => programs.some(p => matchesProgram(`${n.title} ${n.preview}`, p));
+  const { inPlace, seen, opened } = useContent();
+  const news = useMemo(() => inPlace('news').filter((p): p is PostOf<'news'> => p.kind === 'news').map(toCard), [inPlace]);
+  useEffect(() => { seen(news.map(n => n.id)); }, [news, seen]);
+  const toggle = (id: string) => {
+    if (expanded !== id) opened(id);
+    setExpanded(expanded === id ? null : id);
+  };
 
   // Split pinned out; filter list
-  const pinned = S.news.find(n => n.pinned);
-  const rest = S.news.filter(n => !n.pinned);
-  const list = filter === 'All' ? rest : rest.filter(n => n.category === filter);
-  const showPinned = filter === 'All' || (!!pinned && pinned.category === filter);
+  const pinned = news.find(n => n.pinned);
+  const rest = news.filter(n => n !== pinned);
+  const list = filter === 'All' ? rest : filter === MINE ? rest.filter(mine) : rest.filter(n => n.category === filter);
+  const showPinned = filter === 'All' || (!!pinned && (filter === MINE ? mine(pinned) : pinned.category === filter));
 
   // Group filtered list by relative date label
   const groups = groupByTime(list);
@@ -40,37 +54,13 @@ export default function BuzzScreen({ onNavigate, topInset }: Props) {
       contentContainerStyle={{ paddingBottom: 110 }}
       showsVerticalScrollIndicator={false}
     >
-      <AppHeader topInset={topInset} />
-
-      {/* ── Title ───────────────────────────────────────────── */}
-      <View style={{ paddingTop: 14, paddingHorizontal: 20, paddingBottom: 14 }}>
-        <Text style={{ fontFamily: fonts.serif, fontSize: 30, lineHeight: 34, letterSpacing: -0.7, color: c.ink }}>
-          The Buzz
-        </Text>
-        <Text style={{ fontSize: 13, color: c.ink3, marginTop: 4, letterSpacing: -0.1 }}>
-          Trivia, polls, news and what's for lunch. Run by the School App Club.
-        </Text>
-      </View>
-
-      {/* ── The rotating window ─────────────────────────────── */}
-      <Buzz slides={fun} aspect={0.9} />
-
-      {/* ── Announcements title + counter ───────────────────── */}
-      <View style={{ paddingTop: 26, paddingHorizontal: 20, paddingBottom: 8 }}>
-        <View style={{
-          flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between',
-        }}>
-          <Text style={{ fontSize: 20, fontWeight: '600', letterSpacing: -0.4, color: c.ink }}>
-            Announcements
-          </Text>
-          <Text style={{ fontSize: 12, color: c.ink3, fontWeight: '500', letterSpacing: -0.1 }}>
-            {S.news.length} this week
-          </Text>
+      <AppHeader topInset={topInset} title="Announcements" count={
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }} accessibilityLabel={`${news.length} ${news.length === 1 ? 'post' : 'posts'}`}>
+          <Icon name="news" size={14} stroke={2} color={c.ink3} />
+          <Text style={[{ fontSize: 12.5, color: c.ink3, fontWeight: '600' }, tnum]}>{news.length}</Text>
         </View>
-        <Text style={{ fontSize: 13, color: c.ink3, marginTop: 4, letterSpacing: -0.1 }}>
-          Updated 7:48 AM · Tue May 19
-        </Text>
-      </View>
+      } />
+      <View style={{ height: 14 }} />
 
       {/* ── Category filter chips ───────────────────────────── */}
       <ScrollView
@@ -91,9 +81,15 @@ export default function BuzzScreen({ onNavigate, topInset }: Props) {
           <PinnedCard
             n={pinned}
             expanded={expanded === pinned.id}
-            onToggle={() => setExpanded(expanded === pinned.id ? null : pinned.id)}
+            onToggle={() => toggle(pinned.id)}
           />
         </View>
+      )}
+
+      {filter === MINE && list.length === 0 && !(showPinned && pinned) && (
+        <Text style={{ paddingHorizontal: 20, paddingTop: 8, fontSize: 13, color: c.ink3, lineHeight: 18 }}>
+          {programs.length ? 'Nothing this week mentions your programs.' : 'Add classes and programs first, then this filter shows posts about them.'}
+        </Text>
       )}
 
       {/* ── Grouped list ────────────────────────────────────── */}
@@ -112,7 +108,7 @@ export default function BuzzScreen({ onNavigate, topInset }: Props) {
                 key={n.id}
                 n={n}
                 expanded={expanded === n.id}
-                onToggle={() => setExpanded(expanded === n.id ? null : n.id)}
+                onToggle={() => toggle(n.id)}
               />
             ))}
           </View>
@@ -124,11 +120,29 @@ export default function BuzzScreen({ onNavigate, topInset }: Props) {
         paddingTop: 32, paddingHorizontal: 20, paddingBottom: 8,
         textAlign: 'center', fontSize: 12, color: c.ink4, letterSpacing: 0.2,
       }}>
-        — End of feed —
+        {news.length ? '— End of feed —' : 'No announcements right now.'}
       </Text>
     </ScrollView>
   );
 }
+
+// A news post in the card shape below. Time labels: "7:48 AM" today,
+// "Yesterday", a weekday this week, else the date.
+type Card = { id: string; pinned: boolean; admin: boolean; category: string; title: string; preview: string; body: string; author: string; role?: string; time: string; timeFull: string; at: number; image?: string | null };
+const toCard = (p: PostOf<'news'>): Card => {
+  const at = Date.parse(p.startsAt || p.createdAt);
+  const d = new Date(at);
+  const now = new Date();
+  const days = Math.round((new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() - new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()) / 86400000);
+  const clock = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const time = days <= 0 ? clock : days === 1 ? 'Yesterday' : days < 7 ? d.toLocaleDateString('en-US', { weekday: 'short' }) : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const body = p.data.body.trim();
+  return {
+    id: p.id, pinned: p.pinned, admin: true, category: p.data.category, title: p.data.title,
+    preview: body.split(/\n+/)[0].slice(0, 220), body, author: p.data.author, role: p.data.role, image: p.data.image,
+    time, timeFull: `${days <= 0 ? 'Today' : d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · ${clock}`, at,
+  };
+};
 
 // Group news items by their `time` field into "Today" / "Yesterday" / earlier.
 function groupByTime(items: any[]) {
@@ -198,9 +212,11 @@ const PinnedCard = ({
       borderWidth: 1, borderColor: c.line,
       borderRadius: 20, overflow: 'hidden',
     }, shadow.md]}>
+      {!!n.image && <Image source={{ uri: n.image }} style={{ width: '100%', height: 170 }} resizeMode="cover" accessibilityIgnoresInvertColors />}
+
       {/* Category colour rail */}
       <View style={{
-        position: 'absolute', left: 0, top: 0, bottom: 0, width: 3,
+        position: 'absolute', left: 0, top: n.image ? 170 : 0, bottom: 0, width: 3,
         backgroundColor: catColor(n.category, c),
       }} />
 
@@ -266,14 +282,9 @@ const PinnedCard = ({
           </Pressable>
         </View>
 
-        {/* Reactions row, only when expanded */}
+        {/* Full date, only when expanded */}
         {expanded && (
-          <View style={{ flexDirection: 'row', gap: 14, marginTop: 12, alignItems: 'center' }}>
-            <Text style={{ fontSize: 12.5, color: c.ink3 }}>♥ {n.reactions}</Text>
-            <Text style={{ fontSize: 12.5, color: c.ink3 }}>{n.comments} comments</Text>
-            <View style={{ flex: 1 }} />
-            <Text style={{ fontSize: 12.5, color: c.ink4 }}>{n.timeFull}</Text>
-          </View>
+          <Text style={{ fontSize: 12.5, color: c.ink4, marginTop: 12 }}>{n.timeFull}</Text>
         )}
       </View>
     </View>
@@ -293,11 +304,12 @@ const NewsCard = ({
       style={({ pressed }) => [{
         backgroundColor: c.surface,
         borderWidth: 1, borderColor: c.line,
-        borderRadius: 18,
-        paddingTop: 14, paddingHorizontal: 16, paddingBottom: 12,
+        borderRadius: 18, overflow: 'hidden',
         opacity: pressed ? 0.85 : 1,
       }, shadow.sm]}
     >
+      {!!n.image && <Image source={{ uri: n.image }} style={{ width: '100%', height: 130 }} resizeMode="cover" accessibilityIgnoresInvertColors />}
+      <View style={{ paddingTop: 14, paddingHorizontal: 16, paddingBottom: 12 }}>
       {/* Tag row */}
       <View style={{
         flexDirection: 'row', alignItems: 'center',
@@ -320,16 +332,15 @@ const NewsCard = ({
         numberOfLines={expanded ? undefined : 2}
         style={{ fontSize: 13.5, color: c.ink3, marginTop: 6, lineHeight: 19.6 }}
       >
-        {n.preview}
+        {expanded ? n.body : n.preview}
       </Text>
 
       {/* Author row */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 }}>
         <AuthorMark name={n.author} role={n.role} admin={n.admin} compact />
         <View style={{ flex: 1 }} />
-        <Text style={{ fontSize: 12, color: c.ink4 }}>
-          {n.reactions > 0 ? `♥ ${n.reactions} · ` : ''}{n.comments} comments
-        </Text>
+        <Text style={{ fontSize: 12, color: c.navy700, fontWeight: '600' }}>{expanded ? 'Show less' : 'Read'}</Text>
+      </View>
       </View>
     </Pressable>
   );

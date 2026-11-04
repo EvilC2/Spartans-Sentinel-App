@@ -2,10 +2,11 @@
 // -webkit-line-clamp became numberOfLines; CSS grid rows became flex rows.
 
 import React from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView, Image } from 'react-native';
 import { Icon } from './Icon';
 import { useTheme } from '../ThemeContext';
 import { shadow, tnum, Palette } from '../theme';
+import { Page, pageTone } from '../pages';
 
 type C = Palette;
 
@@ -135,28 +136,32 @@ export const EventStrip = ({ events }: { events: any[] }) => (
 );
 
 // ────────────────────────────────────────────────────────────────
-// Quick link tile
+// Quick link tile — a pinned page from More, in the same tinted fill and
+// 3D art as its More tile. `wide` lays it out as a row (art, then label)
+// for the two-column grid; otherwise art over label for three columns.
 // ────────────────────────────────────────────────────────────────
-export const QuickLink = ({ q, onPress }: { q: any; onPress?: () => void }) => {
-  const { c } = useTheme();
+export const QuickLink = ({ q, wide, onPress }: { q: Page; wide?: boolean; onPress?: () => void }) => {
+  const { c, mode } = useTheme();
+  const t = pageTone(c, mode, q.tone);
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => ({ alignItems: 'center', gap: 7, paddingVertical: 6, opacity: pressed ? 0.6 : 1 })}
+      accessibilityRole="button"
+      accessibilityLabel={q.label}
+      style={({ pressed }) => ({
+        backgroundColor: t.bg, borderRadius: 20,
+        transform: [{ scale: pressed ? 0.96 : 1 }],
+        ...(wide
+          ? { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 14, paddingHorizontal: 14 }
+          : { alignItems: 'center', paddingTop: 14, paddingBottom: 12, paddingHorizontal: 8 }),
+      })}
     >
-      <View style={[{
-        width: 54, height: 54, borderRadius: 18,
-        backgroundColor: c.surface, borderWidth: 1, borderColor: c.line,
-        alignItems: 'center', justifyContent: 'center',
-      }, shadow.sm]}>
-        <Icon name={q.icon} size={24} stroke={1.7} color={c.navy700} />
+      <Image source={q.art} style={{ width: wide ? 40 : 46, height: wide ? 40 : 46 }} accessibilityIgnoresInvertColors />
+      <View style={wide ? { flex: 1, minWidth: 0 } : { marginTop: 8, alignSelf: 'stretch' }}>
+        <Text numberOfLines={1} style={{ fontSize: wide ? 15 : 14, fontWeight: '800', letterSpacing: -0.3, color: c.ink, textAlign: wide ? 'left' : 'center' }}>
+          {q.label}
+        </Text>
       </View>
-      <Text numberOfLines={1} style={{
-        fontSize: 12, fontWeight: '500', letterSpacing: -0.1,
-        color: c.ink2, textAlign: 'center',
-      }}>
-        {q.label}
-      </Text>
     </Pressable>
   );
 };

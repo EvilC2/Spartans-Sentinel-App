@@ -1,0 +1,916 @@
+{
+  "source": [
+    "https://westvancouverschools.ca/ecole-sentinel-secondary/wp-content/uploads/sites/8/2026/05/2026-2027-Course-Handbook_Updated-Fees-May-21_2026.pdf",
+    "https://westvancouverschools.ca/ecole-sentinel-secondary/wp-content/uploads/sites/8/2025/01/2025-2026-Course-Book-Final.pdf",
+    "https://westvancouverschools.ca/academies/"
+  ],
+  "courses": {
+    "English 8": {
+      "desc": "English 8 to 9 is a sequential program designed to enable students to experience literature in order to develop the skills and attitudes that will help them become life-long, discerning readers; in addition, the study of language will help to develop fluency, precision, clarity, and independence. The processes of listening, speaking, reading, writing, viewing, and representing are systematically taught along a continuum.",
+      "year": "2026-27"
+    },
+    "Mathematics 8": {
+      "desc": "This course explores the topics of proportional reasoning, fraction operations, linear relationships, surface area and volume of 3-D objects, and data analysis.",
+      "year": "2026-27"
+    },
+    "Mathematics 8 Enriched": {
+      "desc": "This course is designed for Grade 8 students who have a strong foundation in mathematics, as well as highly developed reasoning and organizational skills. This course covers the topics in the Math 8 curriculum shown above, in addition to enrichment topics commonly encountered in Mathematics competitions. Note: Prospective students will write a placement exam. Results of the exam will be used for course selection.",
+      "year": "2026-27"
+    },
+    "Mathématiques 8": {
+      "desc": "This course explores the topics of proportional reasoning, fraction operations, linear relationships, surface area and volume of 3-D objects, and data analysis.",
+      "year": "2026-27"
+    },
+    "Science 8": {
+      "desc": "Big Ideas:\n• Life processes are performed at the cellular level.\n• The behaviour of matter can be explained by the kinetic molecular theory and atomic theory.\n• Energy can be transferred as both a particle and a wave.\n• The theory of plate tectonics is the unifying theory that explains Earth’s geological processes.",
+      "year": "2026-27"
+    },
+    "Sciences 8": {
+      "desc": "Big Ideas:\n• Life processes are performed at the cellular level.\n• The behaviour of matter can be explained by the kinetic molecular theory and atomic theory.\n• Energy can be transferred as both a particle and a wave.\n• The theory of plate tectonics is the unifying theory that explains Earth’s geological processes.",
+      "year": "2026-27"
+    },
+    "Social Studies 8": {
+      "desc": "This Social Studies course is designed to examine world civilizations and cultures from 700 – 1750 A.D. and their responses to a wide variety of influences. We will look at four main ideas:\n• How contact and conflicts between people stimulate significant cultural, social, and political change.\n• How human and environmental factors shape changes in population and living standards.\n• How exploration, expansion and colonization have varying consequences for diverse groups.\n• How changing ideas about the world have created tension between people wanting to adopt innovative ideas and those wanting to preserve tradition.\nCourse content studied will focus on the Middle Ages in both Asia and in Europe, World Religions, European Exploration, Geography of Canada and the civilizations of its indigenous people, the Renaissance and Enlightenment, and current events. The curriculum emphasizes developing understanding, making connections – past, present, future, global, personal, and interdisciplinary, and applying knowledge.",
+      "year": "2026-27"
+    },
+    "Sciences humaines 8": {
+      "desc": "This Social Studies course is designed to examine world civilizations and cultures from 700 – 1750 A.D. and their responses to a wide variety of influences. We will look at four main ideas:\n• How contact and conflicts between people stimulate significant cultural, social, and political change.\n• How human and environmental factors shape changes in population and living standards.\n• How exploration, expansion and colonization have varying consequences for diverse groups.\n• How changing ideas about the world have created tension between people wanting to adopt innovative ideas and those wanting to preserve tradition.\nCourse content studied will focus on the Middle Ages in both Asia and in Europe, World Religions, European Exploration, Geography of Canada and the civilizations of its indigenous people, the Renaissance and Enlightenment, and current events. The curriculum emphasizes developing understanding, making connections – past, present, future, global, personal, and interdisciplinary, and applying knowledge.",
+      "year": "2026-27"
+    },
+    "Physical & Health Education 8": {
+      "desc": "The aim of our physical education courses is to provide opportunities for students to acquire and develop the knowledge, skills, and attitudes necessary to incorporate physical activity into regular and leisure pursuits to live an active, healthy lifestyle. Additional course fees may apply to specific grades for enhanced learning. Major Learning Outcomes: It is expected that students will:\n• demonstrate a personal functional level of physical fitness\n• develop and apply activity-specific motor skills in a variety of game activities\n• acquire, develop, and apply movement skills and concepts to a variety of individual and dual activities\n• select and apply rules, routines, and procedures of safety in a variety of activities\n• demonstrate etiquette and sportsmanship",
+      "year": "2026-27"
+    },
+    "French 8": {
+      "desc": "Students will acquire commonly used language structures through storytelling and comprehensible input techniques. Using stories, music and short films, students will build on previous knowledge and continue developing language skills and an awareness of Francophone culture.",
+      "year": "2026-27"
+    },
+    "Français langue 8": {
+      "desc": "The Grade 8 program is designed to continue the development of the four language skill areas:\n1. Listening - development of auditory comprehension\n2. Speaking - articulation, vocabulary choice, proper sentence structure and analysis of the various language registers and their appropriateness in different communicative situations\n3. Writing - rules governing sentence construction, basic rules of grammar, spelling, and vocabulary enrichment\n4. Reading - mechanics of reading, characteristic elements of written passages, recreational reading.\nIn order to attain these goals, students will be exposed to grammar, reading, analysis, short stories, compositions, dictations, novels, discussions, oral presentations, and poetry.",
+      "year": "2026-27"
+    },
+    "Career Education 8": {
+      "desc": "This course is delivered in the timetable as one of the grade 8 rotations. During Careers 8 students will have an opportunity to examine their own interests, skills and personality and are able to explore a career of interest. Students also look at ways to be successful in school including goal setting, team building and time management.",
+      "year": "2026-27"
+    },
+    "Applied Design, Skills & Technology 8 (ADST 8)": {
+      "desc": "Applied Design, Skills and Technology 8 (ADST): This is a module course which includes the following modules: Computers & Communication Devices, Textiles, Woodwork, and Career Education.",
+      "year": "2026-27"
+    },
+    "Textiles 8": {
+      "desc": "Textiles 8 is a module in the Applied Design, Skills, and Technologies (ADST) 8 course. This module is an introduction to sewing. Students will learn complex tasks that may require multiple hand and/or machine tools and technologies. They will use their new skills in creating and designing a project while also considering how these skills could be used in their daily life.",
+      "year": "2026-27"
+    },
+    "Woodwork 8": {
+      "desc": "Woodwork 8 is a module as part of the Applied Design, Skills, and Technologies (ADST) 8 course. This module is an introduction to woodwork. Students will learn complex tasks that may require multiple hand and/or machine tools and technologies. They will use their new skills in creating and designing a project while also considering ways to minimize waste and their impact on the environment. Once the course has been completed, the students are expected to know the following:\n• Identification, characteristics, and properties of a variety of woods, both manufactured and natural.\n• elements of plans and drawings\n• woodworking techniques\n• traditional and non-traditional joinery using hand tools and power equipment\n• options for reuse of wood and wood products",
+      "year": "2026-27"
+    },
+    "Entrepreneurship & Marketing 8": {
+      "desc": "ADEM 8 is a module in the Applied Design, Skills, and Technologies (ADST) 8 course. Entrepreneurship and Marketing is an introductory module that focuses on five main areas: Entrepreneurship, Marketing, Finance, Economics, and Business Communication. Students will survey these areas with an emphasis on relating to how business already impacts their daily lives. The final project provides students with a real-life, school-based entrepreneurial opportunity to apply the ideas and strategies they have learned.",
+      "year": "2025-26"
+    },
+    "Computers & Communication Devices 8": {
+      "desc": "ADCC 8 is a module as part of the Applied Design, Skills, and Technologies (ADST) 8 course. This is an introductory module that considers four main concepts: computational thinking, digital literacy, media art, and computers & communication devices. Course topics may include:\n• Keyboarding (speed/technique (ergonomics)\n• File Management\n• Internet Safety\n• Word Processing & Spreadsheets\n• Proper online research and data collection techniques\n• Graphic design and desktop publishing\n• Art, Animation, and Sound\n• Programming using several development environments such as Scratch and KODU",
+      "year": "2026-27"
+    },
+    "Arts Education 8: Visual Arts": {
+      "desc": "This is a quarterly course offered in conjunction with Drama 8, Choir 8, and Ceramics and Sculpture 8. Visual Arts 8 provides an introductory excursion into the visual world. The course is designed for all levels of young artists to explore drawing, painting, and design. A variety of approaches to this course allow students plenty of opportunity for creative exploration in their first year of high school. Visual Arts 8 provides a foundation that will contribute to a range of upper year courses in Studio Art.",
+      "year": "2026-27"
+    },
+    "Arts Education 8: Ceramics & Sculpture": {
+      "desc": "This is a quarterly course offered in conjunction with Drama 8, Music Appreciation & Exploration, and Visual Arts\n8. Ceramics and Sculpture 8 provides an introductory excursion into the three-dimensional world of the arts. The course is designed for all levels of young artists to explore the elements and principles of 3D design. A variety of approaches to this course allow students to create and reflect on their personal awareness in relationship to the creative reprocesses of exploration through material and engagement with space. Ceramics and Sculpture 8 provides a foundation that will contribute to a range of upper year courses in Studio Art.",
+      "year": "2026-27"
+    },
+    "Arts Education 8: Media Arts": {
+      "desc": "This is a quarterly course offered in conjunction with Drama 8, Arts Education 8, & Ceramics & Sculpture 8, with each student spending one quarter of the year in Media Arts.\n\nStudents will explore the filmmaking process by creating a short film of their own from start to finish - from scriptwriting and story boarding to filming and editing. They will gain hands-on experience both behind and in front of the camera, honing their storytelling and performance skills as part of their student film projects. Students will explore the world of camera angles, sound design, lighting, and other cinematic techniques that bring a story to life. This course will help students develop technical expertise, creative expression, and an appreciation for the art of filmmaking.",
+      "year": "2026-27"
+    },
+    "Drama 8": {
+      "desc": "Drama 8 is a quarterly course offered in conjunction with Media Arts, Ceramics & Sculpture & Arts Education. Drama 8 is an introductory excursion into the world of theatrics. This is a foundation course in “developmental drama” which focuses on the young actor without having to rely on formally scripted material. A structured course of action involving drama games, some improvisation and specially designed assignments aim at giving the student an opportunity to express ideas and feelings while making full use of mind, body, and imagination. Drama 8 also offers interested students some basic instruction in the technical side of dramatic production. The ultimate goal of Drama 8 is to explore theme, style and character with the intention of performing a final showcase for the enjoyment of actor and audience alike.",
+      "year": "2026-27"
+    },
+    "Music 8": {
+      "desc": "The Intermediate Band all-year band program is designed for students who have completed at least one year in an elementary school band program, or for motivated students who do not yet play an instrument, but who are prepared to do some extra work before school during the month of September with the Music Director. Instrument choices include: Flute, Clarinet, Oboe, Bassoon, Alto Saxophone, Tenor Saxophone, French Horn, Trumpet, Trombone, Baritone Horn, Tuba, and Percussion. String Bass players will have the opportunity to play the acoustic double bass in both picked and bowed styles. The learner will have a chance to demonstrate an understanding and appreciation of personal, social, cultural, historical, and environmental contexts in relation to the arts. This course further develops note reading and rhythm skills and has an emphasis on improving individual playing technique, specifically tone, intonation, and articulation. The Intermediate Band experience prepares the student for the demanding repertoires of the Concert Band, Jazz Band, RnB Band and Orchestra. Assignments: Individual playing tests, music theory worksheets, and community and school performances.",
+      "year": "2026-27"
+    },
+    "English Language Development 8/9": {
+      "desc": "Beginner (Beginning/Developing/Expanding) or Intermediate (Consolidating/Bridging) section\n\nThese courses are designed for ELL support in the acquisition of language. Students will concentrate on learning strategies and skills to further develop cognitive and academic literacy. The focus of this course is on building working vocabulary, improving grammar, developing paragraph structure, and improving speaking and listening skills to collaborate with others. Students will be placed in an appropriate section for their language skills.",
+      "year": "2026-27"
+    },
+    "English 9": {
+      "desc": "English 8 to 9 is a sequential program designed to enable students to experience literature in order to develop the skills and attitudes that will help them become life-long, discerning readers; in addition, the study of language will help to develop fluency, precision, clarity, and independence. The processes of listening, speaking, reading, writing, viewing, and representing are systematically taught along a continuum.",
+      "year": "2026-27"
+    },
+    "Mathematics 9": {
+      "desc": "This course explores operations with rational numbers, algebraic situations, linear relationships, proportional reasoning, as well as data analysis.",
+      "year": "2026-27"
+    },
+    "Mathematics 9 Enriched": {
+      "desc": "This course is designed for Grade 9 students who have a strong foundation in mathematics, as well as highly developed reasoning and organizational skills. This course covers the topics in the Math 9 curriculum shown above, in addition to enrichment topics commonly encountered in Mathematics competitions. Note: Admittance to this course is by recommendation only.",
+      "year": "2026-27"
+    },
+    "Mathématiques 9": {
+      "desc": "This course explores operations with rational numbers, algebraic situations, linear relationships, proportional reasoning, as well as data analysis.",
+      "year": "2026-27"
+    },
+    "Science 9": {
+      "desc": "Big Ideas:\n• Cells are derived from cells.\n• The electron arrangement of atoms impacts their chemical nature.\n• Electric current is the flow of electric charge.\n• The biosphere, geosphere, hydrosphere, and atmosphere are interconnected, as matter cycles and energy flows through them.",
+      "year": "2026-27"
+    },
+    "Sciences 9": {
+      "desc": "Big Ideas:\n• Cells are derived from cells.\n• The electron arrangement of atoms impacts their chemical nature.\n• Electric current is the flow of electric charge.\n• The biosphere, geosphere, hydrosphere, and atmosphere are interconnected, as matter cycles and energy flows through them.",
+      "year": "2026-27"
+    },
+    "Social Studies 9": {
+      "desc": "Using both Europe and North America as a foundation, students will examine the relationship between the Indigenous Peoples and Europeans throughout the years 1750-1913 AD. We will look at four main ideas:\n• How emerging ideas profoundly influence society and events.\n• How the physical environment influences the nature of political social economic change.\n• How disparities in power alter the balance in the relationship between individuals and societies.\n• How collective identity is constructed and can change over time.\nColonialism, Imperialism, Revolution and Nationalism will be explored. The course also looks at the development of Canada as a nation from 1815 to 1913, with emphasis on Western Canada. It examines the social, economic, and political structure of our nation, as well as the relationships with Great Britain and the United States. In addition, geographical skills will be further developed and incorporate Canadian regional geography, resource use, and environmental management. This Social Studies curriculum provides opportunities to practice skills centered on identifying a problem or issue; gathering, interpreting, analyzing, and presenting information; making connections – past, present, and future.",
+      "year": "2026-27"
+    },
+    "Sciences humaines 9": {
+      "desc": "Using both Europe and North America as a foundation, students will examine the relationship between the Indigenous Peoples and Europeans throughout the years 1750-1913 AD. We will look at four main ideas:\n• How emerging ideas profoundly influence society and events.\n• How the physical environment influences the nature of political social economic change.\n• How disparities in power alter the balance in the relationship between individuals and societies.\n• How collective identity is constructed and can change over time.\nColonialism, Imperialism, Revolution and Nationalism will be explored. The course also looks at the development of Canada as a nation from 1815 to 1913, with emphasis on Western Canada. It examines the social, economic, and political structure of our nation, as well as the relationships with Great Britain and the United States. In addition, geographical skills will be further developed and incorporate Canadian regional geography, resource use, and environmental management. This Social Studies curriculum provides opportunities to practice skills centered on identifying a problem or issue; gathering, interpreting, analyzing, and presenting information; making connections – past, present, and future.",
+      "year": "2026-27"
+    },
+    "Physical & Health Education 9": {
+      "desc": "The aim of our physical education courses is to provide opportunities for students to acquire and develop the knowledge, skills, and attitudes necessary to incorporate physical activity into regular and leisure pursuits to live an active, healthy lifestyle. Additional course fees may apply to specific grades for enhanced learning. Major Learning Outcomes: It is expected that students will:\n• demonstrate a personal functional level of physical fitness\n• develop and apply activity-specific motor skills in a variety of game activities\n• acquire, develop, and apply movement skills and concepts to a variety of individual and dual activities\n• select and apply rules, routines, and procedures of safety in a variety of activities\n• demonstrate etiquette and sportsmanship",
+      "year": "2026-27"
+    },
+    "French 9": {
+      "desc": "Students will acquire commonly used language structures through storytelling and comprehensible input techniques. Using stories, music and short films, students will build on previous knowledge and continue developing language skills and an awareness of Francophone culture.",
+      "year": "2026-27"
+    },
+    "Français langue 9": {
+      "desc": "The Grade 9 language arts program continues the development of the four language skill areas: reading, writing, speaking, and listening. Students are presented with a variety of written passages, from novels to poetry. These passages are designed to both increase the students’ vocabulary and to strengthen existing reading comprehension skills. The reading passages also serve as the basis for written compositions. Introduction to French Literature through French Novels. In the language component of the course, grammatical points introduced in Grade 8 are strengthened and more complicated syntax and grammatical concepts are gradually presented. Oral presentations (formal and informal) continue to form an integral part of the course.",
+      "year": "2026-27"
+    },
+    "Career Education 9": {
+      "desc": "This course is delivered off timetable primarily through Flexible Instructional Time and is an extension of Careers 8. Additionally, students have the opportunity to experience the world of work by participating in the national Take our Kids to Work Day where they attend the worksite of a parent or family friend.",
+      "year": "2026-27"
+    },
+    "Spanish 9": {
+      "desc": "This is a course designed for students who are interested in exploring the Spanish language and culture. Students learn the fundamental skills of the target language through interaction: role play, skits, projects, games, videos, songs, stories, and music through the TPRS method and Comprehensible Input. This course is a prerequisite for Spanish 10.",
+      "year": "2026-27"
+    },
+    "Arts Education 9": {
+      "desc": "$45 Course Fee Applies. This course provides opportunities for students to extend the curriculum introduced in Art Education 8. Students will explore the principles and elements of design while being presented with a variety of 2 and 3 dimensional techniques and materials. The discovery of personal voice and individual response is of uppermost importance as students are challenged to question, critique, and reflect on creative processes. Making connections and communicating ideas about historical, community, and cross-cultural perspectives will be emphasized while creating and responding through visual form. Note: A sketchbook is required.",
+      "year": "2026-27"
+    },
+    "Arts Education 9: Ceramics & Sculpture": {
+      "desc": "$65 Course Fee Applies. This course is designed to provide opportunities for visual learners to continue the curriculum introduced in Arts Education 8. Students will explore the elements and principles of design to discover personal voice through the exploration of a variety of three-dimensional techniques and materials. Students will be asked to reflect and question throughout the creative process in order to create personally meaningful art. Making connections and communicating ideas about historical, community, and cross-cultural perspectives will be emphasized while creating and responding through visual form. Note: A sketchbook is required.",
+      "year": "2026-27"
+    },
+    "Food Studies 9": {
+      "desc": "$75 Course Fee Applies. This course is an introduction to cooking and to the acquisition of new skills. Food Studies 9 is an experiential, hands-on course. Students will discover how good nutrition plays a key role in a healthy lifestyle. They will develop life skills to share with family and friends. Students learn food safety, the foundations of food preparation, food preparation techniques, nutrition, and healthy eating.",
+      "year": "2026-27"
+    },
+    "Media Arts 9": {
+      "desc": "Media Arts 9 is an introductory course designed to offer experiences with DSLR cameras and Adobe editing software. The elements and principles of design as they relate to photographic composition are emphasized. Various camera settings will be learned to offer greater creative and technical control. This course builds the foundation for visual literacy regarding both form and conceptual content of photographic images. Students will explore the significance of photography within the larger context of the art world through student inquiry of contemporary, community and cross-cultural perspectives. This will provide the students with the opportunity to pursue their own interests and develop an individual voice through sequenced skill-based lessons. Students are required to possess a digital camera preferably a DSLR. The school has a limited number of cameras for students to borrow.",
+      "year": "2026-27"
+    },
+    "Textiles 9": {
+      "desc": "$55 Course Fee Applies. This course builds upon the skills introduced from ADST – Textiles 8. This exciting course focusses on the fundamentals of sewing, clothing, fabrics, and fashion. Students will build clothing construction skills and practice basic sewing machine and serger techniques including seams and seam finishes, darts, hems, and closures (zippers, buttonholes). This is a practical course with the emphasis on projects.",
+      "year": "2026-27"
+    },
+    "Dance 9": {
+      "desc": "Dance 9 is a course where students receive instruction in various styles of dance, such as Hip Hop, Street Jazz, Lyrical Jazz, and Contemporary. Beginner Dance students are welcome. Students can expect to be challenged in various dance techniques and fitness exercises that focus on body alignment and strengthening. This course is a high-energy, fun and dynamic class.",
+      "year": "2026-27"
+    },
+    "Drama 9": {
+      "desc": "$30 Course Fee Applies. This full-year course is a continuation of the curriculum introduced in Drama 8. The importance of melding the student as actor and student as audience is of major concern. Every attempt is made during this developmental year to create and present formalized dramatic material in a structured showcase environment. This course is open to students interested in both Acting and Production. It is a foundation course and students interested in specializing at the senior level are strongly encouraged to enroll.\n\nTo this end, dramatic gaming, exercises, and improvisation remain points of focus throughout the year. Scene work, monologue development and some scriptwriting opportunities are offered in order to help create a more versatile acting student. Technical exposure is an additional part of the course activity and students begin to work with simple costume, set, audio, and lighting design. The Drama 9 student will be taught the basics of staging a small production and work in group-related activities to foster co-operation and communication skills.",
+      "year": "2026-27"
+    },
+    "Theatre Company 9": {
+      "desc": "Grade 8 students interested in signing up for Theatre Company 9 should sign up directly with Mrs. McGuinness-Gill starting in January 2026 to ensure their name is added to her list of incoming Grade 9 students for the 2026-2027 school year.\n\nIt is STRONGLY recommended that students enroll concurrently in Drama 9. Casting preference, in particular, will be given to students enrolled simultaneously in Drama 9",
+      "year": "2026-27"
+    },
+    "Concert Band 9": {
+      "desc": "Satisfies the Arts Education graduation requirement.\n\nThis course is a wind band ensemble where students hone instrumental technique skills through performing a wide range of styles including classical transcriptions, marches, chorales, film scores, and arrangements of jazz and popular standards. The learner will have a chance to demonstrate an understanding and appreciation of personal, social, cultural, historical, and environmental contexts in relation to the arts. This is a perfect ensemble for students who enjoy the experience of playing in a large group with multiple players on a part. Assignments: Individual playing tests, music theory worksheets, and community and school performances.",
+      "year": "2026-27"
+    },
+    "Jazz Band 9": {
+      "desc": "Satisfies the Arts Education graduation requirement.\n\nThis course is a great choice for students who exhibit skill and confidence on their instrument and are willing to take creative risks to express feelings, ideas, and experiences. Jazz Band is by audition and/or consultation with the Music Director, and primarily comprises the following instruments: alto/tenor/baritone saxophone, trumpet, trombone, string bass, piano, guitar, and drums. Characterized by crisp articulation and chromaticism, Jazz Band repertoire covers Latin, funk, blues, and swing. The learner will have opportunities to create, listen to, analyze, improvise, and perform jazz music through a variety of contexts and historical styles. Assignments: Individual playing tests, music theory worksheets, and community and school performances.",
+      "year": "2026-27"
+    },
+    "Orchestra 9": {
+      "desc": "Satisfies the Arts Education requirement for graduation.\n\nThe Sentinel Orchestral Strings is an ensemble in the style of a classical symphony orchestra, performing repertoire by the great Classical composers as well as contemporary compositions, arrangements, and film scores. This is an intensive instrumental rehearsal and performance group, and considerable emphasis is placed on acquiring musical proficiency and technical competence through scales, studies, and repertoire. The learner will have a chance to demonstrate an understanding and appreciation of personal, social, cultural, historical, and environmental contexts in relation to the arts. Enrolment is limited to intermediate and advanced instrumentalists regardless of grade level, upon consultation with the Music Director.",
+      "year": "2026-27"
+    },
+    "Orchestral Strings 9": {
+      "desc": "Satisfies the Arts Education requirement for graduation.\n\nThe Sentinel Orchestral Strings is an ensemble in the style of a classical symphony orchestra, performing repertoire by the great Classical composers as well as contemporary compositions, arrangements, and film scores. This is an intensive instrumental rehearsal and performance group, and considerable emphasis is placed on acquiring musical proficiency and technical competence through scales, studies, and repertoire. The learner will have a chance to demonstrate an understanding and appreciation of personal, social, cultural, historical, and environmental contexts in relation to the arts. Enrolment is limited to intermediate and advanced instrumentalists regardless of grade level, upon consultation with the Music Director.",
+      "year": "2026-27"
+    },
+    "EFP Literary Studies 10 & Writing 10": {
+      "desc": "This course provides opportunities for all students to learn about and engage with Indigenous creative expression, and to study “text” representing authentic First Peoples’ voices. In this course, students will explore First Peoples’ literature to deepen the students’ understanding of diverse, complex ideas about personal and cultural identities, histories, stories, and connections to land and place. This course is grounded in the understanding of how ‘texts’ are historically and culturally constructed, and students will work individually and collaboratively to broaden their understanding of themselves and the world.\n\nAdditionally, students will critically, creatively, and reflectively explore ideas within texts and evaluate how literary elements, techniques, and devices enhance and shape meaning. Students will use the writing process to plan, develop, and create coherent, purposeful, and engaging compositions. Students will write in a variety of methods including journal, expository, compare and contrast, descriptive, and persuasive essays. Students will also work on developing their research skills, including citing sourcing and determining the credibility and relevance of evidence. Student work will demonstrate an understanding of the relationship between content, structure, voice, and grammar.\n\nFinally, this course will reflect and infuse First Peoples Principles of Learning in all learning activities.",
+      "year": "2026-27"
+    },
+    "EFP Literary Studies 10 & Writing 10 (Language Adapted)": {
+      "desc": "Beginner (Beginning/Developing/Expanding) or Intermediate (Consolidating/Bridging) section\n\nEFP Literary Studies 10: Language Adapted and Writing 10 are designed to support English Language Learners develop and refine their reading, writing, and oral competencies with a focus on critically and creatively engaging with literary texts and learning tasks. It is expected that students will explore specific themes, periods, authors, or areas of the world through literary works in a variety of media to foster their skills of analysis, synthesis, and composition. The purpose of this course is to help prepare ELL students for enrolment and successful participation in senior English Language Arts courses.",
+      "year": "2026-27"
+    },
+    "Pre-AP EFP Literary Studies & Writing 10": {
+      "desc": "Sentinel offers Grade 10 students the opportunity to enroll in a rigorous honours course designed to help students acquire the analytical and composition skills required for continued success in Pre-AP Literary Studies 11, AP English Language and Composition 12, AP English Literature and Composition 12, AP Capstone, and university-level English classes. Since students will be expected to perform at a high academic level, enrolling students should be motivated. The Pre-AP EFP Literary Studies and Pre-AP EFP Writing teacher will select a variety of texts, novels, plays, essays, and poetry that emphasize authentic First Peoples’ voices to create a challenging and rich program. Students will be introduced to literary analysis, close reading, discussion, rhetorical theory and analysis, and composition embedded with First Peoples Principles of Learning. In addition to meeting Grade 10 English Language Arts and Indigenous-focused graduation requirements, Pre-AP EFP Literary Studies and Pre-AP EFP Writing 10 will encourage students to become skilled readers and confident writers.",
+      "year": "2026-27"
+    },
+    "Foundations of Mathematics & Pre-Calculus 10": {
+      "desc": "This course is designed to provide students with the mathematical understandings and critical-thinking skills identified for post-secondary studies that require Mathematics. Topics include algebra, polynomials, linear relations, trigonometry, graphical analysis.",
+      "year": "2026-27"
+    },
+    "Foundations of Mathematics & Pre-Calculus 10 (Skill Development)": {
+      "desc": "This course is designed for students who need extra support in their foundation skills in mathematics. The course allows extra time for the students to improve their numeracy, algebraic and graphing skills. Students selecting this course are strongly encouraged to continue to take Foundations of Mathematics 11 in the subsequent year for graduation purposes.",
+      "year": "2025-26"
+    },
+    "Pre-AP Foundations of Mathematics & Pre-Calculus 10": {
+      "desc": "This is an enriched course. The topics of Foundations of Mathematics and Pre-calculus 10 will be explored in greater depth. There will be an emphasis on Pre-calculus topics. A proficiency of ‘Extending’ in Math 9 or Math 9 Enriched is strongly recommended for those interested in the course.",
+      "year": "2026-27"
+    },
+    "Workplace Mathematics 10": {
+      "desc": "$20 Workbook Fee Applies. This course is designed to provide students with the mathematical understandings and critical-thinking skills identified for entry into most trade programs and for direct entry into the work force. Topics include proportional reasoning, surface area and volume of 3-D objects, operations with fractions and decimals, as well as data analysis.",
+      "year": "2026-27"
+    },
+    "Science 10": {
+      "desc": "Big Ideas:\n• DNA is the basis for the diversity of living things.\n• Energy change is required as atoms rearrange in chemical processes.\n• Energy is conserved, and its transformation can affect living things and the environment.\n• The formation of the universe can be explained by the big bang theory.",
+      "year": "2026-27"
+    },
+    "Sciences 10": {
+      "desc": "Big Ideas:\n• DNA is the basis for the diversity of living things.\n• Energy change is required as atoms rearrange in chemical processes.\n• Energy is conserved, and its transformation can affect living things and the environment.\n• The formation of the universe can be explained by the big bang theory.",
+      "year": "2026-27"
+    },
+    "Social Studies 10": {
+      "desc": "The Social Studies 10 course, a required course for graduation, focuses on three topics of importance to students’ understanding of Canadian society and of their roles as Canadian and global citizens: the Canadian identity; Canada in the World Community; and Canadian and Global Citizenship. This course concentrates on events throughout the 20th century while making connections between historical and current social, political, economic, and environmental issues. In addition, the curriculum provides opportunities to practice skills centered on interpreting, assessing, analyzing, and effectively communicating information; and practicing active citizenship. The course also covers discriminatory policies and injustices in Canada and the world, such as the Head Tax, the Komagata Maru incident, residential schools, internments, and LGBQT rights.",
+      "year": "2026-27"
+    },
+    "Sciences humaines 10": {
+      "desc": "The Social Studies 10 course, a required course for graduation, focuses on three topics of importance to students’ understanding of Canadian society and of their roles as Canadian and global citizens: the Canadian identity; Canada in the World Community; and Canadian and Global Citizenship. This course concentrates on events throughout the 20th century while making connections between historical and current social, political, economic, and environmental issues. In addition, the curriculum provides opportunities to practice skills centered on interpreting, assessing, analyzing, and effectively communicating information; and practicing active citizenship. The course also covers discriminatory policies and injustices in Canada and the world, such as the Head Tax, the Komagata Maru incident, residential schools, internments, and LGBQT rights.",
+      "year": "2026-27"
+    },
+    "Physical & Health Education 10": {
+      "desc": "The aim of our physical education courses is to provide opportunities for students to acquire and develop the knowledge, skills, and attitudes necessary to incorporate physical activity into regular and leisure pursuits to live an active, healthy lifestyle. Additional course fees may apply to specific grades for enhanced learning. Major Learning Outcomes: It is expected that students will:\n• demonstrate a personal functional level of physical fitness\n• develop and apply activity-specific motor skills in a variety of game activities\n• acquire, develop, and apply movement skills and concepts to a variety of individual and dual activities\n• select and apply rules, routines, and procedures of safety in a variety of activities\n• demonstrate etiquette and sportsmanship",
+      "year": "2026-27"
+    },
+    "Physical Education 10: Girls Fitness": {
+      "desc": "$230 Course Fee Applies. This girls’ fitness class offers an alternative to the regular PE classes at Sentinel and is focused on the elements of fitness and health that can benefit students both now and after they finish high school. Students will have opportunities to explore the activities that they enjoy, and hopefully be exposed to some fitness activities that they have never tried before.\n\nThis class will cover the following components of fitness in the following ways:\n• Aerobic Fitness (Cardiovascular): hi-low, step, kickboxing, dance, spin, boot camp, seawall/trail runs, hikes, indoor games, and a variety of cardio machines.\n• Muscular Fitness (Strength and Endurance): sculpting using different equipment – hand weights, tubing, medicine balls, fit balls, Swiss balls, BOSU balls and a variety of weight machines.\n• Flexibility: yoga (strength and stretch), Pilates, stretch flex training.\n• PE activities (sports, games, and dance) will also take place at the request of the class.\n• Lessons on nutrition and healthy living",
+      "year": "2026-27"
+    },
+    "Career Life Education 10": {
+      "desc": "Career Life Education is a course either taken within the timetable as a regular class or as a blended course (a combination of in person classes outside the regular timetable along with independent, online study). In this course students will continue looking at how to be successful in school as well identifying their own skills, values, interests and personality. In addition, students begin to delve into the world of work through topics such as career exploration, resume writing and interview skills. Students also look at ways to contribute to the wider community through volunteer opportunities.\n\nCareer Life Education 10 must be completed for students to satisfy graduation requirements. *Note: See French Immersion for Career Education 10 offering in French",
+      "year": "2026-27"
+    },
+    "Career Life Education 10 (Blended)": {
+      "desc": "Career Life Education is a course either taken within the timetable as a regular class or as a blended course (a combination of in person classes outside the regular timetable along with independent, online study). In this course students will continue looking at how to be successful in school as well identifying their own skills, values, interests and personality. In addition, students begin to delve into the world of work through topics such as career exploration, resume writing and interview skills. Students also look at ways to contribute to the wider community through volunteer opportunities.\n\nCareer Life Education 10 must be completed for students to satisfy graduation requirements. *Note: See French Immersion for Career Education 10 offering in French",
+      "year": "2026-27"
+    },
+    "Éducation au choix de carrière et de vie 10": {
+      "desc": "Career Life Education focuses on five big ideas. These are:\n• Career-life choices are made in a recurring cycle of planning, reflecting, adapting, and deciding\n• Career-life decisions are influenced by internal and external factors, including local and global trends\n• Cultivating networks and reciprocal relationships can support and broaden career-life awareness and options\n• Finding balance between personal and work life promotes well-being\n• Lifelong learning fosters career-life opportunities\n\nCareer Life Education is a course either taken within the timetable as a regular class or as a blended course which combines in person classes with independent, online study. In this course students will continue looking at how to be successful in school as well identifying their own skills, values, interests and personality. In addition, students begin to look at financial literacy and delve into the world of work through resume writing, finding jobs and interview skills. Students also look at ways to contribute to the wider community through volunteer opportunities. Career Life Education 10 must be completed for students to satisfy graduation requirements.",
+      "year": "2026-27"
+    },
+    "French 10": {
+      "desc": "$10 Workbook Fee Applies. Through stories, music and movie clips, students will build on previous knowledge and continue to develop language acquisition in order to discuss activities, express opinions, agreement and disagreement and ask and give personal information, while developing an understanding of Francophone culture.",
+      "year": "2026-27"
+    },
+    "Spanish 10": {
+      "desc": "$30 Workbook Fee Applies. This is a fast paced, highly interactive course which exposes the student to the Spanish language and culture. The approach is language acquisition through comprehensible input whereby students learn to speak, listen, read, and write through stories, music, novels, and movies while focusing on cultural and practical situations for travel and life in Spain and the Americas.",
+      "year": "2026-27"
+    },
+    "Computer Studies 10": {
+      "desc": "Computer Studies satisfies the Applied Skills requirement for graduation and is open to both Grade 9 and Grade 10 students This course surveys two main areas: information & communication technologies, and media art. Computer Studies 10 involves the development of much needed desktop publishing skills as well as further work in developing the ability to create multi-media projects for various purposes including: advertising, presenting, and organizing information. The course gives the students an opportunity to explore both the software and hardware aspects of all computers, and how we can connect them. As well, students will be exposed to several applications that help them learn to program/code and design web sites. Most work in the course is project-based and requires students to think critically, problem solve, be flexible and be creative. Effective time management and ethical issues related to technology will be addressed throughout the course.",
+      "year": "2025-26"
+    },
+    "Entrepreneurship & Marketing 10": {
+      "desc": "Entrepreneurship and Marketing 10 satisfies the Applied Skills requirement for graduation and is open to both Grade 9 and Grade 10 students. This course surveys two main areas: entrepreneurship and marketing. Students will learn about opportunities for entrepreneurship and characteristics of entrepreneurs while developing their own entrepreneurial skills. Innovation and invention along with ways to add value to existing products will be a focus. Students will also learn about the strategies and planning involved in successfully marketing a product. Most coursework is project-based with students being presented with opportunities to think critically, ethically, and flexibly about business activities; collaborate effectively and empathically; manage their time; and be creative in areas that interest them in the field of business. This course is an excellent foundation for senior business courses such as Marketing 11 & Economics 12.",
+      "year": "2025-26"
+    },
+    "Woodwork 10": {
+      "desc": "This course is designed to build upon skills learned from ADST 9 Woodwork. Students will identify sources of inspiration and work towards developing designs which consider how tools and materials can be effectively repurposed and recycled. As students learn and build their understanding, they will learn a series of skills and techniques which will allow them to create increasingly complex products or prototypes. Once the course has been completed, the students are expected to know the following:\n• identification, characteristics, properties, and uses of wood from various species\n• choices related to the sustainable use of wood uses and creation of plans and drawings\n• techniques for stock breakout and woodworking\n• using a variety of tools and equipment, including stationary power equipment\n• choices for planning, drawing, and constructing a project\n• functions and role of portable and stationary power equipment in the creation of a project\n• functions of hand tools",
+      "year": "2025-26"
+    },
+    "Drama 10": {
+      "desc": "$30 Course Fee Applies. This course becomes the logical extension of Drama 9, in that all of the principles and skills taught during the formative years find a “home” on stage. This full-year course is for the serious drama student who wants to develop their freedom of dramatic expression while acting with other similarly inspired individuals. As in the formative dramatic years, the focus is on the direction of stage performance. However, during the Grade 10 year, these productions take on a new look and rely on a more formally scripted source of material. The notion of working with more concrete theatre skills takes the place of basic improvisation. The Drama 10 student will enjoy the satisfaction of working on scene work from time to time and may have the opportunity of presenting work to audiences beyond the class.",
+      "year": "2026-27"
+    },
+    "Theatre Company 10": {
+      "desc": "$15 Course Fee Applies. The primary focus of this course will be to prepare for and perform Sentinel Stage’s annual production for the school and community. Students have a choice of performance, design, and production and may change their focus from year to year. PERFORMANCE: With the acting section of this course students are provided with an opportunity to experience and develop their dramatic and/or musical and choreographic skills. Emphasis is placed on ensemble playing and development of the voice. Other highlights may include in-depth method acting and movement training. DESIGN: Senior Design students have the opportunity to manage departments, including: costumes, hair & make-up, props, set, lights, sound and projections. Junior production and design students (or those new to the performing arts) are mentored by senior students in their department. PRODUCTION: This section is for students interested in “the big three” – Directing, Producing and Stage-Management. Previous experience in theatre is strongly encouraged. Junior students are once again mentored by senior students in their respective field. Senior students have the opportunity to explore and learn the ‘real world’ workings of their field of choice. This course runs outside the regular timetable with specific afternoon/evening rehearsal schedules set on a year-to-year basis. NB: It is strongly recommended that students enrolling in this course also be enrolled in an additional performing arts course (i.e., Drama/Acting/Theatre Production/Choir/Dance). In particular, casting preference will be given to students enrolled simultaneously with one of the courses mentioned above.",
+      "year": "2026-27"
+    },
+    "Theatre Production 10": {
+      "desc": "This course is available to all students who love theatre and drama but would rather learn to design and operate the lights rather than perform under them! Drama 10: Theatre Production focuses on the technical and backstage theatre elements of a performance, including: Lights, Sound, Sets, Props, Costumes, Hair, and Make-Up. Students may also have the opportunity to be involved with other school events by providing technical support for school assemblies, concerts etc. Students should be prepared to attend extra out-of-class rehearsals closer to the performance dates. Please note this class may run in conjunction with another class.",
+      "year": "2026-27"
+    },
+    "Dance Technique & Performance 10": {
+      "desc": "Dance Technique and Performance is a course where students receive instruction in various styles of dance, such as Hip Hop, Street Jazz, and Contemporary. Beginner Dance students are welcome. Students can expect to be challenged in various dance techniques, choreography, and fitness exercises that focus on body alignment, strengthening, and performance. This course is a high-energy, fun and dynamic class.",
+      "year": "2026-27"
+    },
+    "Concert Band 10": {
+      "desc": "Satisfies the Arts Education graduation requirement.\n\nThis course is a wind band ensemble where students hone instrumental technique skills through performing a wide range of styles including classical transcriptions, marches, chorales, film scores, and arrangements of jazz and popular standards. The learner will have a chance to demonstrate an understanding and appreciation of personal, social, cultural, historical, and environmental contexts in relation to the arts. This is a perfect ensemble for students who enjoy the experience of playing in a large group with multiple players on a part. Assignments: Individual playing tests, music theory worksheets, and community and school performances.",
+      "year": "2026-27"
+    },
+    "Jazz Band 10": {
+      "desc": "Satisfies the Arts Education graduation requirement.\n\nThis course is a great choice for students who exhibit skill and confidence on their instrument and are willing to take creative risks to express feelings, ideas, and experiences. Jazz Band is by audition and/or consultation with the Music Director, and primarily comprises the following instruments: alto/tenor/baritone saxophone, trumpet, trombone, string bass, piano, guitar, and drums. Characterized by crisp articulation and chromaticism, Jazz Band repertoire covers Latin, funk, blues, and swing. The learner will have opportunities to create, listen to, analyze, improvise, and perform jazz music through a variety of contexts and historical styles. Assignments: Individual playing tests, music theory worksheets, and community and school performances.",
+      "year": "2026-27"
+    },
+    "Orchestra 10": {
+      "desc": "Satisfies the Arts Education requirement for graduation.\n\nThe Sentinel Orchestral Strings is an ensemble in the style of a classical symphony orchestra, performing repertoire by the great Classical composers as well as contemporary compositions, arrangements, and film scores. This is an intensive instrumental rehearsal and performance group, and considerable emphasis is placed on acquiring musical proficiency and technical competence through scales, studies, and repertoire. The learner will have a chance to demonstrate an understanding and appreciation of personal, social, cultural, historical, and environmental contexts in relation to the arts. Enrolment is limited to intermediate and advanced instrumentalists regardless of grade level, upon consultation with the Music Director.",
+      "year": "2026-27"
+    },
+    "Orchestral Strings 10": {
+      "desc": "Satisfies the Arts Education requirement for graduation.\n\nThe Sentinel Orchestral Strings is an ensemble in the style of a classical symphony orchestra, performing repertoire by the great Classical composers as well as contemporary compositions, arrangements, and film scores. This is an intensive instrumental rehearsal and performance group, and considerable emphasis is placed on acquiring musical proficiency and technical competence through scales, studies, and repertoire. The learner will have a chance to demonstrate an understanding and appreciation of personal, social, cultural, historical, and environmental contexts in relation to the arts. Enrolment is limited to intermediate and advanced instrumentalists regardless of grade level, upon consultation with the Music Director.",
+      "year": "2026-27"
+    },
+    "Media Arts 10: Yearbook": {
+      "desc": "Be part of building Sentinel's Yearbook! This is a student-led course made up of five departments: Photography, Photo-editing, Writing, Design, and Business & Marketing. Students choose their department and work together in teams to capture, create, and sell the yearbook. Students learn the technical skills of their department from each other. While there are no pre-requisites, courses in photography, business and leadership are assets. If you are in Grade 8 and are interested, please speak with the yearbook teacher.",
+      "year": "2026-27"
+    },
+    "Language & Cultural Literacy 10/11/12": {
+      "desc": "Beginner Section Only (Beginning/Developing/Expanding)\n\nThis course is designed to help students improve their communication skills in reading, writing, listening, and speaking to succeed across the curriculum. Students will gain cultural knowledge, linguistic competence, and a critical awareness of academic conventions as they explore a variety of genres and develop research skills.",
+      "year": "2026-27"
+    },
+    "Self-Efficacy 10/11/12": {
+      "desc": "This course is designed to develop skills in time management, self-advocacy, and communication, and to teach students how to use strategies to manage stress and anxiety. Learning outcomes for the course are grouped under social-emotional learning themes, focusing on the development of self-and social awareness and self- and relationship management skills. By solidifying personal values, students will develop skills in communication, interpersonal relations, and conflict management while taking responsibility for their decision-making and problem solving. Students equipped with sound social and emotional skills, anchored in sound personal values, will be able to demonstrate consistency in purpose and action. As a culmination, students reflect on their goals and create new possibilities for their lives.",
+      "year": "2026-27"
+    },
+    "Literary Studies 11": {
+      "desc": "Literary Studies 11 allows students to delve more deeply into the world of literature by studying a variety of literary genres, themes, periods, and authors, and in a variety of forms. In addition to an increased focus on literature study and analysis, Literary Studies 11 continues to foster the skills of critical and creative composition by responding to texts in a variety of representational modes such as writing and speaking. This course is also designed for students to continue to refine their communication skills in a variety of contexts as they continue to explore, extend, and improve their abilities to compose and represent.",
+      "year": "2026-27"
+    },
+    "Literary Studies 11 (Language Adapted)": {
+      "desc": "Intermediate Section Only (Consolidating/Bridging)\n\nLiterary Studies 11: Language Adapted is designed to support English Language Learners develop and refine their reading, writing, and oral competencies with a focus on critically and creatively engaging with literary texts and learning tasks. It is expected that students will explore specific themes, periods, authors, or areas of the world through literary works in a variety of media to foster their skills of analysis, synthesis, and composition. The purpose of this course is to help prepare ELL students for enrolment and successful participation in English Studies 12. This section is taken with Academic Writing 11.",
+      "year": "2026-27"
+    },
+    "Pre-AP Literary Studies 11": {
+      "desc": "Pre-AP Literary Studies 11 is open to motivated students who have demonstrated skill in interpreting literature and rhetorical analysis of non-fiction texts, an ability to work independently, and an interest in reading and writing for pleasure. Students will be guided in careful reading of literary and non-fiction texts from various genres and periods. Pre-AP Literary Studies 11 will continue to sharpen skills introduced at the Pre-AP English 10 level as teachers continue to build students’ skills as effective readers and writers.",
+      "year": "2026-27"
+    },
+    "Academic Writing 11": {
+      "desc": "Intermediate Section Only (Consolidating/Expanding)\n\nAcademic Writing 11 is designed to support English Language Learners with a focus on developing, strengthening, and enhancing their written composition skills to write effectively in senior English Language Arts courses. Students will be introduced to the writing process, a variety of different writing forms, and the major components of essay writing. It is expected that, through this course, students will gain an awareness of their abilities and potential as writers and, by using the skills and strategies learned, will develop confidence in their ability to handle any writing tasks presented to them in high school and post-secondary life.",
+      "year": "2026-27"
+    },
+    "Composition & Production 11": {
+      "desc": "Satisfies the Arts Education requirement for graduation Do you make music on your computer, or want to learn how? This non-performance course is perfect for students who are interested in and passionate about music composition and sound production. There is a wide variety of musical genres that may be covered in the course, depending on students’ interest, skills, and previous experience. The course will revolve around three main components: working with and manipulating musical ideas in a digital environment, designing, and altering digital and analogue sound sources, and mixing and mastering live productions and multi-track recordings.\n\nRnB Band Connection: since this course runs in parallel with R&B Band 11/12, there is a limit of 6 students accepted each academic year. Preference will be given to senior grade students who are enrolled in existing Fine Arts (Music or Drama) courses. For performances with the RnB Band, students are to participate in performances and demonstrate light and sound engineering skills, such as operating a mixing board or choreographing stage lighting. All the required skills and techniques will be taught in class.\n\nPlease note: This is a bring-your-own-device course, where students will be required to bring a laptop or tablet to class with GarageBand music production software installed (or equivalent, such as FL Studios, Logic Pro, Ableton, BandLab). This course is offered for students in Grades 10-12.",
+      "year": "2026-27"
+    },
+    "Pre-Calculus 11": {
+      "desc": "This course is designed to provide students with the mathematical understandings and critical-thinking skills identified for entry into post-secondary programs that require the study of calculus. Topics include algebra, operations on powers, radicals, and polynomials, quadratic relationships, and trigonometry.",
+      "year": "2026-27"
+    },
+    "Pre-AP Pre-Calculus 11": {
+      "desc": "This is the honors format of Pre-calculus 11. The same topics are covered in both courses except the level of difficulty in the enriched course is considerably higher and several topics are enriched and extended. A grade of 86% or higher in Foundations of Math and Pre-calculus 10 is strongly recommended for students interested in this course. Students who plan to enroll in AP Calculus AB are strongly recommended to register for this course.",
+      "year": "2026-27"
+    },
+    "Foundations of Mathematics 11": {
+      "desc": "This course is designed to provide students with the mathematical understandings and critical-thinking skills identified for post-secondary studies in programs that do not require the study of Mathematics. Topics include similar shapes and objects, optimization, logical reasoning, and statistical analysis.",
+      "year": "2026-27"
+    },
+    "Workplace Mathematics 11": {
+      "desc": "$20 Workbook Fee Applies. This course is designed to provide students with the mathematical understandings and critical-thinking skills identified for entry into the most trade programs and for direct entry into the work force. Topics include financial mathematics, proportional reasoning, data analysis, and 3D objects.",
+      "year": "2026-27"
+    },
+    "Chemistry 11": {
+      "desc": "This course will focus on chemical principles in science and analyze many of them mathematically. Students will investigate various topics in Chemistry and develop their lab skills. Big Ideas:\n• Methods of scientific investigation and analysis\n• Atoms and molecules are building blocks of matter\n• The mole is a quantity used to make atoms and molecules measurable\n• Matter and energy are conserved in chemical reactions\n• The periodic table and bonding\n• Naming components / chemical formulas\n• Solubility within a solution is determined by the nature of the solute and the solvent\n• Organic chemistry",
+      "year": "2026-27"
+    },
+    "AP Chemistry 11": {
+      "desc": "$55 Course Fee Applies.\n\nThe curriculum of this course covers the B.C. Ministry of Education requirements in addition to topics based on the Advanced Placement curriculum provided by the College Board. This course provides a more in-depth study of chemistry. Successful completion of Pre-AP Chemistry 11 and AP Chemistry 12 with satisfactory results on the Advanced Placement Chemistry exam may result in credit for an introductory university chemistry course. A more rigorous laboratory component is done in Pre-AP Chemistry 11. There is a course fee for this course.",
+      "prereq": "It is recommended that students wishing to take this course have a strong foundation in Science 10 concepts and skills.",
+      "year": "2026-27"
+    },
+    "Physics 11": {
+      "desc": "Physics 11 is an introductory course that focuses on understanding the principles and theories of physics through investigations and/or practical applications. Big Ideas:\n• Kinematics (analysis of motion) in 1D and 2D\n• Dynamics and Newton’s Laws (Forces cause change in motion) in 1D and 2D\n• Energy, Work, Power and Efficiency\n• Simple Machines\n• Electric Circuits (DC)\n• Wave Motion\n• Sound",
+      "prereq": "Recommended co-requisite: Pre-calculus 11",
+      "year": "2026-27"
+    },
+    "AP Physics 1 Honours 11": {
+      "desc": "AP Physics 1 and AP Physics 2 will run sequentially over 2 years (Grades 11 and 12). AP Physics 11: This course is the equivalent to a first-semester college course in algebra-based physics. It is an enriched course that covers all Physics 11 content at an advanced level while covering the additional topics of momentum, rotational motion, and fluid mechanics. This course is the prerequisite for AP Physics 12 and does not complete the requirements for AP Physics 1. $70 Course Fee Applies.\n\nThere will be an exam fee of $160.00 for each of the AP examinations - AP Physics 11 and 12.",
+      "prereq": "Recommended co-requisite: Pre-Calculus 11 and 12, AP Chemistry 11 and 12",
+      "year": "2026-27"
+    },
+    "Life Sciences 11": {
+      "desc": "This course requires a strong foundation and understanding of scientific vocabulary.\n\nThe Life Sciences 11 curriculum in BC introduces students to the diversity, evolution, classification, and cellular basis of life, emphasizing how life works at molecular/cellular levels, how organisms evolve in populations, and how organisms are grouped by shared characteristics, along with developing inquiry, lab, ecological, and ethical thinking skills.\n\nBig Ideas:\n• Life is a result of interactions at the molecular and cellular levels\n• Evolution occurs at the population level\n• Organisms are grouped based on common characteristics",
+      "year": "2026-27"
+    },
+    "AP Life Sciences 11": {
+      "desc": "$55 Course Fee Applies. This course requires a strong foundation and understanding of scientific vocabulary.\n\nThis course is designed to present a challenge to students interested in Biology and wanting to study beyond the regular curriculum. The basis for this course is the Advanced Placement curriculum as provided by the American College Board. The course also covers the regular B.C. Ministry of Education curriculum. Big Ideas:\n• Evolution and Phylogeny\n• Animal Behaviour\n• Diversity and Ecology of Organisms\nSuccessful completion of AP Life Sciences 11, AP Biology 12 and the AP Biology Exam may result in credit for a first-year university course and/or placement into a second year Biology course.",
+      "year": "2026-27"
+    },
+    "Earth Science 11": {
+      "desc": "Earth Science 11 is a course designed to introduce students to the diverse aspects of earth and space science. Big Ideas:\n• Earth Materials are changed as they cycle through the geosphere and are used as resources, with economic and environmental implications.\n• Plate tectonic theory explains the consequences of tectonic plate interactions.\n• The transfer of energy through the atmosphere creates weather, and this transfer is affected by climate change.\n• The distribution of water has a major influence on weather and climate.\n• Astronomy seeks to explain the origin and interactions of Earth and its solar system.\n\nEarth Science 11 provides a foundation for further study in Geology 12.",
+      "year": "2026-27"
+    },
+    "Explorations en sciences humaines et sociales 11": {
+      "desc": "In this course, students will deepen their understanding of key concepts relating to the social sciences and will develop their social studies inquiry skills through a self-directed, comprehensive research project connecting a contemporary issue of their choosing with the historic roots, and with other social studies contexts such as geography, social justice, politics, or economics. / Dans ce cours, les étudiants approfondiront leur compréhension des concepts clés liés aux sciences humaines et développeront leurs compétences en matière d'enquêtes grâce à un projet de recherche compréhensif et autonome reliant un problème contemporain de leur choix à ses racines historiques et à d'autres contextes d'études de sciences humaines tels que la géographie, la justice sociale, la politique ou l'économie.",
+      "year": "2026-27"
+    },
+    "Langue et culture de la francophonie 11": {
+      "desc": "The Grade 11 language arts program will continue to put an equal emphasis on the four language areas: listening, speaking, reading, and writing. Students are introduced to new forms of written and oral expression. We will use podcasts, videos, autobiographies and articles to discover the francophone world and its diversity.\n\nStudents will use their language and cultural knowledge to reflect on their identity within the French-speaking world, interact with Francophones and have life experiences in the French-speaking community.",
+      "year": "2026-27"
+    },
+    "French 11": {
+      "desc": "Students will continue to build on previous knowledge and acquire increasingly sophisticated structures and vocabulary through stories, movie clips and music.",
+      "year": "2026-27"
+    },
+    "Spanish 11": {
+      "desc": "In this course, students continue to develop their communicative skills. Students will have opportunities to acquire a higher level of listening, speaking, reading, and writing of the Spanish language and cultures. They will acquire Spanish by hearing it spoken and using it in contexts they understand. Learning will be personalized and relevant. The use of various stories, novels, movies, and music are the basis of the course. The class will be taught using conversation, stories, reading, acting, movie clips, visuals, and music.",
+      "year": "2026-27"
+    },
+    "Introductory Spanish 11": {
+      "desc": "This is an accelerated course that covers the basic components of Spanish 9 and 10 in one year. The primary focus of the course is on aural comprehension and reading. Later, as students acquire more language, they will be encouraged to communicate spontaneously in Spanish both orally and in writing. This course is for students who have minimal or no background in the language. Students will learn to communicate in Spanish in basic social situations, to meet and greet friends, to talk about their family, school life, the environment, food, sports and leisure activities. Students will be introduced to various aspects of Hispanic culture and geography. Students are expected to communicate in Spanish at all times. This course is open to students in Grades 10 – 12.",
+      "year": "2026-27"
+    },
+    "Japanese 11": {
+      "desc": "Students further build the communicative and linguistic skills introduced in previous levels. The primary focus is on exchanging ideas on familiar topics and developing deeper understanding of Japanese culture.",
+      "year": "2026-27"
+    },
+    "Introductory Japanese 11": {
+      "desc": "This is a concentrated course in which students learn and practice basic oral communication skills as well as the reading and writing of the 2 Japanese phonetic scripts: hiragana and katakana. Aspects of modern Japan as well as its history, geography and philosophy are explored using a variety of texts, media and projects which expose students to a different way of thinking and introduce the complexity of the Japanese language and culture. This course is open to students in Grades 9-12.",
+      "year": "2026-27"
+    },
+    "Mandarin 11": {
+      "desc": "Mandarin 11 is an intermediate course in Chinese language and culture. Students will continue to build on previous knowledge and develop proficiency in all aspects of the language (listening, speaking, reading, and writing).",
+      "year": "2026-27"
+    },
+    "Introductory Mandarin 11": {
+      "desc": "Introductory Mandarin 11 is an intensive introductory course to the Mandarin Chinese language and to Chinese culture. The beginning level students will learn Chinese Pinyin Romanization, learn to write simplified characters in proper stroke order, and communicate in Chinese in simple sentences. This course is open to students in Grades 10-12, and to students in Grade 9, as space permits and after consultation with and approval of the teacher.",
+      "year": "2026-27"
+    },
+    "Introductory Farsi 11": {
+      "desc": "This is a proficiency-based curriculum primarily focusing on aural comprehension and reading. As students acquire more language, they will be encouraged to communicate spontaneously in Farsi both orally and in writing. This course is for students who have minimal or no background in the language and not for Heritage speakers.. Students will learn to communicate in Farsi in basic social situations, to meet and greet friends, to talk about their family, school life, the environment, food, sports and leisure activities. Students will be introduced to Persian culture and geography. This course is open to students in Grades 10 – 12. Heritage speakers are able to challenge the course. Please speak to your counselor.",
+      "year": "2025-26"
+    },
+    "Active Living 11": {
+      "desc": "$150 Course Fee Applies Active Living 11 & 12 are co-ed elective courses open to senior students. They provide opportunities for students to experience a wide variety of recreational pursuits, career interests, and activities that promote lifelong healthy living, and having lots of fun too. Emphasis will be given to analyzing and improving physical competence, maintaining personal fitness, developing effective leadership and sports management skills. Field trips to locate recreation facilities will be organized. It is expected that students will:\n• design and implement fitness and health plans\n• plan and participate safely in a variety of activities and environments\n• demonstrate a personal functional level of competence in a selection of activity-specific motor skills\n• complete service hours each term at school or in the community; hours must have a sport or recreation focus\nNew to this course will be a focus on community-based recreational activities, and as such, a large percentage of classes will take place in community facilities. There will be a course fee for instructors, facility rentals, equipment rentals, and/or transportation. This fee will be based on the number of activities organized at the beginning of the year. Students will have input on the field trips.",
+      "year": "2026-27"
+    },
+    "Fitness & Conditioning 11": {
+      "desc": "$100 Course Fee Applies. This course offers students a unique opportunity to develop sport-specific strength, endurance, power, agility, and overall conditioning within a supportive and structured PE environment. Designed for student-athletes as well as those passionate about strength training, physical wellness, and fitness, this comprehensive branch of PE 10 emphasizes personal physical development in a safe and positive setting.\n• Students will focus on improving muscular strength and endurance while deepening their understanding of muscular anatomy and physiology.\n• The course also covers key topics such as nutrition, weight training programs, equipment usage, and proper training techniques with an emphasis on safety.\n• Students will learn the key components of a well-rounded training program and how to tailor it to meet their personal fitness or athletic goals.\n• Guest instructors, including certified personal trainers and fitness coaches, will be invited to share their expertise and provide guidance to help students achieve their fitness goals.",
+      "year": "2026-27"
+    },
+    "Fitness & Conditioning 11 (Girls)": {
+      "desc": "$230 Course Fee Applies. You will have opportunities to explore the activities that you enjoy, and hopefully be exposed to some fitness activities you have never tried before. It is a continuation of Fitness 10 where there will be classes with various fitness instructors to try a variety of exercises. Fitness 10 is not a pre-requisite. A weight training program will be designed for each student to use in class and take with them for future years. This class will cover the following components of fitness in the following ways:\n• Aerobic Fitness (Cardiovascular): kickboxing, dance, spin, boot camp, seawall/trail runs, hikes, indoor games, and a variety of cardio machines.\n• Muscular Fitness (Strength and Endurance): sculpting using different equipment, hand weights, tubing, med. balls, fitness balls, Swiss balls, BOSU balls and a variety of weight machines.\n• Flexibility: yoga (Strength and Stretch), Pilates, stretch flex training.\n• PE Activities (sports, games, and dance) will also take place at the request of the class as we will rotate through the Sentinel Secondary School gym spaces.",
+      "year": "2026-27"
+    },
+    "Accounting 11": {
+      "desc": "This course satisfies the Applied Skills requirement for graduation. $30 Workbook Fee Applies. This course provides a solid introduction to Accounting: “the language of business” and will deliver real employable skills in the accounting field. Every business needs Accounting, and every business person needs to know the basics of Accounting. To operate a business or to see behind the headlines of the news in the worlds of sports, music, entertainment, and big business, an understanding of Accounting is essential. Topics of study include:\n• The role of accounting in business.\n• The importance of ethics, integrity, and honesty in finance.\n• The relationships among assets, liabilities, and owner’s equity.\n• Identifying, using, and understanding journals, ledgers, and the various financial statements in the accounting cycle.\n• Understanding and using debit and credit theory.\n• Careers in Accounting.\n• Applying accounting methods using current applications of accounting software.",
+      "year": "2026-27"
+    },
+    "Marketing & Promotion 11": {
+      "desc": "This course satisfies the Applied Skills requirement for graduation. The world of marketing features many interesting aspects. Topics of study will include:\n• Demographics and market research. Analyzing consumer behavior and identifying target markets.\n• Social, legal, ethical, and environmental issues involved in marketing products and services.\n• Evaluation of effective marketing and retail practices.\n• Evaluation of effective design, development, and distribution of products and/or services to a market.\n• Promotion and Advertising.\n• Creating a marketing plan.\n• Analyzing the impact of a global economy on business in BC.\n• Careers in Marketing",
+      "year": "2026-27"
+    },
+    "Computer Information Systems 11": {
+      "desc": "This course covers four main areas in information and communications technology: computer information systems, programming, applied digital communication and digital media development. Students will produce Web pages using more advanced techniques, take a close look at an industry standard graphics programs and apply this to Web page development, and experiment with issues related to effective website design and management. Students will learn to program using Java as an introduction to the computer science curriculum. Students will also explore the foundations of the Internet and Local, LAN, and WAN network architecture. Most work in the course is project-based and requires students to think critically, problem solve, be flexible and be creative.",
+      "year": "2026-27"
+    },
+    "Drafting 11": {
+      "desc": "$25 Course Fee Applies. In this course, students will be given problems for both mechanical and architectural topics for which they must design and create solutions using both hand and CAD (computer aided design) techniques. A major course project will consist of students selecting a building property then employing a design process to develop and prepare working drawings to build a small house or summer cottage. Students will then be given the opportunity to learn architectural modeling skills as they build a scale model of their design. Once the course has been completed the students are expected to know the following:\n• geometric construction to create drawings and images\n• drawing management and problem-solving using computer-assisted design (CAD) software\n• use of scale and proportion when outputting to 3D models\n• geometric dimensioning and tolerancing in both imperial and SI units\n• types, sizes, and applications of drawing media\n• suitable visual formats and media for presenting design solutions\n• technical problem-solving using geometry, trigonometry, and algebra",
+      "year": "2026-27"
+    },
+    "Woodwork 11": {
+      "desc": "$100 Course Fee Applies. This course works to further develop the skills learned in ADST 10 Woodwork Design, technical communication, and problem solving will be emphasized as students continue to learn and employ a design process to develop their own woodworking projects. The scope of machine operations will continue to be expanded so that students learn to design and create ever more challenging and complex projects. Once the course has been completed, the students are expected to know the following:\n• orthographic and pictorial drawings\n• preparation of a bill of materials and a cutting list measuring instruments\n• problem-solving techniques using ratio, proportion, and geometry\n• selection and identification of wood species appropriate for a given purpose\n• material conservation and sustainability\n• operation of stationary power equipment in the processing of material\n• hand-tool process in the creation of a product\n• how to set up, change, and adjust machines and equipment\n• project finishing methods",
+      "year": "2026-27"
+    },
+    "Food Studies 11": {
+      "desc": "$75 Course Fee Applies. Satisfies the Applied Skills requirement for graduation. This course is intended for students in Grades 10, 11 and 12. Food Studies 11 builds on the skills developed in Food Studies 9. More challenging food preparation techniques will be experienced. Students will also have the opportunity to select some areas of study. A wide variety of foods will be prepared, touching on all food groups, with an emphasis on trends in healthy eating. Food safety nutrition, and food-related trends will be integrated throughout the course. Food Safe Level One sign-up is available at student request.",
+      "year": "2026-27"
+    },
+    "Textiles 11": {
+      "desc": "$60 Course Fee Applies. Satisfies the Applied Skills requirement for graduation and is open to all students, Grades 10, 11 and 12, with or without textiles experience. This course is designed to build on the skills developed in ADST Textiles 9. This course will be divided into 2 levels for those with little or no sewing experience as well as those who have previously taken a textiles course. Students will increase their knowledge of hand and machine construction techniques, and strategies for pattern alterations and upcycling. Projects chosen will depend on the students’ interests and abilities and they will individually experiment with more challenging techniques. Students will cover various topics relating to fashion/trends, textiles art, fabric and clothing construction, sustainable fashion and upcycling. This course is recommended for students interested in fashion design and/or fashion merchandising.",
+      "year": "2026-27"
+    },
+    "Photography 11": {
+      "desc": "$50 Course Fee Applies. This course is open to all students in Grades 10, 11 and 12 with or without previous media arts experience. Photography 11 students will be expected to progress and achieve based on their personal goals and previous Media Arts 9 experiences. Photography 11 focuses on developing the knowledge, skills, and attitudes students need to respond to media art works and create art using media art technology. Consistent results using digital cameras, developing sound and practical application of exposures, strengthening technical skills, and broadening conceptual understanding will be a focus. In this course, students will explore the elements and principles of design through the use of DSLR cameras and Adobe editing software. Various design problems will be presented to students throughout the year and it will be expected that they question, reflect, and pursue multiple solutions with the goal of developing a personal voice. Students are required to possess a digital camera, preferably a DSLR. The school has a limited number of cameras for students to borrow.",
+      "year": "2026-27"
+    },
+    "Studio Arts 2-D 11": {
+      "desc": "$55 Course Fee Applies. Studio Arts 2-D 11 is open to all students, Grades 10, 11 and 12, with or without previous art experience. Studio Arts offers students the opportunity to journey towards creativity, self-expression and innovation. Through teacher directed lessons, the exploration of personal voice will challenge students to question, critique and reflect on observation, imagination, political and social issues through drawing, painting, and mixed media. A study of visual language – the elements and principles of design together with contemporary art history and critical response will be related to all units of study. Note: A sketchbook is required.",
+      "year": "2026-27"
+    },
+    "Studio Arts 3-D 11": {
+      "desc": "$75 Course Fee Applies. This course is designed for senior students in Grades 10, 11, and 12 with or without previous art experience. Students will explore techniques and materials used to create three-dimensional art. Students will work from observation and imagination using a variety of three-dimensional media both traditional and non-traditional. A study of the elements and principles of design together with exploring contemporary and historical art will be related to all units. Students will be asked to reflect and question throughout the creative process in order to explore self, personal identity, and cultural expression. Students entering Studio Arts 3-D 11 will have the opportunity to pursue a 3-D Advanced Placement Portfolio after the completion of this course. Note: A sketchbook is required.",
+      "year": "2026-27"
+    },
+    "Art Studio 11 (AP Art 11)": {
+      "desc": "$75 Course Fee Applies. This challenging course is made available to students in Grades 10 and 11 who have expressed an interest in fast-tracking towards the completion of an AP Studio Art Portfolio with the intention of earning post-secondary credit while in high school. Teacher-directed units will be presented in accordance with College Board evaluation requirements. Students will be provided a greater level of autonomy, expected to pursue their own interests, and develop an individual voice. Emphasis will be placed on the completion of a volume of quality work focusing on questions that will guide student investigation through a variety of two-dimensional and three-dimensional design problems. Students will be asked to reflect and question throughout the creative process in order to explore self, personal identity, and cultural expression. Note: A sketchbook is required.",
+      "prereq": "Recommended Prerequisite: Art 9",
+      "year": "2026-27"
+    },
+    "Drama 11": {
+      "desc": "$30 Course Fee Applies. Drama 11 develops the more formal acting skills, provides extensive experience in script analysis and scene work, and introduces concepts of period and style. All techniques from Drama 8, 9 and 10 are called upon and further explored including improvisation, theatre concepts and methods. While there is no prerequisite for this course, prior acting/theatre experience is strongly recommended. Play building and/or show creation become an intricate part of the course with the intention of performing not only for peers but for the greater school community. Additional rehearsal time may be required depending on the length and scope of the show.",
+      "year": "2026-27"
+    },
+    "Theatre Company 11": {
+      "desc": "$15 Course Fee Applies. The primary focus of this course will be to prepare for and perform Sentinel Stage’s annual production for the school and community. Students have a choice of performance, design, and production and may change their focus from year to year. PERFORMANCE: With the acting section of this course students are provided with an opportunity to experience and develop their dramatic and/or musical and choreographic skills. Emphasis is placed on ensemble playing and development of the voice. Other highlights may include in-depth method acting and movement training. DESIGN: Senior Design students have the opportunity to manage departments, including: costumes, hair & make-up, props, set, lights, sound and projections. Junior production and design students (or those new to the performing arts) are mentored by senior students in their department. PRODUCTION: This section is for students interested in “the big three” – Directing, Producing and Stage-Management. Previous experience in theatre is strongly encouraged. Junior students are once again mentored by senior students in their respective field. Senior students have the opportunity to explore and learn the ‘real world’ workings of their field of choice. This course runs outside the regular timetable with specific afternoon/evening rehearsal schedules set on a year-to-year basis. NB: It is strongly recommended that students enrolling in this course also be enrolled in an additional performing arts course (i.e., Drama/Acting/Theatre Production/Choir/Dance). In particular, casting preference will be given to students enrolled simultaneously with one of the courses mentioned above.",
+      "year": "2026-27"
+    },
+    "Theatre Production 11": {
+      "desc": "This challenging and exciting course is available to students in Grades 11 & 12 who love theatre but do not want to be center stage! As mentioned above it is highly recommended that students enrolling in either of these courses have previous theatre experience. Theatre Production 11 & 12 focus on the technical/backstage theatre elements of a performance, including the following disciplines: Lights, Sound, Sets, Props, Costumes, and Makeup. Play building and/or show creation become an intricate part of the course with the intention of performing not only for peers but for the greater school community. It is expected that students enrolled in Theatre Production will take on the design process, backstage work and be prepared to attend extra out-of-class rehearsals closer to the performance dates. Please note this course may run in conjunction with another class.",
+      "prereq": "Recommended Prerequisite: Successful completion of Theatre Production 10 is highly recommended.",
+      "year": "2026-27"
+    },
+    "Directing & Script Development 11": {
+      "desc": "$15 Course Fee Applies.\n\nDirecting & Script Development introduces two complex but fascinating facets of theatre which are of particular interest to students who show leadership, are capable of detailed planning and organization, and have a flair for creative writing. The goals of the course are intended to develop the students’ ability to be creative, interpretive, and exploratory. Please note this course will be offered in conjunction with other Drama courses.",
+      "prereq": "Recommended Prerequisite: Prior acting/theatre experience is needed. Students interested in this course are also encouraged to meet with the teacher for a more detailed course description.",
+      "year": "2026-27"
+    },
+    "Dance Technique & Performance 11": {
+      "desc": "Students can look forward to learning, creating, and performing choreography in this course. Dance Technique and Performance (11, 12) is a course where students receive instruction in various styles of dance technique, collaborate with others, and learn about the importance of Dance within our communities. Beginner Dance students are welcome. Students can expect to be challenged in various dance techniques, choreography, and fitness exercises that focus on body alignment, strengthening, and performance. This course is a high-energy, fun and dynamic class.",
+      "year": "2026-27"
+    },
+    "Concert Band 11": {
+      "desc": "Satisfies the Arts Education requirement for graduation.\n\nThis course is a wind band ensemble where students hone instrumental technique skills through performing a wide range of styles including classical transcriptions, marches, chorales, film scores, and arrangements of jazz and popular standards. The learner will have a chance to demonstrate an understanding and appreciation of personal, social, cultural, historical, and environmental contexts in relation to the arts. This is a perfect ensemble for students who enjoy the experience of playing in a large group with multiple players on a part. Assignments: Individual playing tests, music theory worksheets, and community and school performances.",
+      "prereq": "Recommended Prerequisite: Beginner band or equivalent musical experience",
+      "year": "2026-27"
+    },
+    "Jazz Stage Band 11": {
+      "desc": "Satisfies the Arts Education requirement for graduation.\n\nThis course is a great choice for students who exhibit skill and confidence on their instrument and are willing to take creative risks to express feelings, ideas, and experiences. Jazz Band is by audition and/or consultation with the Music Director, and primarily comprises the following instruments: alto/tenor/baritone saxophone, trumpet, trombone, string bass, piano, guitar, and drums. Characterized by crisp articulation and chromaticism, Jazz Band repertoire covers Latin, funk, blues, and swing. The learner will have opportunities to create, listen to, analyze, improvise, and perform jazz music through a variety of contexts and historical styles. Assignments: Individual playing tests, music theory worksheets, and community and school performances.",
+      "prereq": "Recommended Prerequisite: Beginner Band or Instrumental Music: Concert Band or Jazz Band or an equivalent musical experience (subject to band director's approval)",
+      "year": "2026-27"
+    },
+    "Orchestral Strings 11": {
+      "desc": "Satisfies the Arts Education requirement for graduation.\n\nThe Sentinel Orchestral Strings is an ensemble in the style of a classical symphony orchestra, performing repertoire by the great Classical composers as well as contemporary compositions, arrangements, and film scores. This is an intensive instrumental rehearsal and performance group, and considerable emphasis is placed on acquiring musical proficiency and technical competence through scales, studies, and repertoire. The learner will have a chance to demonstrate an understanding and appreciation of personal, social, cultural, historical, and environmental contexts in relation to the arts. Enrolment is limited to intermediate and advanced instrumentalists regardless of grade level, upon consultation with the Music Director.",
+      "prereq": "Recommended prerequisites: Previous instrumental experience (2 years), elementary band (3 years), or private instruction",
+      "year": "2026-27"
+    },
+    "Media Arts 11: Yearbook": {
+      "desc": "Be part of building Sentinel's Yearbook! This is a student-led course made up of five departments: Photography, Photo-editing, Writing, Design, and Business & Marketing. Students choose their department and work together in teams to capture, create, and sell the yearbook. Students learn the technical skills of their department from each other. While there are no pre-requisites, courses in photography, business and leadership are assets. If you are in Grade 8 and are interested, please speak with the yearbook teacher.",
+      "year": "2026-27"
+    },
+    "AP Capstone Seminar 11": {
+      "desc": "$160.00 Advanced Placement Examination Fee Applies for May Exam. $65 Course Fee Applies. Recommended for students enrolling in Grade 11 who plan to commit to the two-year AP Capstone Diploma Program, and who expect to complete four or more senior-level Advanced Placement courses by the end of Grade 12.\n\nAP Capstone Seminar 11 is a foundational course that engages students in cross-curricular conversations that explore the complexities of academic and real-world topics and issues by analyzing divergent perspectives. Using an inquiry framework, students practice reading and analyzing articles, research studies, and foundational, literary, and philosophical texts; listening to and viewing speeches, broadcasts, and personal accounts; and experiencing artistic works and performances. Students learn to synthesize information from multiple sources, develop their own perspectives in research-based written essays, and design and deliver oral and visual presentations, both individually and as part of a team. Ultimately, the course aims to equip students with the power to analyze and evaluate information with accuracy and precision in order to craft and communicate evidence-based arguments.\n\nAP Capstone Seminar 11 Course Content\n\nTeachers and students have the flexibility to choose one or more appropriate themes that allow for deep interdisciplinary exploration. Themes for deeper investigative research might arise from the following:\n• Concepts or issues from other AP courses\n• Student interests\n• Local and/or civic issues\n• Academic problems or questions\n• Global or international topics\n\nCourse Scheduling Logistics\n\nPre-Advanced Placement Literary Studies 11 acts as the anchor course for AP Capstone Seminar 11. Students enrolling in AP Capstone Seminar 11 are expected to enroll in Pre-AP Literary Studies 11 and AP Capstone Seminar concurrently. AP Capstone Seminar 11 is scheduled outside the regular eight-block rotation.",
+      "year": "2026-27"
+    },
+    "English Studies 12": {
+      "desc": "English Studies 12 is a mandatory course required for graduation. English Studies 12 builds and extends the students’ previous learning experiences in English 10 and English 11 coursework. It is designed to provide students the opportunity to refine their ability to communicate effectively in a variety of contexts, to think critically and creatively about the uses of language, and to explore texts from a variety of sources, in multiple modes, and reflective of diverse worldviews. Students will focus on analyzing, evaluating, and synthesizing texts.",
+      "year": "2026-27"
+    },
+    "English First Peoples 12": {
+      "desc": "English First Peoples 12 is designed for students who are interested in studying First Peoples Literature and using writing for self-expression and communication in a variety of contexts. Students delve deeply into First Peoples’ oral and written literature in a range of media to explore various themes, authors, and topics. This provides a foundation for students to think critically and creatively as they continue to explore, extend, and strengthen their own writing. Within a supportive community, students work individually and collaboratively to explore oral and written literature and create powerful, purposeful compositions. Through the study of literature and the process of experimenting with, reflecting on, and refining their writing, students extend their capacity to communicate effectively in a variety of contexts; deepen their understanding of themselves and the world; and expand their understanding of what it means to be educated Canadian and global citizens.",
+      "year": "2026-27"
+    },
+    "Creative Writing 12": {
+      "desc": "This course will provide students with opportunities to explore and refine their writing skills in many different genres, both fictional and non-fictional. They will have an opportunity to publish their work by writing articles for Sentinel's publications and, possibly, other publications. Students will also be encouraged to participate in writers' workshops and contests (both local and national). The course will focus on experimentation with language as well as appreciation of literature.\n\nAn Independent Project Module will allow students to participate in such varied experiences as studying with an actor, joining a writing group, or creating an online Sentinel Writers' Magazine. The basic beliefs about writing that will guide this course are as follows:\n1. Writing should be a \"hands-on\" experience.\n2. The focus of creative writing should be on ideas and meaning.\n3. Reading a variety of literary genres is essential to the students' development as writers.\n4. Writing topics should be determined by the students’ interests.\nThe course is recommended for those students who are interested in seriously developing their writing as an art form and exploring the connection between themselves and the broad world around them.",
+      "year": "2026-27"
+    },
+    "AP English Language & Composition 12": {
+      "desc": "$160.00 Advanced Placement Examination Fee Applies for May Exam. $30 Course Fee Applies for AP Literature. In the third and final year of the Advanced Placement English Program, two courses (AP English Language and Composition 12 and AP English Literature and Composition 12) will continue to hone student reading and writing skills in an effort to reach a level of proficiency and mastery that will ensure students are prepared for future endeavours in post-secondary studies and beyond. In addition, teachers will prepare their students for a successful writing of the Advanced Placement examinations to be written in the first two weeks of May. Successful students will receive 4 credits for English Studies 12; 4 credits for Advanced Placement English Language and Composition 12 (APEN 12); and 4 credits for Advanced Placement English Literature and Composition 12 (APELC 12) for a total of 12 credits.",
+      "year": "2026-27"
+    },
+    "AP English Literature & Composition 12": {
+      "desc": "$160.00 Advanced Placement Examination Fee Applies for May Exam. $30 Course Fee Applies for AP Literature. In the third and final year of the Advanced Placement English Program, two courses (AP English Language and Composition 12 and AP English Literature and Composition 12) will continue to hone student reading and writing skills in an effort to reach a level of proficiency and mastery that will ensure students are prepared for future endeavours in post-secondary studies and beyond. In addition, teachers will prepare their students for a successful writing of the Advanced Placement examinations to be written in the first two weeks of May. Successful students will receive 4 credits for English Studies 12; 4 credits for Advanced Placement English Language and Composition 12 (APEN 12); and 4 credits for Advanced Placement English Literature and Composition 12 (APELC 12) for a total of 12 credits.",
+      "year": "2026-27"
+    },
+    "Pre-Calculus 12": {
+      "desc": "This course is designed to provide students with the mathematical understandings and critical-thinking skills identified for entry into post-secondary programs that require the study of calculus. Topics include function transformations, polynomials and rational functions, exponential and logarithmic functions, and trigonometric functions. Mathematics students will find Pre-calculus 12 a rigorous course with steady work on their part. Pre-calculus 12 is heavy in content, and it is crucial that students start the course work immediately, keep up to date, and have an excellent attendance record.",
+      "prereq": "Recommended prerequisite: Pre-calculus 11 or Pre-AP Pre-calculus 11",
+      "year": "2026-27"
+    },
+    "Pre-Calculus 12 Honours": {
+      "desc": "This is the honours format of Pre-calculus 12. The core topics of the two courses are the same, but several topics are enriched, and the level of sophistication is considerably higher than in the regular program. Only very capable students should select this course.",
+      "prereq": "Recommended prerequisite: Excellent achievement in Pre-Calculus 11 or Pre-AP Pre-Calculus 11",
+      "year": "2025-26"
+    },
+    "Calculus 12": {
+      "desc": "This is an application-driven rather than a theory-driven course. Topics overlap with many 1st year post- secondary calculus curricular topics including limits, differentiation, integration, and their applications.",
+      "prereq": "Recommended prerequisite: Pre-calculus 11 or Pre-AP Pre-calculus 11 and Pre-calculus 12 taken concurrently or previously.",
+      "year": "2026-27"
+    },
+    "AP Calculus AB 12": {
+      "desc": "$160.00 Advanced Placement Examination Fee Applies for May Exam.\n\nThis is a content heavy and difficult course. Grade 12 students selecting this course must have an excellent achievement record combined with excellent work habits. Students selecting this course must have the approval of the AP Calculus teacher. Topics Include:\n1. Elementary functions - algebraic, trigonometric, exponential, and logarithmic\n2. Differential calculus\na) the derivative\nb) applications of the derivative\n3. Integral calculus\n\nStudents will write the Advanced Placement Calculus examination in May as laid out at the beginning of this booklet. Students will have the choice to write AP Calculus AB or AP Calculus BC Exam.",
+      "prereq": "Recommended prerequisite: Pre-calculus 12 taken concurrently or previously.",
+      "year": "2026-27"
+    },
+    "AP Calculus BC 12": {
+      "desc": "Students may take this course as a self-directed course following completion of AP Calculus AB 12. They will write the AP Calculus BC examination in May. AP Calculus students may receive Advanced Placement and/or credit at the university level if they achieve scores of 4 or 5 on their AP examination.",
+      "year": "2025-26"
+    },
+    "AP Statistics 12": {
+      "desc": "$160.00 Advanced Placement Examination Fee Applies for May Exam.\n\nAdvanced Placement Statistics is designed for students who would like to complete studies equivalent to a one-semester, introductory, non-calculus-based, university course in statistics. This is an excellent AP option for students in Grade 11. University and college programs in business, economics, engineering, science, and psychology include at least one course in statistics. Students will be exposed to four broad themes: exploring data, sampling and experimentation, anticipating patterns, and statistical inference. Students who successfully complete the course and exam may receive credit, advanced placement, or both for a one-semester introductory college statistics course. Students will write the Advanced Placement examination in May as laid out at the beginning of this booklet. Students who do not write the exam, but pass the course, will receive credit for Statistics 12.",
+      "prereq": "Recommended prerequisites: Foundations and Pre-calculus Mathematics 10 or Foundations and Pre-calculus Mathematics 10 Enriched",
+      "year": "2026-27"
+    },
+    "Foundations of Mathematics 12": {
+      "desc": "This course is designed to provide students with the mathematical understandings and critical-thinking skills identified for post-secondary studies in programs that do not require the study of mathematics. Topics include modelling data; probability; financial mathematics, and spatial relationships.",
+      "year": "2026-27"
+    },
+    "Apprenticeship Mathematics 12": {
+      "desc": "This course is designed to provide students with the mathematical understandings and critical-thinking skills identified for entry into many trades and for direct entry into the work force. Topics include design, 2D and 3D objects, measurement, proportional reasoning, and financial literacy.",
+      "year": "2026-27"
+    },
+    "Chemistry 12": {
+      "desc": "This course builds on the foundation of Chemistry 11 and covers the big ideas of:\n• Reaction kinetics\n• Dynamic equilibrium\n• Saturated solutions\n• Acid base chemistry\n• Electrochemistry\nLab work is an important part of this course. A strong foundation in mathematics and chemistry is essential for success in Chemistry 12. It is recommended that students wishing to take Chemistry 12 have at least a C standing in both Chemistry 11 and Pre-Calculus 11.",
+      "prereq": "Recommended pre-requisite: Chemistry 11.",
+      "year": "2026-27"
+    },
+    "AP Chemistry 12": {
+      "desc": "$160.00 Advanced Placement Examination Fee Applies for May Exam. $95 Course Fee Applies.\n\nAP Chemistry 12 is a continuation of AP Chemistry 11. In this course, students will investigate chemical principles and how they relate to the world around us. The curriculum covers the regular B.C. Ministry of Education requirements, as well as additional topics prescribed by the College Board. This course focuses on developing a good understanding of chemical reactions and developing strong laboratory skills. Students are expected to spend additional time outside of classes to complete some experiments. Students taking AP Chemistry 12 must also register for Chemistry 12 Blended Learning.",
+      "prereq": "Recommended prerequisites: AP Chemistry 11 (or excellent achievement in Chemistry 11) and Pre-calculus 12 taken concurrently. Students must have a strong background in laboratory work.",
+      "year": "2026-27"
+    },
+    "Physics 12": {
+      "desc": "Physics 12 is the study of classical mechanics and electromagnetism and is designed to help students develop analytical and problem-solving skills. Big Ideas:\n• Vector kinematics in two dimensions\n• Vector dynamics\n• Work, energy, and power\n• Momentum\n• Equilibrium\n• Gravitation\n• Electrostatics\n• Electric circuits\n• Electromagnetism\n• Circular motion",
+      "year": "2026-27"
+    },
+    "AP Physics 2 Honours 12": {
+      "desc": "AP Physics 1 and AP Physics 2 will run sequentially over 2 years (Grades 11 and 12).\n\nAP Physics 12: This course is a rigorous course equivalent to a second-semester college course in algebra-based physics. The course covers simple harmonic motion, advanced thermodynamics, electrostatics, electromagnetism, and atomic and nuclear physics. This course completes the requirements for AP Physics 1 and 2 (assuming AP Physics 11 was taken). $70 Course Fee Applies.\n\nThere will be an exam fee of $160.00 for each of the AP examinations - AP Physics 11 and 12.",
+      "prereq": "Recommended co-requisite: Pre-Calculus 11 and 12, AP Chemistry 11 and 12",
+      "year": "2026-27"
+    },
+    "Anatomy & Physiology 12": {
+      "desc": "This course requires a strong foundation and understanding of scientific vocabulary.\n\nBig Ideas:\n• Biochemistry—studying the molecules that make up life\n• Homeostasis is maintained through physiological processes.\n• Gene expression, through protein synthesis, is an interaction between genes and the environment.\n• Body systems have complex interrelationships to maintain homeostasis",
+      "prereq": "Recommended pre-requisite: Life Sciences 11 and/or Chemistry 11.",
+      "year": "2026-27"
+    },
+    "AP Biology 12": {
+      "desc": "$160.00 Advanced Placement Examination Fee Applies for May Exam. $115 Course Fee Applies.\n\nPriority will be given to those students who have successfully completed AP Life Sciences 11. This course requires a strong foundation and understanding of scientific vocabulary.\n\nAP Biology 12 is designed to cover the curriculum of a first-year university biology course. This choice will allow the students to be prepared to write the College Board Advanced Placement exam in May. Four credits will be given for Anatomy and Physiology 12 and four additional credits for AP Biology 12. Big Ideas:\n• Evolution\n• Cellular Processes: Energy and Communication\n• Genetics and Information Transfer\n• Interactions\nThe AP Biology laboratory is emphasized as an important aspect of learning biology. In an effort to provide students with a rich learning experience, not unlike what they would experience in university, the laboratory component of this course will take place after school. During this time, students will have the opportunity to investigate topics such as: Transpiration, Osmosis, Enzymatic Activity, Cellular Respiration, Photosynthesis, Genetics, and Physiology.",
+      "prereq": "Recommended pre-requisite: AP Life Sciences 11 and/or AP Chemistry 11.",
+      "year": "2026-27"
+    },
+    "Geology 12": {
+      "desc": "Geology 12 is a course designed to introduce students to geological history, earth structures, and the processes that shape the planet.\n\nBig Ideas:\n• Minerals, rocks, and earth materials form in response to conditions within and on the Earth’s surface and are the foundation of many resource-based industries.\n• Earth’s geological and biological history is interpreted and inferred from information stored in rock strata and fossil evidence.\n• The plate tectonic theory explains the changes that occur within Earth and to Earth’s crust throughout geological time.\n• The form, arrangement, and structure of rocks are affected by three-dimensional forces over time.\n• Weathering and erosion processes continually reshape landscapes through the interaction of the geosphere with the hydrosphere and atmosphere.",
+      "prereq": "Recommended prerequisite: any Science 11 course.",
+      "year": "2026-27"
+    },
+    "AP Psychology 12": {
+      "desc": "$160.00 Advanced Placement Examination Fee Applies. $5 Course Fee Applies. $30 Workbook Fee Applies While there are no prerequisites for AP Psychology, students should be able to read a college-level textbook, analyze peer reviewed research and write coherent arguments.\n\nThe AP Psychology course is designed to be the equivalent of an introductory psychology course in the first year of university and prepares students for advanced coursework in the field of psychology at the undergraduate level. The units of instruction include: Biological Bases of Behavior, Cognition, Development and Learning, Social Psychology and Personality, and Mental and Physical Health.\n\nThroughout the course students will employ science practices to explore psychological concepts. These skills include concept application, understanding research methods and design, data interpretation, and argumentation. Students will also be required to critically read and analyze current research in the field of psychology",
+      "year": "2026-27"
+    },
+    "AP Computer Science A 12": {
+      "desc": "$160.00 Advanced Placement Examination Fee Applies for May Exam.\n\nThis is a content heavy and difficult course that uses the Java programming language exclusively. Grade 12 students electing to take this course must have an excellent achievement record combined with excellent work habits. AP Computer Science A emphasizes object-oriented programming methodology with an emphasis on problem solving and algorithm development. Students selecting this course must have the approval of the AP Computer Science A instructor (after showing them their Java skills) and must be in either their Grade 11 or Grade 12 year. Course Components: [With understanding shown using the Java programming language.]\n1. Object-Oriented Program Design and Program Implementation\n2. Program Analysis\n3. Standard Data Structures and Standard Algorithms\n4. Computing in Context",
+      "prereq": "Recommended Prerequisites: CSTU10 or CINF11 with a strong understanding of good programming practices or permission from the instructor.",
+      "year": "2026-27"
+    },
+    "AP Computer Science Principles 12": {
+      "desc": "$160.00 Advanced Placement Examination Fee Applies for May Exam.\n\nThis is a course open to Grade 11 and 12 students who have taken CSTU10 in Grade 9 or 10 at Sentinel or have worked with a text-based programming language on their own. Although this course is more accessible to non-programmers than the Grade 12 AP Computer Science A course, it is still content heavy and an academic course. Grade 11 or 12 students electing to take this course must have an excellent achievement record combined with excellent work habits. AP Computer Science Principles emphasizes computational thinking practices but also looks at creative development and good programming practices from a theoretical standpoint. Students selecting this course must have the approval of the instructor. Course Components:\n1. Computational Thinking Practices\n2. Big Ideas: Creative Design, Looking at Data, Algorithms and Programming, Computer Systems and Networks & the Impact of Computing\nStudents will write the Advanced Placement examination in May as scheduled by the College Board and will also be required to spend 12 hours of class time working on the “Creative Performance Task”, which is also an exam component, submitted as a portfolio.",
+      "prereq": "Recommended Prerequisites: IT 9, or IT 11 with a strong understanding of good programming practices or permission from the instructor.",
+      "year": "2026-27"
+    },
+    "Computer Information Systems 12": {
+      "desc": "This course covers four main areas in information and communications technology: computer information systems, programming, applied digital communication and digital media development. Information Technology courses are designed to give students experience in acquiring, managing, editing, and presenting data through various technology-based mediums. CINF 12 concentrates on interacting over the Internet. Students will program extensively in Java and develop applications using this language. Students will also develop games using design protocols. As well, students will produce enhanced interactive Web pages using JavaScript and FLASH. Most work in the course is project-based and requires students to think critically, problem solve, be flexible and be creative.",
+      "prereq": "Recommended Prerequisites: ICTS 11 with a strong understanding of good programming practices or permission from the instructor.",
+      "year": "2026-27"
+    },
+    "Computer Programming 12": {
+      "desc": "This ADST 12 course will dive into Cybersecurity and Artificial Intelligence. Both areas impact many aspects of our lives today, and demand for trained professionals in these areas is growing exponentially. For example, in Canada, the unemployment rate for Cybersecurity professionals is 0%.\n\nThis course will be delivered in a blended format. This means that part of the course will be completed remotely either over Zoom or working independently. The in-person part will be scheduled at WVSS on Tuesday and Thursday between 3:30pm and 5 pm.\n\nStudents will learn about Digital Citizenship, Cybersecurity, Cybercrimes, Viruses, DDoS, Phishing, Cryptography, the Internet, how to stay safe online, and ultimately get. In addition to learning about Cybersecurity, there will be an opportunity for students to compete in CyberTitan – one of Canada’s largest cyber defense competitions. The top 10 ranked Canadian Teams receive a trip to Ottawa to go head-to-head for the coveted title of CyberTitan National Champions.\n\nCourse Requirements:\n\nStudents who are selected for this course are required to have their once personal laptop with internet connection and Zoom installed. This course is a district course with limited spaces reserved for each of the four secondary schools\n\nCourse Fee\n\nThe course fee is $200 for the year to cover the cost of the registration for the CyberTitan Competition. For more information please visit the District website under District Programs.",
+      "prereq": "Students are required to have a genuine Interest in learning about Cybersecurity and Artificial Intelligence. No prior programming experience needed. However, there is an expectation that students in the course would compete in the CyberTitan Competition. This course has an application process. Students will be emailed and application from the instructor and then informed later if they were successful.",
+      "year": "2025-26"
+    },
+    "20th Century World History 12": {
+      "desc": "20th Century World History 12 is the study of the social, political, and economic issues and struggles that dominated the Twentieth century. You will learn about WWI, the Paris Peace Conference, the Russian Revolution, the Great Depression, Fascism, Nazism, WWII, the Holocaust, the Cold War, Decolonization, the Arab- Israeli Conflict, and the collapse of the Soviet Union. In addition to acquiring content-based knowledge, the course helps students develop communication and critical thinking skills. Please note, World History 12 covers some difficult and disturbing topics. A degree of emotional and intellectual maturity is recommended.",
+      "prereq": "Recommended Prerequisites: Students would benefit from strong academic & communication skills. The course would benefit any student who wants to learn more about the way the world functions socially, politically, and economically.",
+      "year": "2026-27"
+    },
+    "BC First Peoples 12": {
+      "desc": "BC First Peoples 12 is a senior-level course that focuses on the diversity, depth, and integrity of the Indigenous People of British Columbia. This course addresses an important part of the history of British Columbia with an emphasis on the languages, culture, and history of its Indigenous peoples. The course emphasizes critical thinking and ethical inquiry, encouraging students to examine historical and current events from multiple perspectives, including Indigenous knowledge systems. The course fosters a deeper awareness of the geography of BC and Indigenous peoples' rights, governance, and the ongoing processes of reconciliation.",
+      "year": "2026-27"
+    },
+    "Comparative Cultures 12": {
+      "desc": "By studying the Ancient Near East, Egypt, Greece, Iran, Rome, India, and China, students in this course develop their appreciation for art, literature, mythology, cuisine, religion, and other vital aspects of humanity. This course is designed to provide students with an opportunity to develop personal & social values, become more sophisticated and knowledgeable and consider what they can do in life. Participation in discussions and keeping an accurate record of instruction is expected. Evaluations include tests, presentations, and projects.",
+      "year": "2026-27"
+    },
+    "Economics 12": {
+      "desc": "This course satisfies the Applied Skills graduation requirement. Economics 12 provides students with a theoretical framework, skills, background, and experience that may encourage them to study economics at higher levels. At the same time, it provides a context for understanding business practices. The course provides students with opportunities to analyze the effects of economic activity on their society, the nation, and the global community, and it gives them a deeper understanding of the principles behind government and social policies. Students study the principles underlying the exchange of goods and services for value both within the market system and in non-market-oriented sectors (e.g., households, volunteer organizations). This adds a critical dimension to students’ understanding of society. The learning outcomes for Economics 12 are organized into the following five areas:\n• Foundations\n• Applied Research\n• Factors of Production\n• Role of Markets\n• Role of Government",
+      "year": "2026-27"
+    },
+    "Economic Theory 12": {
+      "desc": "Why do people behave the way they do? Economics is the study of decision-making and the impacts and interactions of our decisions at the individual, business, and government levels. Economists view the world through a specific lens that seeks to understand and apply how we can make the best decisions in all areas of our lives. Economics is everywhere, and the study of economics necessarily incorporates several other subject areas that include, but are not limited to, psychology, sociology, culture, politics, globalization, and the environment. Economics as a formal field of study is relatively new; however, there is a rich history of economic practice grounded in centuries of thought and theory. The big ideas for this course are:\n• Contemporary economic theory, practice, and terminology are grounded in centuries of economic theory.\n• Observing, interpreting, and judging past economic conditions from different perspectives and worldviews gave rise to competing theoretical approaches.\n• The implementation of economic theories has profound effects on social and political decision-making and movements.\n• Economic systems have underlying and often opposing ethical standards and implications.",
+      "year": "2026-27"
+    },
+    "Genocide Studies 12": {
+      "desc": "This course will explore the destruction of specific cultural, ethnic, and religious groups which unfortunately is not a new phenomenon. It has existed throughout recorded history; however, genocide is a relatively modern term, and is most often associated with the Holocaust. During this course, students will collaboratively and individually explore the topic. Using primary sources and selected readings and videos, students will explore major events of various genocides such as Rwanda, Holodomor, Khmer Rouge, Armenian and Bosnian Genocides. Students will come to understand how such events occur and how they continue to exist in the modern world, while increasing their awareness of the various global issues surrounding genocide. The students will discuss the 8 stages of a genocide, who are the rescuers, and who are the bystanders",
+      "year": "2026-27"
+    },
+    "Human Geography 12": {
+      "desc": "Human geographers have a special way of looking at the world. We investigate the location of people and activities throughout the world and seek to understand the reasons for their distribution. We are curious as to how “where” things happen influences the “how” and “why” of them happening. We explore the relationship between humans and our environment at different scales (from the personal to the global). We examine several subject areas, including globalization, population and migration, culture (language and religion), politics, urban geography, agriculture, economics, and human impacts on the natural environment.",
+      "year": "2026-27"
+    },
+    "Law Studies 12": {
+      "desc": "This relevant and topical subject area is designed to provide students with an understanding of Canada’s legal system and make students aware of their individual rights and responsibilities as well as the rights and responsibilities of others. The students are encouraged to engage with the ideas presented throughout the course, critically evaluating, and discussing them to develop their own reasoned understanding and responses. The course is organized around the substantive and procedural aspects of Canadian Law and, as such, includes the creation of, and amendments to, a myriad of legal issues affecting our daily lives. Highlights of the course include field trips to the Supreme and Provincial Courts and participation in students’ mock trials, combining legal and trial knowledge. The major topics covered in the course include:\n• The basis of the Canadian legal system\n• Legal decision making\n• Rights and freedoms\n• Constitutional law\n• The criminal justice system\n• Civil law\n• Current legal issues\n• International law",
+      "year": "2026-27"
+    },
+    "Études du droit 12": {
+      "desc": "This relevant and topical subject area is designed to provide students with an understanding of Canada’s legal system and make students aware of their individual rights and responsibilities as well as the rights and responsibilities of others. The students are encouraged to engage with the ideas presented throughout the course, critically evaluating, and discussing them to develop their own reasoned understanding and responses. The course is organized around the substantive and procedural aspects of Canadian Law and, as such, includes the creation of, and amendments to, a myriad of legal issues affecting our daily lives. Highlights of the course include field trips to the Supreme and Provincial Courts and participation in students’ mock trials, combining legal and trial knowledge. The major topics covered in the course include:\n• The basis of the Canadian legal system\n• Legal decision making\n• Rights and freedoms\n• Constitutional law\n• The criminal justice system\n• Civil law\n• Current legal issues\n• International law",
+      "year": "2026-27"
+    },
+    "Philosophy 12": {
+      "desc": "Philosophy is the critical study of the fundamental nature of knowledge, reality, and existence, offering tools to investigate meaning. This is an inquiry-based course that will cover four major branches of philosophy: Logic, Ethics, Epistemology, and Metaphysics. It encourages logically questioning assumptions and examining challenging issues that often lack definitive answers. Students can expect to tackle questions such as,\n• Do ghosts exist?\n• What are the moral responsibilities of the modern citizen?\n• What is a sandwich?\n• How reliable is the knowledge from our institutions?",
+      "year": "2026-27"
+    },
+    "Social Justice 12": {
+      "desc": "What is Social Justice? That is the start of the conversation – are you concerned about Racism, Sexism, Poverty, Homelessness, Child Slavery, The Refugee Crisis, Genocide, Climate Change, Animal Rights, Indigenous Rights, SOGI issues, Globalization, Food Security, Slave Labour, Environmental Issues? Are you concerned about the Political landscape and how as a nation and a world – we can affect real and positive change to secure a better future?\n\nTo keep the conversation going, students will be challenged to examine their own beliefs and values, through reflection, discussion, and critical analysis. The course is heavily imbedded in inquiry learning, allowing each student to research what is important and meaningful to them – this can be done individually or in groups depending on the interests and desire of the students. Students will share their knowledge, in formats of their choosing, with the rest of the class so that each of us will leave with a broad perspective and informed mindset moving into the 21st century. The course places an emphasis on research and action, providing opportunities for students to examine facts, models of social change, and ultimately, the goal is to provide students with tools and awareness to implement and effect real change in the world.",
+      "year": "2026-27"
+    },
+    "French 12": {
+      "desc": "This course is for the motivated language learner who has a keen interest in the language and francophone culture. This course will build on the linguistic and cultural understandings that were acquired in French 8-11. Through written text, music and movie clips, students will acquire increasingly complex language structures, allowing them to express themselves accurately using a variety of tenses and in hypothetical situations.",
+      "year": "2026-27"
+    },
+    "AP French Language & Culture 12": {
+      "desc": "$160.00 Advanced Placement Examination Fee Applies for May Exam.\n\nThis class will cover the material relevant to the Advanced Placement course as well as the curriculum for Français langue 12. Students completing this course will receive credit for AP French Language 12, Français langue 12 and French 12. To receive credit for APFRL 12 students are expected to write the AP examination in May.",
+      "year": "2026-27"
+    },
+    "Spanish 12": {
+      "desc": "This course is for advanced level students who wish to further develop and refine their communication skills. Activities will be increasingly based on written communication and topics will depend upon the interests of the students. They could include love and relationships, childhood memories, career plans, multiculturalism, etc. Students will have opportunities to explore some literature and the arts. Cultural topics may include music, festivals, political issues, the environment, and other topics of current interest. Students are expected to communicate in Spanish at all times.",
+      "year": "2026-27"
+    },
+    "Japanese 12": {
+      "desc": "The finer sentence structures and communication skills are introduced. Students improve their ability to perform in the Japanese language by engaging in authentic language learning tasks such as giving presentations, creating videos, and writing stories.",
+      "year": "2026-27"
+    },
+    "AP Japanese Language & Culture 12": {
+      "desc": "$160.00 Advanced Placement Examination Fee Applies for May Exam. AP Japanese Language and Culture 12 is a college/university-level course for students who have completed 3 to 4 years of Japanese language instruction. Students must be willing to accept the challenge of a rigorous academic curriculum. Upon successful completion of the course and a score of 4 or 5 on the AP examination, which is written in May, students may earn college/university credit while they are still in high school.",
+      "year": "2026-27"
+    },
+    "Mandarin 12": {
+      "desc": "Mandarin 12 is an advanced study of the Mandarin Chinese language. There is a strong focus on aural, oral, and written skills.",
+      "year": "2026-27"
+    },
+    "AP Chinese Language & Culture 12": {
+      "desc": "$160.00 Advanced Placement Examination Fee Applies for May Exam. The AP Chinese Language and Culture course is offered to students who are interested in taking an advanced college/university level Chinese language course and earning university credits while still in high school. Qualified students are expected to have a basic knowledge of the Chinese language and culture, and to have attained a reasonable proficiency in this language. This course seeks to help students develop listening, speaking, reading, and writing skills. Learning about Chinese culture will also be an integral part of this AP course. The exam is written in May.",
+      "year": "2026-27"
+    },
+    "Active Living 12": {
+      "desc": "$150 Course Fee Applies Active Living 11 & 12 are co-ed elective courses open to senior students. They provide opportunities for students to experience a wide variety of recreational pursuits, career interests, and activities that promote lifelong healthy living, and having lots of fun too. Emphasis will be given to analyzing and improving physical competence, maintaining personal fitness, developing effective leadership and sports management skills. Field trips to locate recreation facilities will be organized. It is expected that students will:\n• design and implement fitness and health plans\n• plan and participate safely in a variety of activities and environments\n• demonstrate a personal functional level of competence in a selection of activity-specific motor skills\n• complete service hours each term at school or in the community; hours must have a sport or recreation focus\nNew to this course will be a focus on community-based recreational activities, and as such, a large percentage of classes will take place in community facilities. There will be a course fee for instructors, facility rentals, equipment rentals, and/or transportation. This fee will be based on the number of activities organized at the beginning of the year. Students will have input on the field trips.",
+      "year": "2026-27"
+    },
+    "Fitness & Conditioning 12": {
+      "desc": "$100 Course Fee Applies. This course offers students a unique opportunity to develop sport-specific strength, endurance, power, agility, and overall conditioning within a supportive and structured PE environment. Designed for student-athletes as well as those passionate about strength training, physical wellness, and fitness, this comprehensive branch of PE 10 emphasizes personal physical development in a safe and positive setting.\n• Students will focus on improving muscular strength and endurance while deepening their understanding of muscular anatomy and physiology.\n• The course also covers key topics such as nutrition, weight training programs, equipment usage, and proper training techniques with an emphasis on safety.\n• Students will learn the key components of a well-rounded training program and how to tailor it to meet their personal fitness or athletic goals.\n• Guest instructors, including certified personal trainers and fitness coaches, will be invited to share their expertise and provide guidance to help students achieve their fitness goals.",
+      "year": "2026-27"
+    },
+    "Accounting 12": {
+      "desc": "This course satisfies the Applied Skills requirement for graduation.\n\n$30 Workbook Fee Applies.\n\nAccounting 12 is a continuation of Accounting 11 and will provide all the basics a student will need to gain entry level employment in the field of accounting and/or to continue with a career in Accounting, Business Management, Finance, or Commerce. Topics of study include:\n• Financial statement analysis.\n• Preparing basic payroll, government remittances, and required tax documents.\n• Applying accounting methods using accounting software.\n• Inventory control and evaluation.\n• Proficiency in using accounts receivable, accounts payable, and merchandise accounting procedures.\n• Proficiency in using cash control procedures.\n• Defending the need for security systems, data protection, and backup for accounting records.",
+      "prereq": "Recommended Prerequisite: Accounting 11.",
+      "year": "2026-27"
+    },
+    "E-Commerce 12": {
+      "desc": "This course satisfies the Applied Skills requirement for graduation.\n\nThis course provides a study of the evolution and use of digital technologies in marketing and commerce. Topics of study include:\n• The historical development of e-commerce.\n• Local and global retail e-commerce environments.\n• Cyber marketing concepts and strategies.\n• Revenue models and distribution channels for digital commerce.\n• Digitally procured and developed goods and services and technologies used to distribute them.",
+      "prereq": "Recommended Prerequisite: Marketing 11.",
+      "year": "2026-27"
+    },
+    "Drafting 12": {
+      "desc": "$25 Course Fee Applies. The focus of this course is to provide students with the opportunity to acquire advanced design and drafting skills. Students will acquire skills and knowledge and solve design problems related to commercial developments such as restaurants and office buildings, and high-density residential designs such as townhouses and condominiums. The course will also endeavor to contextualize the students work within a larger global architectural framework. Students will be introduced to the history of architecture and also some of its social, cultural and environmental dimensions. Students may employ both board and computer assisted drawing. Once the course has been completed the students are expected to know the following:\n• interrelationships among complex drawings\n• preparation of detailed drawings\n• components of working drawings\n• computer-aided design (CAD) programs and other graphic software management\n• modifying existing geometrical design using CAD software\n• 3D modelling using advanced modelling techniques\n• file conversion between CAD and other applications\n• areas of drafting specialization",
+      "year": "2026-27"
+    },
+    "Woodwork 12": {
+      "desc": "$100 Course Fee Applies. This course will focus on building the skills and techniques learned in ADST 11 Woodwork. The focus of this course is to provide students with the opportunity to acquire advanced skills and knowledge of design and woodworking. Students will generate, or be assigned specific real-world design problems, and then be expected to develop potential solutions to these problems. Finally, they will apply appropriate woodworking knowledge and skills to produce models or design prototypes of their solutions to these design problems. Students will be expected to document and present this entire design process. Once the course has been completed, the students are expected to know the following:\n• creation and/or use of working pictorial and written plans\n• wood-related materials\n• selection of wood based on its properties\n• layout and use of materials to minimize waste and conserve material\n• operation, maintenance, and adjustment of stationary power equipment\n• woodworking joinery\n• analysis and identification of defects in wood\n• methods for preparing wood surfaces for application of finish\n• identification and analysis of building codes for applicable projects\n• sequence of steps when working with power equipment\n• sharpening procedures\n• purposes and application of finishes",
+      "year": "2026-27"
+    },
+    "Food Studies 12": {
+      "desc": "$75 Course Fee Applies. Satisfies the Applied Skills requirement for graduation Food Studies 12 builds on the skills developed in both Food Studies 9 and 11. In this course, international food practices and cookery skills will be emphasized. Contemporary topics in nutrition, health problems, and diets will be discussed, as well as budgeting, consumerism, and career opportunities. Food Safe Level One sign-up is available at student request.",
+      "year": "2026-27"
+    },
+    "Textiles 12": {
+      "desc": "$60 Course Fee Applies. Satisfies the Applied Skills requirement for graduation. This course will focus on building the skills and knowledge learned in Textiles 11. Textiles 12 is an advanced course that continues to build on construction experiences, allowing students the opportunity to further explore industry techniques while refining previous skills. Projects will be selected based on interest, experience, and ability in consultation with the instructor. Understanding of fit, specialty fabrics and application of design principles will be important concepts of every project. Students will continue to dive deeper into topics relating to fashion/trends, textiles art, sustainability, and upcycling. This course may be taken in Grades 11 or 12 as Textiles 12. Textiles 12A (independent study) may be taken in Grade 12, after Textiles 12, as it will build on the skills and knowledge learned in Textiles 12. This course is recommended for students interested in fashion design and/or fashion merchandising.",
+      "year": "2026-27"
+    },
+    "Photography 12": {
+      "desc": "$50 Course Fee Applies.\n\nThis course is open to students who have taken Media Arts 11 and have an advanced understanding of DSLR camera principles and Adobe editing software. Further strengthening of technical skills, broadening conceptual understanding, developing skills in the area of design and image development will be of focus. The discovery of personal voice will be important as students are challenged to question, critique and reflect on the creative process. Upon completion of this course students may choose to complete an Advanced Placement 2D Design Portfolio. Over the course of the year the students will develop a portfolio for the purpose of post-secondary admissions. Students are required to possess a digital camera preferably a DSLR. The school has a limited number of cameras for students to borrow.",
+      "prereq": "Recommended Prerequisite: Photography 11",
+      "year": "2026-27"
+    },
+    "Ceramics 12": {
+      "desc": "This course is made available to highly motivated students who have expressed an interest in completing a first-year post-secondary course through the Advanced Placement 3D Design portfolio using sculpture as their medium. The focus will be on inquiry-based learning. Students will be creating a large body of work based on the personal idea that will develop and evolve over the course of year through ongoing investigation and reflection. Students are challenged to continually question and critique upon their use of 3D design principles to push ideas and discovery personal voice. Mandatory attendance two Tuesdays a month from 3 pm to 5 pm is required.",
+      "prereq": "Prerequisite: Studio Arts 3-D 11, 12",
+      "year": "2025-26"
+    },
+    "Studio Arts 2-D 12": {
+      "desc": "$55 Course Fee Applies.\n\nThe Art Foundations 12 course is intended for senior students who wish to extend and intensify studies in visual arts. The discovery of personal voice will be important as students are challenged to question, critique and reflect on the creative process through the elements and principles of art and design. Students will examine the application of art in contemporary society and explore art movements throughout history. Throughout the creative process students will explore personal identity, and cultural expression through an inquiry-based approach. Note: A sketchbook is required.",
+      "prereq": "Recommended Prerequisite: Studio Arts 2-D 11",
+      "year": "2026-27"
+    },
+    "Studio Arts 3-D 12": {
+      "desc": "$75 Course Fee Applies.\n\nStudio Arts 3-D 12 is designed for students who wish to extend and deepen their exploration of three-dimensional art. The course encourages students to make connections and communicate ideas from multiple perspectives— historical, community-based, and cross-cultural. Building on the foundation established in VAC 11, students will continue to develop their personal artistic voice through inquiry and the creation of a focused three-dimensional body of work. Emphasis will be placed on experimentation, problem-solving, and risk-taking as students respond to a series of design challenges.\n\nStudents that are interested in pursuing a post-secondary course through the completion of an Advanced Placement 3D Design portfolio will begin their Sustained Investigation during this course. Students will select a question or topic to guide their artmaking, which will involve practice, experimentation, revision, and reflection over the course of the year. The goal would be to complete half the portfolio by the end of the school year and submit the following year.",
+      "prereq": "Prerequisite: Studio Arts 3-D 11",
+      "year": "2026-27"
+    },
+    "AP Drawing 12": {
+      "desc": "$75 Course Fee Applies.\n\nThis course is made available to highly motivated students who have expressed an interest in completing a first-year post-secondary course through the Advanced Placement Drawing portfolio. The focus will be on inquiry-based learning. Students will be creating a large body of work based on the personal idea that will develop and evolve over the course of year through ongoing investigation and reflection. Students are challenged to continually question and critique upon their use of Drawing principles to push ideas and discovery personal voice.",
+      "prereq": "Prerequisite: Studio Art Education",
+      "year": "2026-27"
+    },
+    "AP 2-D Art & Design 12": {
+      "desc": "$75 Course Fee Applies. Please Note that students cannot submit the AP 2-D Design portfolio twice.\n\nThis course is made available to highly motivated students who have expressed an interest in completing a first-year post-secondary course through the Advanced Placement 2D Design portfolio. The focus will be on inquiry-based learning. Students will be creating a large body of work based on the personal idea that will develop and evolve over the course of year through ongoing investigation and reflection. Students are challenged to continually question and critique upon their use of 2D design principles to push ideas and discovery personal voice.",
+      "prereq": "Prerequisite; Studio Art Education",
+      "year": "2026-27"
+    },
+    "AP 3-D Art & Design 12": {
+      "desc": "$75 Course Fee Applies.\n\nThis course takes place over two years and begins in Studio arts 3D 12 where the focus will be on inquiry based learning and the process of creating a large body of work based on the personal idea that will develop and evolve over time. Students will be coming to this course with an established inquiry and a body of documented works from the previous year. The focus in the second year of this course will be on completing the sustained investigation and the selected works sections of the portfolio as well as the written evidence. The AP portfolio will be submitted to the College Board in the first week of May.",
+      "prereq": "Prerequisite: Studio Arts 3-D 11 and 12",
+      "year": "2026-27"
+    },
+    "Drama 12": {
+      "desc": "$30 Course Fee Applies. This is a course in advanced theatre skills. Like Drama 11, it is strongly recommended that a student has had previous acting/theatre experience before enrolling in this course. An emphasis on acting skills is continued but with an even greater stress upon excellence of performance. This course is taught in conjunction with the Drama 11 – please refer to above outline. In addition to regular course elements, the Grade 12 acting student may also have the opportunity for a self-chosen and self-directed project of his/her /their choice. Play building and/or show creation become an intricate part of the course with the intention of performing not only for peers but for the greater school community. Additional rehearsal time may be required depending on the length and scope of the show.",
+      "year": "2026-27"
+    },
+    "Theatre Company 12": {
+      "desc": "$15 Course Fee Applies. The primary focus of this course will be to prepare for and perform Sentinel Stage’s annual production for the school and community. Students have a choice of performance, design, and production and may change their focus from year to year. PERFORMANCE: With the acting section of this course students are provided with an opportunity to experience and develop their dramatic and/or musical and choreographic skills. Emphasis is placed on ensemble playing and development of the voice. Other highlights may include in-depth method acting and movement training. DESIGN: Senior Design students have the opportunity to manage departments, including: costumes, hair & make-up, props, set, lights, sound and projections. Junior production and design students (or those new to the performing arts) are mentored by senior students in their department. PRODUCTION: This section is for students interested in “the big three” – Directing, Producing and Stage-Management. Previous experience in theatre is strongly encouraged. Junior students are once again mentored by senior students in their respective field. Senior students have the opportunity to explore and learn the ‘real world’ workings of their field of choice. This course runs outside the regular timetable with specific afternoon/evening rehearsal schedules set on a year-to-year basis. NB: It is strongly recommended that students enrolling in this course also be enrolled in an additional performing arts course (i.e., Drama/Acting/Theatre Production/Choir/Dance). In particular, casting preference will be given to students enrolled simultaneously with one of the courses mentioned above.",
+      "year": "2026-27"
+    },
+    "Theatre Production 12": {
+      "desc": "This challenging and exciting course is available to students in Grades 11 & 12 who love theatre but do not want to be center stage! As mentioned above it is highly recommended that students enrolling in either of these courses have previous theatre experience. Theatre Production 11 & 12 focus on the technical/backstage theatre elements of a performance, including the following disciplines: Lights, Sound, Sets, Props, Costumes, and Makeup. Play building and/or show creation become an intricate part of the course with the intention of performing not only for peers but for the greater school community. It is expected that students enrolled in Theatre Production will take on the design process, backstage work and be prepared to attend extra out-of-class rehearsals closer to the performance dates. Please note this course may run in conjunction with another class.",
+      "prereq": "Recommended Prerequisite: Successful completion of Theatre Production 10 is highly recommended.",
+      "year": "2026-27"
+    },
+    "Directing & Script Development 12": {
+      "desc": "$15 Course Fee Applies.\n\nDirecting & Script Development introduces two complex but fascinating facets of theatre which are of particular interest to students who show leadership, are capable of detailed planning and organization, and have a flair for creative writing. The goals of the course are intended to develop the students’ ability to be creative, interpretive, and exploratory. Please note this course will be offered in conjunction with other Drama courses.",
+      "prereq": "Recommended Prerequisite: Prior acting/theatre experience is needed. Students interested in this course are also encouraged to meet with the teacher for a more detailed course description.",
+      "year": "2026-27"
+    },
+    "Dance Technique & Performance 12": {
+      "desc": "Students can look forward to learning, creating, and performing choreography in this course. Dance Technique and Performance (11, 12) is a course where students receive instruction in various styles of dance technique, collaborate with others, and learn about the importance of Dance within our communities. Beginner Dance students are welcome. Students can expect to be challenged in various dance techniques, choreography, and fitness exercises that focus on body alignment, strengthening, and performance. This course is a high-energy, fun and dynamic class.",
+      "year": "2026-27"
+    },
+    "Concert Band 12": {
+      "desc": "Satisfies the Arts Education requirement for graduation.\n\nThis course is a wind band ensemble where students hone instrumental technique skills through performing a wide range of styles including classical transcriptions, marches, chorales, film scores, and arrangements of jazz and popular standards. The learner will have a chance to demonstrate an understanding and appreciation of personal, social, cultural, historical, and environmental contexts in relation to the arts. This is a perfect ensemble for students who enjoy the experience of playing in a large group with multiple players on a part. Assignments: Individual playing tests, music theory worksheets, and community and school performances.",
+      "prereq": "Recommended Prerequisite: Beginner band or equivalent musical experience",
+      "year": "2026-27"
+    },
+    "Jazz Stage Band 12": {
+      "desc": "Satisfies the Arts Education requirement for graduation.\n\nThis course is a great choice for students who exhibit skill and confidence on their instrument and are willing to take creative risks to express feelings, ideas, and experiences. Jazz Band is by audition and/or consultation with the Music Director, and primarily comprises the following instruments: alto/tenor/baritone saxophone, trumpet, trombone, string bass, piano, guitar, and drums. Characterized by crisp articulation and chromaticism, Jazz Band repertoire covers Latin, funk, blues, and swing. The learner will have opportunities to create, listen to, analyze, improvise, and perform jazz music through a variety of contexts and historical styles. Assignments: Individual playing tests, music theory worksheets, and community and school performances.",
+      "prereq": "Recommended Prerequisite: Beginner Band or Instrumental Music: Concert Band or Jazz Band or an equivalent musical experience (subject to band director's approval)",
+      "year": "2026-27"
+    },
+    "Orchestral Strings 12": {
+      "desc": "Satisfies the Arts Education requirement for graduation.\n\nThe Sentinel Orchestral Strings is an ensemble in the style of a classical symphony orchestra, performing repertoire by the great Classical composers as well as contemporary compositions, arrangements, and film scores. This is an intensive instrumental rehearsal and performance group, and considerable emphasis is placed on acquiring musical proficiency and technical competence through scales, studies, and repertoire. The learner will have a chance to demonstrate an understanding and appreciation of personal, social, cultural, historical, and environmental contexts in relation to the arts. Enrolment is limited to intermediate and advanced instrumentalists regardless of grade level, upon consultation with the Music Director.",
+      "prereq": "Recommended prerequisites: Previous instrumental experience (2 years), elementary band (3 years), or private instruction",
+      "year": "2026-27"
+    },
+    "AP Capstone Research 12": {
+      "desc": "$160.00 Advanced Placement Examination Fee Applies for May Exam. AP Capstone Research 12 allows students to deeply explore an academic topic, problem, or issue of individual interest. Through this exploration, students design, plan, and conduct a yearlong mentored, research-based investigation to address a research question.\n\nIn the AP Capstone Research 12 course, students further their skills acquired in the AP Capstone Seminar 11 course by understanding research methods; employing ethical research practices; and accessing, analyzing, and synthesizing information as they address a research question. The course culminates in an academic thesis paper of approximately 5,000 words and a presentation, performance, or exhibition with an oral defense.\n\nAP Capstone Research 12 Course Content\n\nAlthough the topic of each research study will vary, the course requires students to plan and conduct a study or investigation related to a topic of their choice. The course provides opportunities (activities/assignments) for students to:\n• Understand principles of qualitative and quantitative research methods.\n• Employ appropriate disciplinary research methods to develop, manage, and conduct an in-depth study or investigation in an area of student’s own interest, culminating in an approximately 5,000-word paper.\n• Present (using appropriate media), exhibit, or perform and defend the research design, approach, and findings.\n• Document and reflect upon the research process and communication with mentors using a research log.\n\nThroughout the program, students consider and evaluate multiple points of view to develop their own perspectives on complex issues and topics through inquiry and investigation. The AP Capstone program provides students with a framework that allows them to develop, practice, and hone their critical and creative thinking skills as they make connections between various issues and their own lives.\n\nCourse Scheduling Logistics\n\nStudents must have successfully completed AP Capstone Seminar 11 as it acts as a prerequisite to AP Capstone Research 12. Advanced Placement English Language 12 is the anchor course for AP Capstone Research 12. Students enrolling in AP Capstone Research 12 are expected to enroll in AP Capstone Research 12, AP English Language and Composition 12, and AP English Literature and Composition 12 concurrently. Instruction for the 3 courses mentioned above will occur over two blocks of course time in the schedule and one block weekly outside the timetable. Successful students will receive 4 credits for English Studies 12; 4 credits for Advanced Placement English Language and Composition 12 (APEN 12); 4 credits for Advanced Placement English Literature and Composition 12 (APELC 12); and 4 credits for Advanced Placement Research (APCR 12) for a total of 16 credits.",
+      "year": "2026-27"
+    },
+    "Career Life Connections 12A": {
+      "desc": "Career Life Connections is a required 4-credit graduation course, completed in Grades 11 and 12. It helps students prepare for life after high school by exploring post-secondary options, developing career skills, and completing 30 hours of work or volunteer experience.\n\nCompleted during Flexible Instructional Time, CLC 12A builds on skills from Career Life Education, including résumé writing and career planning. Students begin exploring post-secondary pathways and connect with people who can support their future goals.",
+      "year": "2026-27"
+    },
+    "Career Life Connections 12B": {
+      "desc": "Career Life Connections is a required 4-credit graduation course, completed in Grades 11 and 12. It helps students prepare for life after high school by exploring post-secondary options, developing career skills, and completing 30 hours of work or volunteer experience.\n\nTaken in Grade 12 with the student’s counsellor as the teacher, CLC 12B focuses on refining plans for life after graduation. Students consolidate their learning and demonstrate their growth through the Capstone Project. Both CLC 12A and CLC 12B must be completed to meet B.C. graduation requirements.",
+      "year": "2026-27"
+    },
+    "Work Experience 12A": {
+      "desc": "WEX is an in-timetable, 4-credit course that combines 90–100 hours of community or workplace experience with flexible check-ins and class assignments. Students gain practical skills, explore career options, and can complete their hours through job shadowing, volunteer work, or paid positions. Placements have included hotels, ski hills, auto shops, dental and veterinary offices, law firms, retail stores, restaurants, and more. In addition to their work experience hours, students meet with their teacher on a flexible schedule and complete assignments on workplace safety, employability skills, résumé writing, and interview preparation. Teachers can also assist students in finding suitable placements.",
+      "year": "2026-27"
+    },
+    "Work Experience 12B": {
+      "desc": "WEX is an in-timetable, 4-credit course that combines 90–100 hours of community or workplace experience with flexible check-ins and class assignments. Students gain practical skills, explore career options, and can complete their hours through job shadowing, volunteer work, or paid positions. Placements have included hotels, ski hills, auto shops, dental and veterinary offices, law firms, retail stores, restaurants, and more. In addition to their work experience hours, students meet with their teacher on a flexible schedule and complete assignments on workplace safety, employability skills, résumé writing, and interview preparation. Teachers can also assist students in finding suitable placements.",
+      "year": "2026-27"
+    },
+    "Senior Mentorship 12": {
+      "desc": "This 4-credit course is designed for students with an interest in, and commitment to, fostering a peer-support network. The primary focus of the program is to ease the transition from grade 7 to grade 8. Thus, among other activities, Senior Mentors will attend the grade 8 retreat the first week of school, will be matched with a group of grade 8 students and will attend class outside the timetable. Class sessions will be used to train students in areas such as listening and responding skills, problem solving, conflict resolution, and to help them understand critical issues affecting young people, such as suicide, drugs, alcohol abuse, relationships, and multi-cultural awareness. Senior Mentors are expected to complete 75 hours of volunteer work both within the school and in the community\n\nNote: Senior Mentors are selected through an application process and interview. Students interested in the program should pick up an application form from Ms. Armstrong.",
+      "year": "2026-27"
+    },
+    "Study Block": {
+      "desc": "Study Blocks are a privilege afforded to Grade 12 students that provide a period of time during their schedule to work on homework or prepare for upcoming tests – enhancing their opportunities for academic success.\n\nCriteria:\n\n• Students in Grade 12 must be enrolled in a minimum of seven (7) blocks. Students may choose to have seven courses and a study block. Depending on their program of study, Grade 12 students may alternatively choose an eighth course instead of having a study block.\n• Have developed a Graduation Plan that meets all graduation requirements and addresses future educational and/or work requirements\n\nExpectations:\n\nGrade 12 students with Study blocks must:\n• use the time to work constructively on course material in the Cafeteria (or Library, with approval of the Librarian)\n• work at home during their study block if they have parental permission.\n• demonstrate behavior consistent with Sentinel’s Code of Conduct.\n• not disrupt the learning environment of others – whether it is other students on a study or students in classrooms.",
+      "year": "2026-27"
+    },
+    "Badminton Academy": {
+      "desc": "West Vancouver Schools Premier Badminton Academy offers cohorts for students at both the recreational and competitive level who are passionate about the sport and are interested in developing their game.\n\nThe Premier Badminton Academy is a multi-year specialty program that takes place from September to June and offers badminton specific physical and technical training by excellent instructional staff.",
+      "year": "2026-27",
+      "source": "https://westvancouverschools.ca/academies/badminton/"
+    },
+    "Baseball Academy": {
+      "desc": "West Vancouver Schools offers one of the most comprehensive baseball programs in the lower mainland. Student-athletes maximize their health and sport performance under the guidance of outstanding former professional baseball players, National Team athletes, and elite performance coaches while mapping the best pathway for post secondary/scholarship opportunities.\n\nThe Premier Baseball Academy is a multi-year specialty program in which students develop their individual skills and tactical game play while having fun with like-minded peers.",
+      "year": "2026-27",
+      "source": "https://westvancouverschools.ca/academies/baseball/"
+    },
+    "Basketball Academy": {
+      "desc": "This is a multi year specialty program aimed at developing students’ knowledge, skills, and abilities in the sport of basketball.\n\nThe Premier Basketball Academy consists of two cohorts – Development and Regional Training Center (RTC). The Development cohort is designed for younger players (typically in Grades 8 and 9) who are keen to improve on the basic fundamentals of the game, while gaining a better understanding of team strategies and tactics. The RTC pathway provides a high performance training opportunity for older students who wish to acquire the knowledge, skills, rules and strategies necessary to play at an elite level of basketball.",
+      "year": "2026-27",
+      "source": "https://westvancouverschools.ca/academies/basketball/"
+    },
+    "Fencing Academy": {
+      "desc": "West Vancouver Schools Premier Fencing Academy is the only one of its kind in British Columbia. Launched in 2015, our Head Coach and High Performance Director for the Canadian Fencing Federation, Igor Gantsevich, welcomes students in Grades 8 to 12 who are registered full time at Rockridge, Ecole Sentinel, or West Vancouver Secondary.\n\nThe Premier Fencing Academy is a multi-year specialty program that provides formal fencing training within the academic setting to allow for achievement and excellence in sport and education.",
+      "year": "2026-27",
+      "source": "https://westvancouverschools.ca/academies/fencing/"
+    },
+    "Field Hockey Academy": {
+      "desc": "West Vancouver Schools is committed to offering students excellent training in the sport of field hockey, the second largest team sport in the world. It is played in 100 countries and offers a lifetime of enjoyment while participating and making social connections.\n\nThe Academy is a multi-year specialty program that is open to student-athletes of all skill levels with the intention of providing the best possible field hockey experience. All development training sessions take place during the school day.",
+      "year": "2026-27",
+      "source": "https://westvancouverschools.ca/academies/field-hockey/"
+    },
+    "Volleyball Academy": {
+      "desc": "The Volleyball Academy is multi-year specialty program designed for students who are interested in developing their skill level and advancing their game play in a fun and inclusive environment.",
+      "year": "2026-27",
+      "source": "https://westvancouverschools.ca/academies/volleyball-academy/"
+    },
+    "Mechatronics Robotics Academy": {
+      "desc": "The Premier Mechatronics Robotics Academy is an example of West Vancouver Schools commitment to facilitating increased student opportunities in STEM (Science, Technology, Engineering, Math) education in a creative, exciting and competitive environment.\n\nThis program offers students the opportunity to explore their potential in Competitive Robotics utilizing STEM (Science, Technology, Engineering, Math) skills in a practical and hands-on environment.\n\nStudents work in a variety of roles to research, design, build, program and test robots, ultimately competing in robotics competitions, locally, provincially, and internationally.",
+      "year": "2026-27",
+      "source": "https://westvancouverschools.ca/academies/mechatronics-robotics/"
+    },
+    "Soccer Academy": {
+      "desc": "The West Vancouver Schools Premier Soccer Academy is a quality program that offer students the opportunity to complete their academic coursework and participate in soccer skill-development all during school hours, 1:40 to 3:00pm. By partaking in the Academy, students receive credit for Physical and Health Education: Soccer Academy.\n\nThe WVS Premier Soccer Academy is a multi-year specialty program designed for the student-athlete who wants to develop their individual skills and tactical game play in a fun and supportive environment, during school hours.",
+      "year": "2026-27",
+      "source": "https://westvancouverschools.ca/academies/soccer/"
+    },
+    "Tennis Academy": {
+      "desc": "The Premier Tennis Academy offers an outstanding training environment for students who want to advance their skill level and tactical game play, while having fun with their peers.\n\nThe Premier Tennis Academy is a multi year specialty program which provides tennis training in the morning, prior to school start – a schedule that enables students to develop their tennis skills while maintaining academic excellence. This program is supplementary to the existing programs run by various tennis clubs.",
+      "year": "2026-27",
+      "source": "https://westvancouverschools.ca/academies/tennis/"
+    }
+  },
+  "unmatched": [
+    "Arts Education 8",
+    "Concert Choir 9",
+    "Concert Choir 10",
+    "Visual Arts 10",
+    "AP Literary Studies 11",
+    "AP Pre-Calculus 11",
+    "Visual Arts 11",
+    "Visual Arts 12",
+    "Student Leadership"
+  ]
+}

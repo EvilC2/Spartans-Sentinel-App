@@ -121,12 +121,17 @@ Every content table has `status` (`draft | queued | published`),
 `published`, or `queued` with `publish_at` in the past. No cron job —
 scheduling is just a timestamp.
 
+Poll and menu counts are added up on the server (`0005_scale.sql`):
+`poll_tally(ids[])` / `menu_tally(ids[])` return one row per option with
+`votes` and `mine`, for up to 200 polls or items per call. The app never
+downloads raw votes.
+
 | table | who writes | notes |
 |---|---|---|
 | `buzz_items` | by `kind`: trivia/fact → `trivia`, poll → `polls`, news → `news` | `payload` JSON, shapes below |
-| `poll_votes` | any student, own row | one per user per poll (upsert to change) |
+| `poll_votes` | any student, own row | one per user per poll (upsert to change). Nobody reads others' rows; counts come from `poll_tally()` |
 | `menu_items` | `menu` | `price_cents`, `tags[]`, `photo_url`, `served_on` |
-| `menu_ratings` | any student, own row | emoji only, no free text |
+| `menu_ratings` | any student, own row | emoji only, no free text. Counts come from `menu_tally()` |
 | `announcements` | `news` | `category`, `pinned` |
 | `popups` | `popups` | `template_id`, `starts_at`–`ends_at` window |
 | `library_status` | `library` | single row (`id = 1`) |
@@ -157,13 +162,59 @@ news    { title, body, image_url?, link? }
 - `friend_requests` — sender inserts, receiver flips `status`. Once
   `accepted`, each can read the other's full profile (timetable included) —
   compare is client-side, as the scope says.
+- `request_peers()` — name + grade for the other side of each pending
+  request (profiles are friends-only, so the app can't read a requester's
+  name otherwise). Lives in `0002_social_peers.sql`; run it in the SQL editor
+  after `0001`. Until it runs the Social tab hides requests it can't name.
 - No chat tables. Do not add any.
+
+### App Club Admin posts (0007 + 0008)
+
+Run `0007_events_role.sql` first, on its own, then `0008_admin_content.sql`
+(Postgres can't use a new role name in the same run that adds it).
+
+- `posts` — every trivia question, fact, poll, news post, menu change,
+  pop-up banner and club event. `places` says where it shows (buzz, news,
+  banner, bell, cafeteria, calendar); `starts_at` / `ends_at` say when.
+  Students read live posts only; the role for the kind (or owner) writes.
+- `post_views`, `post_answers` — one row per student per post. Written only
+  through `see_posts()` and `answer_post()`. Admins read totals with
+  `post_stats()`; everyone reads vote counts with `post_tally()`. Nobody can
+  see who answered what.
+- Team (owners): `team_list()`, `set_member_role(user, role, on)` (refuses to
+  remove the last owner), `find_people('name / email / student #')`.
+- New role `events` for club events.
+- Phone alerts for posts: add a Database Webhook on `posts` (INSERT, UPDATE)
+  pointing at the `send-push` function, same as the others in NOTIFICATIONS.md.
+- Until 0008 runs, the app keeps admin changes on the phone that made them and
+  says so at the top of App Club Admin.
+
+### App Club: five teams (0016 + 0017)
+
+Run `0016_five_teams_roles.sql` first, on its own, then `0017_five_teams.sql`
+(same reason as 0007: new role names can't be used in the run that adds them).
+
+- Teams and roles match `src/ranks.ts`: Developer, Maintenance, Badge,
+  Feedback, Executive. Owner, President and Teacher Sponsor have every power;
+  any Developer role can do every job but can't hand out roles.
+- Fact posts need the new `facts` role and club events use `news`. 0017 gives
+  `facts` to everyone who had `trivia`, and `news` to everyone who had `events`.
+- `feedback` gets `from_type` / `from_role` (set by the server from the
+  sender's account), `source` ('app' or 'real'), `heard_at`, `said_by`,
+  `logged_by`. `log_feedback()` is for the Real job.
+- `club_items` — every team's boards (ideas, seasonal, backend, iOS and
+  Android checklists, campaigns, HR check-ins, student council, decisions).
+- Badge grantors: `award_badge_many()`, `program_roster()`, `find_many()`;
+  students claim QR badges with `claim_badge_code()`.
+- Teacher accounts: sign-up only accepts @edu.sd45.bc.ca emails today, so a
+  Teacher Sponsor has to use a student-style account until teacher sign-up exists.
 
 ### Storage
 
 | bucket | read | write |
 |---|---|---|
 | `menu-photos` | public | `menu` |
+| `post-images` | public | any App Club role (photo behind a post, `data.image`, 0010) |
 | `badge-art` | public | `badges` |
 | `profile-photos` | own folder | own folder (`<user id>/…`) |
 

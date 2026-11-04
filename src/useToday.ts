@@ -97,6 +97,9 @@ export const useToday = (courses: Course[]) => {
 const DOW = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+const MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+export const fmtWeekday = (d: Date) => DOW[d.getDay()];
+export const fmtMonthDay = (d: Date) => `${MONTH[d.getMonth()]} ${d.getDate()}`;
 export const fmtLong = (d: Date) => `${DOW[d.getDay()]} · ${MON[d.getMonth()]} ${d.getDate()}`;
 export const fmtShort = (d: Date) => `${DOW[d.getDay()].slice(0, 3)} ${MON[d.getMonth()]} ${d.getDate()}`;
 export const fmtClock = (d: Date) => {

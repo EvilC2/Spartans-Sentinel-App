@@ -16,6 +16,11 @@ export type Rarity =
 export type Category =
   | 'sports' | 'academic' | 'classes' | 'app' | 'social' | 'fun' | 'events' | 'milestones' | 'seasonal';
 
+// Seasonal badges take their colour from the season, not the rarity: fall is
+// orange, winter light blue, spring green, summer yellow. The Seasonal group
+// heading rotates through all four.
+export type Season = 'fall' | 'winter' | 'spring' | 'summer';
+
 export type Badge = {
   id: string;
   title: string;
@@ -23,14 +28,54 @@ export type Badge = {
   rarity: Rarity;
   category: Category;
   flavor?: string;   // one line under the unlock date on the detail sheet
-  art?: any;         // future image asset
+  season?: Season;   // seasonal badges only
+  tint?: Tint;       // seasonal: colour sampled from the badge's own outline
+  art?: any;         // real art, when it exists
+  custom?: CustomArt; // made by the Badge team in App Club Admin (src/badgeDesigns.ts)
+  designId?: string;  // the design it came from
+  editedAt?: string;  // last approved Badge team edit (ISO), for "recent" sorting
 };
+
+// Art for a badge made in the Badge team wizard. `template` is the rarity's
+// blank hexagon; `icon` puts a PNG on top of it (x/y: centre offset as a
+// fraction of the badge box, -0.5…0.5; scale: icon width as a fraction of
+// the box); `image` is a PNG that replaces the whole badge.
+// `original` (edits to a built-in badge only) keeps the shipped art.
+export type CustomArt =
+  | { mode: 'original' }
+  | { mode: 'template' }
+  | { mode: 'icon'; uri: string; x: number; y: number; scale: number }
+  | { mode: 'image'; uri: string };
+
+export type Tint = { label: string; color: string; light: string; dark: string; chrome?: boolean };
+
+export const SEASON: Record<Season, Tint> = {
+  fall:   { label: 'Fall',   color: '#F0862B', light: '#FFB878', dark: '#B55A0F' },
+  winter: { label: 'Winter', color: '#5FB3F0', light: '#C9E8FF', dark: '#2A7FC4' },
+  spring: { label: 'Spring', color: '#4CC079', light: '#A6EBBF', dark: '#25874F' },
+  summer: { label: 'Summer', color: '#F2B705', light: '#FFE08A', dark: '#B98700' },
+};
+export const SEASON_ORDER: Season[] = ['fall', 'winter', 'spring', 'summer'];
+
+// The colour a badge is drawn in: its season if it has one, else its rarity.
+export const tintOf = (b: Pick<Badge, 'rarity' | 'season' | 'tint'>): Tint =>
+  b.tint ?? (b.season ? SEASON[b.season] : RARITY[b.rarity]);
+
+// Build a tint from one hex colour: lighter and darker companions for the
+// rim gradient, glow and unlock burst.
+const mix = (hex: string, to: number, t: number) => {
+  const n = parseInt(hex.slice(1), 16);
+  const ch = (sh: number) => Math.round(((n >> sh) & 255) * (1 - t) + to * t).toString(16).padStart(2, '0');
+  return `#${ch(16)}${ch(8)}${ch(0)}`.toUpperCase();
+};
+export const tintFrom = (label: string, color: string): Tint =>
+  ({ label, color, light: mix(color, 255, 0.45), dark: mix(color, 0, 0.35) });
 
 export const RARITY_ORDER: Rarity[] = [
   'exotic', 'legendary', 'epic', 'rare', 'uncommon', 'common', 'special', 'seasonal', 'secret',
 ];
 
-export const RARITY: Record<Rarity, { label: string; color: string; light: string; dark: string; chrome?: boolean }> = {
+export const RARITY: Record<Rarity, Tint> = {
   common:    { label: 'Common',    color: '#8A93A0', light: '#B9C0CA', dark: '#5C6470' },
   uncommon:  { label: 'Uncommon',  color: '#3FA35B', light: '#7DD394', dark: '#22763A' },
   rare:      { label: 'Rare',      color: '#2F7CF6', light: '#7AB2FF', dark: '#1B4FB3' },
@@ -160,6 +205,8 @@ const ROWS: Row[] = [
   ['New Kid', 'Transfer to Sentinel from a different school', 'rare', 'milestones', 'Fresh start.'],
   ['Perfect Week', 'No missed classes for a week', 'uncommon', 'academic', 'Five for five.'],
   ['Little Sentinel', 'Attend your first school event', 'common', 'events', 'First of many.'],
+  ['Front Row', 'Check into an event early', 'common', 'events', "Early arrival has its perks."],
+  ['Got homework?', 'Open the app after the school day is over', 'common', 'app', "School might be over. Work isn't."],
   ['Early Bird', 'Open it before school', 'common', 'app', 'Before the first bell.'],
   ['OG', 'One of the first 200 users', 'common', 'app', 'Original.'],
   ['Five-Year Athlete', 'Play a sport every year', 'uncommon', 'sports', 'Never missed a season.'],
@@ -176,17 +223,169 @@ const ROWS: Row[] = [
   ['100 Hours', 'Major volunteering milestone', 'epic', 'social', 'Time well given.'],
   ['Last First Day', 'Open the app on your final first day of school', 'epic', 'milestones', 'Make it count.'],
   ['Bleeds Sentinel', 'Major long-term school participation achievement', 'common', 'milestones', 'Blue and gold forever.'],
+  // ── Added from the Spartans Badge Map (Oct 2026) ──
+  ['The Walk', 'Cross the stage at commencement', 'epic', 'milestones', "Don't trip."],
+  ['Officially Official', 'Receive your diploma or graduation package', 'epic', 'milestones', "It's real now."],
+  ['After Party', 'Attend the official dry grad celebration', 'epic', 'events', 'The night after the night.'],
+  ['End Credits', 'Complete your final high-school exam', 'epic', 'academic', 'Roll them.'],
+  ['Senior Meeting', 'Attend the official graduation assembly', 'epic', 'events', 'Listen up, Grade 12.'],
+  ['Class Colours', 'Pick up official grad clothing or merchandise', 'epic', 'milestones', 'Wear it loud.'],
+  ['The Final Chapter', 'Attend the graduation kickoff or information session', 'epic', 'events', 'It begins. For the last time.'],
+  ['Say Cheese', 'Complete official graduation photos', 'epic', 'milestones', 'Chin up. Hold it.'],
+  ['Ready for the Walk', 'Attend graduation rehearsal', 'epic', 'events', 'Practice makes graduates.'],
+  ['Class Dismissed', 'Complete the final scheduled day of Grade 12 classes', 'epic', 'milestones', 'For good.'],
+  ['Prom Night', 'Attend the official school prom', 'epic', 'events', 'Dance like no one is filming. They are.'],
+  ['Ticket to the Night', 'Purchase or receive an official prom ticket', 'epic', 'events', 'Admit one.'],
+  ['Future Funded', 'Submit a school-approved scholarship application', 'epic', 'academic', 'Paperwork that pays.'],
+  ['Under the Stars', 'Attend the official senior campout', 'epic', 'events', 'No signal. No problem.'],
+  ['Golden Hour', 'Participate in the official senior sunrise', 'epic', 'events', 'First light, last year.'],
+  ['One Last Sunset', 'Participate in the official senior sunset', 'epic', 'events', 'Golden, then gone.'],
+  ['What Does This Do?', 'Find a secret interaction in the app, like long-pressing the Sentinel logo', 'secret', 'app', 'Curiosity rewarded.'],
+  ['Class of 2027', 'Permanent graduation-year badge', 'legendary', 'milestones', 'Your year. Forever.'],
+  ['Social Butterfly', 'Attend events across sports, arts, clubs and more', 'epic', 'events', 'Everywhere at once.'],
+  ['Volunteer', 'Participate in a school volunteer activity', 'rare', 'social', 'Hands up.'],
 ];
 
-// Real badge art, keyed by id. Source PNGs live in
-// ~/Desktop/School App/App Badges USE THESE; resized to 810px (270pt @3x).
+// Real badge art, keyed by id. The first ten came from
+// ~/Desktop/SentinelApp/App Badge used; the rest from the Spartans Badge Map
+// (PDF extractions for seasonal/secret, Piper.xlsx 900px renders with the
+// white knocked out for the others). All trimmed and padded to 810px squares
+// (270pt @3x) so every badge sits at the same scale.
 const ART: Record<string, any> = {
+  '1-fan': require('../assets/badges/1-fan.png'),
+  '1-more-year': require('../assets/badges/1-more-year.png'),
+  '100-hours': require('../assets/badges/100-hours.png'),
+  '12th-man': require('../assets/badges/12th-man.png'),
+  'a-christmas-miracle': require('../assets/badges/a-christmas-miracle.png'),
+  'academic-comeback': require('../assets/badges/academic-comeback.png'),
+  'academic-weapon': require('../assets/badges/academic-weapon.png'),
+  'after-party': require('../assets/badges/after-party.png'),
+  'am-i-unc': require('../assets/badges/am-i-unc.png'),
+  'april-fools': require('../assets/badges/april-fools.png'),
+  'back-to-school': require('../assets/badges/back-to-school.png'),
+  'baller': require('../assets/badges/baller.png'),
+  'baller-jr': require('../assets/badges/baller-jr.png'),
+  'behind-the-curtain': require('../assets/badges/behind-the-curtain.png'),
+  'behind-the-wheel': require('../assets/badges/behind-the-wheel.png'),
+  'bringing-it-home': require('../assets/badges/bringing-it-home.png'),
+  'campout': require('../assets/badges/campout.png'),
+  'cap-gown': require('../assets/badges/cap-gown.png'),
+  'class-colours': require('../assets/badges/class-colours.png'),
+  'class-dismissed': require('../assets/badges/class-dismissed.png'),
+  'class-of-27-28-etc': require('../assets/badges/class-of-27-28-etc.png'),
+  'collector': require('../assets/badges/collector.png'),
+  'completionist': require('../assets/badges/completionist.png'),
+  'costume-commitment': require('../assets/badges/costume-commitment.png'),
+  'cupid-s-victim': require('../assets/badges/cupid-s-victim.png'),
+  'day-one': require('../assets/badges/day-one.png'),
+  'early-adopter': require('../assets/badges/early-adopter.png'),
+  'end-credits': require('../assets/badges/end-credits.png'),
+  'entering-the-big-leagues': require('../assets/badges/entering-the-big-leagues.png'),
+  'final-boss': require('../assets/badges/final-boss.png'),
+  'freedom': require('../assets/badges/freedom.png'),
+  'friday-night-lights': require('../assets/badges/friday-night-lights.png'),
+  'front-row': require('../assets/badges/front-row.png'),
+  'full-circle': require('../assets/badges/full-circle.png'),
+  'future-funded': require('../assets/badges/future-funded.png'),
+  'game-day': require('../assets/badges/game-day.png'),
+  'golden-hour': require('../assets/badges/golden-hour.png'),
+  'got-homework': require('../assets/badges/got-homework.png'),
+  'group-costume': require('../assets/badges/group-costume.png'),
+  'halfway-point': require('../assets/badges/halfway-point.png'),
+  'highschool-sweethearts': require('../assets/badges/highschool-sweethearts.png'),
+  'holiday-spirit': require('../assets/badges/holiday-spirit.png'),
+  'home-field-advantage': require('../assets/badges/home-field-advantage.png'),
+  'honor-roll': require('../assets/badges/honor-roll.png'),
+  'hope': require('../assets/badges/hope.png'),
+  'identity-crisis': require('../assets/badges/identity-crisis.png'),
+  'is-it-smoky-in-here': require('../assets/badges/is-it-smoky-in-here.png'),
+  'last-first-day': require('../assets/badges/last-first-day.png'),
+  'lucky-sentinel': require('../assets/badges/lucky-sentinel.png'),
+  'main-character': require('../assets/badges/main-character.png'),
+  'master-oogway': require('../assets/badges/master-oogway.png'),
+  'mic-check': require('../assets/badges/mic-check.png'),
+  'mvp': require('../assets/badges/mvp.png'),
+  'nerd': require('../assets/badges/nerd.png'),
+  'new-kid': require('../assets/badges/new-kid.png'),
+  'new-year-same-homework': require('../assets/badges/new-year-same-homework.png'),
+  'non-capisco': require('../assets/badges/non-capisco.png'),
+  'officially-official': require('../assets/badges/officially-official.png'),
+  'on-stage': require('../assets/badges/on-stage.png'),
+  'one-last-sunset': require('../assets/badges/one-last-sunset.png'),
+  'ones-for-every-theme-day': require('../assets/badges/ones-for-every-theme-day.png'),
+  'perfect-month': require('../assets/badges/perfect-month.png'),
   'phew-that-was-easy': require('../assets/badges/phew-that-was-easy.png'),
+  'playoffs': require('../assets/badges/playoffs.png'),
+  'president': require('../assets/badges/president.png'),
+  'prom-night': require('../assets/badges/prom-night.png'),
+  'published': require('../assets/badges/published.png'),
+  'ready-for-the-walk': require('../assets/badges/ready-for-the-walk.png'),
+  'say-cheese': require('../assets/badges/say-cheese.png'),
+  'school-app-jesus': require('../assets/badges/school-app-jesus.png'),
+  'secret-admirer': require('../assets/badges/secret-admirer.png'),
+  'senior-assassin': require('../assets/badges/senior-assassin.png'),
+  'senior-meeting': require('../assets/badges/senior-meeting.png'),
+  'senior-sunrise': require('../assets/badges/senior-sunrise.png'),
+  'senior-sunset': require('../assets/badges/senior-sunset.png'),
+  'sentinel-alumni': require('../assets/badges/sentinel-alumni.png'),
+  'she-s-melting': require('../assets/badges/she-s-melting.png'),
+  'social-butterfly': require('../assets/badges/social-butterfly.png'),
+  'speedrunner': require('../assets/badges/speedrunner.png'),
+  'spooky-sentinel': require('../assets/badges/spooky-sentinel.png'),
+  'summer-loading': require('../assets/badges/summer-loading.png'),
+  'team-captain': require('../assets/badges/team-captain.png'),
+  'that-s-okay-i-m-a-member': require('../assets/badges/that-s-okay-i-m-a-member.png'),
+  'the-axrtist': require('../assets/badges/the-axrtist.png'),
+  'the-final-chapter': require('../assets/badges/the-final-chapter.png'),
+  'the-regular': require('../assets/badges/the-regular.png'),
+  'the-victory-lap': require('../assets/badges/the-victory-lap.png'),
+  'the-walk': require('../assets/badges/the-walk.png'),
+  'ticket-to-the-night': require('../assets/badges/ticket-to-the-night.png'),
+  'top-dog': require('../assets/badges/top-dog.png'),
+  'trick-or-treat': require('../assets/badges/trick-or-treat.png'),
+  'triple-threat': require('../assets/badges/triple-threat.png'),
+  'under-the-stars': require('../assets/badges/under-the-stars.png'),
+  'volunteer': require('../assets/badges/volunteer.png'),
+  'watch-the-roads': require('../assets/badges/watch-the-roads.png'),
+  'welcome-to-sentinel': require('../assets/badges/welcome-to-sentinel.png'),
+  'what-does-this-do': require('../assets/badges/what-does-this-do.png'),
+  'winter-arc': require('../assets/badges/winter-arc.png'),
+  'you-weren-t-supposed-to-find-this': require('../assets/badges/you-weren-t-supposed-to-find-this.png'),
+};
+
+// Which season each seasonal badge belongs to (by id).
+const SEASON_OF: Record<string, Season> = {
+  'she-s-melting': 'winter', 'group-costume': 'fall', 'new-year-same-homework': 'winter',
+  'winter-arc': 'winter', 'lucky-sentinel': 'spring', 'holiday-spirit': 'winter',
+  'freedom-from-2026': 'summer', 'hope': 'spring', 'secret-admirer': 'winter',
+  'back-to-school': 'fall', 'trick-or-treat': 'fall', 'cupid-s-victim': 'winter',
+  'costume-commitment': 'fall', 'spooky-sentinel': 'fall', 'summer-loading': 'summer',
+};
+
+// Seasonal badges: the detail-sheet wash and unlock burst take the colour of
+// the badge's own outline (sampled from the art) instead of the season's.
+const OUTLINE: Record<string, string> = {
+  'back-to-school': '#F6A60B',        // gold pencils
+  'hope': '#6C9019',                  // spring green wreath
+  'cupid-s-victim': '#D13E38',        // red heart frame
+  'group-costume': '#C8521F',         // pumpkin orange
+  'holiday-spirit': '#2E7A28',        // wreath green
+  'lucky-sentinel': '#1F7A2A',        // clover green
+  'secret-admirer': '#9A1D24',        // burgundy
+  'she-s-melting': '#41ADF6',         // ice blue
+  'spooky-sentinel': '#6B2FA0',       // purple flame
+  'summer-loading': '#F8A10E',        // sun orange
+  'trick-or-treat': '#EC6208',        // pumpkin
+  'winter-arc': '#48A7EF',            // ice blue
+  'costume-commitment': '#8A3FB8',    // purple dragon
+  'new-year-same-homework': '#C9962A',// gold on navy
 };
 
 export const BADGES: Badge[] = ROWS.map(([title, desc, rarity, category, flavor]) => {
   const id = slug(title) || 'unknown';
-  return { id, title, desc, rarity, category, flavor, art: ART[id] };
+  const season = rarity === 'seasonal' ? SEASON_OF[id] : undefined;
+  const tint = season && OUTLINE[id] ? tintFrom(SEASON[season].label, OUTLINE[id]) : undefined;
+  return { id, title, desc, rarity, category, flavor, art: ART[id], season, tint };
 });
 
 // Demo unlocks (ISO dates). Replace with a real store once accounts sync.
@@ -199,6 +398,9 @@ export const UNLOCKED: Record<string, string> = {
   'where-am-i': '2026-09-10',
   'early-bird': '2026-09-10',
   'phew-that-was-easy': '2026-06-27',
+  'campout': '2026-08-28',
+  'game-day': '2026-09-11',
+  'got-homework': '2026-09-11',
 };
 
 export const isUnlocked = (b: Badge) => b.id in UNLOCKED;

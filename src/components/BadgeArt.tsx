@@ -6,7 +6,7 @@ import React, { useEffect, useRef } from 'react';
 import { View, Text, Image, Animated, PanResponder, Platform } from 'react-native';
 import { LinearGradient as Gradient } from 'expo-linear-gradient';
 import Svg, { Polygon, Defs, LinearGradient, Stop, Text as SvgText } from 'react-native-svg';
-import { Badge, RARITY } from '../badges';
+import { Badge, RARITY, SEASON, SEASON_ORDER, Rarity, Season, Tint, tintOf } from '../badges';
 import { fonts } from '../theme';
 
 const hex = (cx: number, cy: number, r: number) =>
@@ -16,13 +16,14 @@ const hex = (cx: number, cy: number, r: number) =>
   }).join(' ');
 
 export const BadgeArt = ({ badge, size = 96, locked = false }: { badge: Badge; size?: number; locked?: boolean }) => {
-  const r = RARITY[badge.rarity];
+  const r = tintOf(badge);
   const uid = badge.id.replace(/[^a-z0-9]/g, '');
   const glyph = badge.title.replace(/[^A-Za-z0-9#?]/g, '').charAt(0).toUpperCase() || '?';
 
   if (badge.art) {
     return <Image source={badge.art} style={{ width: size, height: size, opacity: locked ? 0.35 : 1 }} resizeMode="contain" />;
   }
+  if (badge.custom && badge.custom.mode !== 'original') return <CustomBadge badge={badge} size={size} locked={locked} />;
 
   const rim = locked
     ? ['#C8CCD2', '#9AA0A8', '#6E747C']
@@ -57,30 +58,112 @@ export const BadgeArt = ({ badge, size = 96, locked = false }: { badge: Badge; s
   );
 };
 
+// ── Badge team art ──────────────────────────────────────────────
+// The rarity template: a glossy bevelled hexagon after the "rare" template
+// (App Badge Ideas/rare.png), drawn in SVG so every rarity gets its colour
+// and it stays sharp at any size. `empty` is the seasonal slot: dashed, no
+// fill, waiting for art.
+export const BadgeTemplate = ({ tint, size, empty = false, locked = false, id = 'tpl' }: {
+  tint: Tint; size: number; empty?: boolean; locked?: boolean; id?: string;
+}) => {
+  const uid = id.replace(/[^a-zA-Z0-9]/g, '');
+  if (empty) {
+    return (
+      <Svg width={size} height={size} viewBox="0 0 100 100">
+        <Polygon points={hex(50, 50, 44)} fill={tint.color} fillOpacity={0.08} stroke={tint.color} strokeOpacity={0.7} strokeWidth={1.6} strokeDasharray="4 3" strokeLinejoin="round" />
+      </Svg>
+    );
+  }
+  const rim = locked ? ['#C8CCD2', '#9AA0A8', '#6E747C', '#9AA0A8']
+    : tint.chrome ? ['#FFFFFF', '#C9CFD6', '#7E868F', '#E9EDF1'] : [tint.light, tint.color, tint.dark, tint.color];
+  const face = locked ? ['#8A9098', '#5E646C'] : [tint.color, tint.dark];
+  return (
+    <Svg width={size} height={size} viewBox="0 0 100 100">
+      <Defs>
+        <LinearGradient id={`trim-${uid}`} x1="0.1" y1="0" x2="0.9" y2="1">
+          {rim.map((col, i) => <Stop key={i} offset={i / (rim.length - 1)} stopColor={col} />)}
+        </LinearGradient>
+        <LinearGradient id={`tface-${uid}`} x1="0.2" y1="0" x2="0.8" y2="1">
+          <Stop offset="0" stopColor={face[0]} />
+          <Stop offset="1" stopColor={face[1]} />
+        </LinearGradient>
+        <LinearGradient id={`tsheen-${uid}`} x1="0" y1="0" x2="1" y2="1">
+          <Stop offset="0" stopColor="#FFFFFF" stopOpacity={0} />
+          <Stop offset="0.5" stopColor="#FFFFFF" stopOpacity={0.16} />
+          <Stop offset="1" stopColor="#FFFFFF" stopOpacity={0} />
+        </LinearGradient>
+      </Defs>
+      <Polygon points={hex(50, 50, 47.5)} fill={locked ? '#9AA0A8' : tint.light} opacity={0.28} />
+      <Polygon points={hex(50, 50, 44)} fill={`url(#trim-${uid})`} />
+      <Polygon points={hex(50, 50, 44)} fill="none" stroke="#FFFFFF" strokeOpacity={0.55} strokeWidth={0.9} strokeLinejoin="round" />
+      <Polygon points={hex(50, 50, 37.5)} fill={locked ? '#4D535B' : tint.dark} />
+      <Polygon points={hex(50, 50, 35.5)} fill={`url(#tface-${uid})`} />
+      <Polygon points="22,34 60,15 78,60 40,86" fill={`url(#tsheen-${uid})`} />
+      <Polygon points={hex(50, 50, 35.5)} fill="none" stroke="#FFFFFF" strokeOpacity={0.2} strokeWidth={0.8} strokeLinejoin="round" />
+    </Svg>
+  );
+};
+
+// Placement of an icon on the template, in points inside a `size` box.
+export const iconBox = (a: { x: number; y: number; scale: number }, size: number) => {
+  const w = a.scale * size;
+  return { left: size / 2 + a.x * size - w / 2, top: size / 2 + a.y * size - w / 2, width: w, height: w };
+};
+
+const CustomBadge = ({ badge, size, locked }: { badge: Badge; size: number; locked: boolean }) => {
+  const a = badge.custom!;
+  if (a.mode === 'original') return null;
+  if (a.mode === 'image') {
+    return <Image source={{ uri: a.uri }} style={{ width: size, height: size, opacity: locked ? 0.35 : 1 }} resizeMode="contain" />;
+  }
+  const tint = tintOf(badge);
+  // Seasonal with no art stays an empty slot; with an icon it sits on a
+  // template in the season's colour.
+  const empty = a.mode === 'template' && badge.rarity === 'seasonal';
+  return (
+    <View style={{ width: size, height: size, opacity: locked ? (a.mode === 'icon' ? 0.45 : 0.6) : 1 }}>
+      <BadgeTemplate tint={tint} size={size} empty={empty} locked={locked} id={badge.id} />
+      {a.mode === 'icon' && <Image source={{ uri: a.uri }} style={{ position: 'absolute', ...iconBox(a, size) }} resizeMode="contain" />}
+    </View>
+  );
+};
+
+// The badges glyph (silver star shield): Home level pill, Me badges button,
+// Badges page header.
+const BADGE_ICON = require('../../assets/brand/badge-icon.png');
+export const BadgeIcon = ({ size = 22 }: { size?: number }) => (
+  <Image source={BADGE_ICON} style={{ width: size, height: size }} resizeMode="contain" accessibilityLabel="Badges" />
+);
+
 // Rarity chip: filled in the rarity colour, white text, soft glow in the same
 // colour. Exotic gets a chromatic (holographic) gradient instead of a flat
 // fill. Used on the detail sheet and as the group heading on the list.
 const CHROME = ['#7AD7F0', '#B48CFF', '#FF9AD5', '#FFD98A', '#9AF0C8'] as const;
 
-export const RarityPill = ({ rarity, small = false }: { rarity: Badge['rarity']; small?: boolean }) => {
-  const r = RARITY[rarity];
+const SEASON_CHROME = SEASON_ORDER.map(k => SEASON[k].color) as unknown as readonly [string, string, ...string[]];
+
+export const RarityPill = ({ rarity, season, tint, small = false }: { rarity: Rarity; season?: Season; tint?: Tint; small?: boolean }) => {
+  // A seasonal badge's own outline colour wins over the season's.
+  const r = tint ?? (season ? SEASON[season] : RARITY[rarity]);
+  // Seasonal with no specific season (the group heading) rotates through all four.
+  const gradient = r.chrome ? CHROME : rarity === 'seasonal' && !season ? SEASON_CHROME : null;
   const pad = { paddingVertical: small ? 3 : 5, paddingHorizontal: small ? 9 : 13 };
   const label = (
     <Text style={{
       fontSize: small ? 11 : 12.5, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', color: '#FFFFFF',
       textShadowColor: 'rgba(0,0,0,0.25)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 2,
     }}>
-      {r.label}
+      {season ? `${SEASON[season].label} · Seasonal` : r.label}
     </Text>
   );
   const glow = {
     shadowColor: r.chrome ? '#B48CFF' : r.color, shadowOpacity: 0.55, shadowRadius: small ? 6 : 10,
     shadowOffset: { width: 0, height: 2 }, elevation: 4,
   };
-  if (r.chrome) {
+  if (gradient) {
     return (
       <View style={[{ alignSelf: 'flex-start', borderRadius: 999 }, glow]}>
-        <Gradient colors={CHROME} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[pad, { borderRadius: 999 }]}>
+        <Gradient colors={gradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[pad, { borderRadius: 999 }]}>
           {label}
         </Gradient>
       </View>
