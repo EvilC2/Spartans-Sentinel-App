@@ -14,7 +14,8 @@
 
 import S from './data';
 import { COURSES, ACADEMIES, EXTRAS } from './catalog';
-import { CALENDAR, toISO, fromISO, inSchoolYear } from './calendar';
+import { REAL_CLUBS } from './clubList';
+import { CALENDAR, toISO, fromISO } from './calendar';
 import { StudentProfile, Course, ExtraCourse, Slot, SLOT_COLORS } from './ProfileContext';
 
 // Same key the grade book uses (stores.classKey); kept local so this module has no store import.
@@ -72,7 +73,13 @@ const MUSIC_RE = /band|choir|orchestra|strings|jazz|music/i;
 const OUTSIDE_RE = /immersion|exchange|yell|entrepreneur|career|ib\b|international|mentorship|work experience|online|distance/i;
 const ONLINE_RE = /online|distance|\bdl\b/i;
 
+// Sentinel's real clubs are clubs (or music) whatever their name says:
+// "Football Club" and "Sentinel Badminton Community Club" aren't teams.
+const REAL_KIND = new Map(REAL_CLUBS.map(c => [classKey(c.name), (c.kind || 'club') as ExtraKind]));
+
 export const classifyName = (name: string): ExtraKind => {
+  const real = REAL_KIND.get(classKey(name));
+  if (real) return real;
   if (ONLINE_RE.test(name)) return 'online';
   if (SPORT_RE.test(name)) return 'sport';
   if (OUTSIDE_RE.test(name)) return 'outside';   // before CLUB_RE: "YELL … Leadership Launchpad" is a class
@@ -169,35 +176,21 @@ export const matchesProgram = (text: string, pr: Program) => {
 };
 
 // ── Feed: homework, announcements, school events ────────────────
-// Sample items carry a timetable `slot`; ones a student adds carry the
-// `program` name instead (outside-timetable classes have no block).
-// `program: ''` with no slot is Unsorted. `time` is "HH:MM" (24h), optional;
-// `doneOn` is the date it was ticked off (set by the homework store).
+// Everything here is typed by the student (src/stores.tsx); there is no sample
+// homework. Items carry the `program` name. `program: ''` is Unsorted. `slot` is
+// a timetable block, only on rows saved with one. `time` is "HH:MM" (24h),
+// optional; `doneOn` is the date it was ticked off (set by the homework store).
 export type HomeworkItem = { id: string; slot?: Slot; program?: string; title: string; due: string; time?: string; notes?: string; priority: 'high' | 'med' | 'low'; done: boolean; doneOn?: string; own?: boolean };
 
-// Sample due dates in data.ts were written around Thu Sep 17 2026. Slide
-// them by whole weeks so they land around today during the school year and
-// the sample list never goes all "Late" (same weekdays, same spread).
-const SAMPLE_BASE = '2026-09-17';
-const sampleShift = (() => {
-  const today = toISO(new Date());
-  if (!inSchoolYear(today)) return 0;
-  const days = Math.round((fromISO(today).getTime() - fromISO(SAMPLE_BASE).getTime()) / 86400000);
-  return Math.max(0, Math.round(days / 7) * 7);
-})();
-const shiftIso = (iso: string) => { if (!sampleShift) return iso; const d = fromISO(iso); return toISO(new Date(d.getFullYear(), d.getMonth(), d.getDate() + sampleShift)); };
-
-export const ALL_HOMEWORK: HomeworkItem[] = S.homework.flatMap(g => g.items.map(i => ({ ...i, due: shiftIso(i.due), slot: g.slot as Slot } as HomeworkItem)));
-
-export const programHomework = (pr: Program, items: HomeworkItem[] = ALL_HOMEWORK) =>
-  items.filter(h => (h.slot && pr.slots.includes(h.slot)) || (h.program && classKey(h.program) === classKey(pr.name)))
-    .sort((a, b) => a.due.localeCompare(b.due));
+export const programHomework = (pr: Program, items: HomeworkItem[]) =>
+  items.filter(h => (h.slot && pr.slots.includes(h.slot)) || (h.program && classKey(h.program) === classKey(pr.name)));
 
 // Kinds that are real courses: they get homework and grades.
 export const hasCoursework = (pr: Program) => pr.kind === 'class' || pr.kind === 'outside' || pr.kind === 'online';
 
-export const programNews = (pr: Program) =>
-  S.news.filter(n => matchesProgram(`${n.title} ${n.preview}`, pr));
+// App Club news posts that mention this program.
+export const programNews = <N extends { title: string; body: string }>(pr: Program, news: N[]) =>
+  news.filter(n => matchesProgram(`${n.title} ${n.body}`, pr));
 
 export type SchoolEvent = { id: string; iso: string; title: string; time: string };
 

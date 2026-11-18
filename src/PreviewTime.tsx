@@ -4,11 +4,14 @@
 // clock, so a previewed time keeps ticking. Remove once the live card has
 // been signed off — nothing else depends on this file except useToday and
 // the floating play button on the home screen.
-// `tools`: whether the TEMP controls show at all. Off until a developer
-// switches them on in App Club → Developer tools; remembered on this phone.
+// `tools`: whether the TEMP controls show at all. Off until the owner switches
+// them on in App Club → Developer tools; remembered on this phone.
+// Owner only (src/devAccess.ts): usePreviewTime gives everyone else a switched-off
+// copy, so a flag left on this phone or a leftover offset does nothing for them.
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useDevAccess } from './devAccess';
 
 const TOOLS_KEY = 'spartans-temp-tools-v1';
 
@@ -22,9 +25,10 @@ type Ctx = {
   setTools: (on: boolean) => void;
 };
 
-const PreviewCtx = createContext<Ctx>({
+const OFF: Ctx = {
   offsetMs: 0, active: false, setTimeOfDay: () => {}, shiftMinutes: () => {}, clear: () => {}, tools: false, setTools: () => {},
-});
+};
+const PreviewCtx = createContext<Ctx>(OFF);
 
 export const PreviewTimeProvider = ({ children }: { children: React.ReactNode }) => {
   const [offsetMs, setOffset] = useState(0);
@@ -51,4 +55,7 @@ export const PreviewTimeProvider = ({ children }: { children: React.ReactNode })
   return <PreviewCtx.Provider value={value}>{children}</PreviewCtx.Provider>;
 };
 
-export const usePreviewTime = () => useContext(PreviewCtx);
+export const usePreviewTime = () => {
+  const ctx = useContext(PreviewCtx);
+  return useDevAccess() ? ctx : OFF;
+};

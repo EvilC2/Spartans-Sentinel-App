@@ -7,7 +7,11 @@
 // (ProgramBody). nav.openProgram(id) from anywhere lands here with it open.
 // "Add programs" at the bottom searches the whole catalog (clubs, teams,
 // academies, every course) or adds a new one by name; added ones are stored
-// as the profile's extraCourses, so they sync with the account.
+// as the profile's extraCourses, so they sync with the account. Sentinel's
+// real clubs, kept by staff on the server (src/clubs.ts, migration 0021),
+// come first: their own section when the search is empty, the top matches
+// when it isn't, each with its blurb, when it meets, the room and sponsor.
+// The built-in catalog stays underneath (and is all there is offline).
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, ScrollView, Modal, TextInput, Platform, useWindowDimensions, LayoutAnimation, UIManager } from 'react-native';
@@ -18,6 +22,7 @@ import { Icon } from '../components/Icon';
 import { AppHeader } from '../components/AppHeader';
 import { ProgramIcon, wash, glow, onGlow } from '../components/ProgramIcon';
 import { ProgramBody } from '../components/ProgramBody';
+import { ScrollerCtx, useHomeworkScroller } from '../components/HomeworkList';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useProfile, teacherShort, roomShort } from '../ProfileContext';
 import { useNav } from '../nav';
@@ -26,6 +31,7 @@ import {
   Program, ExtraKind, programsFor, groupPrograms, matchPrograms, toExtra, classifyName, programHomework,
   KIND_ONE, KIND_COLOR, CatalogEntry,
 } from '../programs';
+import { Club, useClubs, matchClubs, clubLine, programKey } from '../clubs';
 import type { ScreenProps } from '../../App';
 
 if (Platform.OS === 'android') UIManager.setLayoutAnimationEnabledExperimental?.(true);
@@ -41,7 +47,7 @@ export default function ProgramsScreen({ topInset, onEdit, onNavigate }: ScreenP
   const groups = groupPrograms(programs);
 
   // Card tops (inside the list) so an opened card can be scrolled into view.
-  const scroll = useRef<ScrollView>(null);
+  const { scroller, kb, rootProps, scrollProps, scrollRef: scroll } = useHomeworkScroller(topInset);
   const listY = useRef(0);
   const tops = useRef<Record<string, number>>({});
   const scrollTo = (id: string) => setTimeout(() => {
@@ -67,7 +73,9 @@ export default function ProgramsScreen({ topInset, onEdit, onNavigate }: ScreenP
   }, [nav.program]);
 
   return (
-    <ScrollView ref={scroll} style={{ flex: 1, backgroundColor: c.paper }} contentContainerStyle={{ paddingBottom: 110 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+    <ScrollerCtx.Provider value={scroller}>
+    <View {...rootProps} style={{ flex: 1 }}>
+    <ScrollView {...scrollProps} style={{ flex: 1, backgroundColor: c.paper }} contentContainerStyle={{ paddingBottom: kb ? kb + 40 : 110 }} showsVerticalScrollIndicator={false}>
       <AppHeader topInset={topInset} title="Programs" count={
         <View style={{ minWidth: 30, height: 26, paddingHorizontal: 10, borderRadius: 13, backgroundColor: c.navy50, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel={`${programs.length} programs`}>
           <Text style={[{ fontSize: 13, fontWeight: '700', color: c.link }, tnum]}>{programs.length}</Text>
@@ -127,6 +135,8 @@ export default function ProgramsScreen({ topInset, onEdit, onNavigate }: ScreenP
 
       <AddProgramSheet visible={adding} onClose={() => setAdding(false)} existing={programs} />
     </ScrollView>
+    </View>
+    </ScrollerCtx.Provider>
   );
 }
 
@@ -218,19 +228,25 @@ const AddProgramSheet = ({ visible, onClose, existing }: { visible: boolean; onC
   const [added, setAdded] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const { clubs } = useClubs();
   const have = useMemo(() => new Set(existing.map(p => p.name.trim().toLowerCase())), [existing]);
+  // Server clubs first (none when taking it online); the catalog skips their names.
+  const clubHits = useMemo(() => online ? [] : matchClubs(q, clubs, have).slice(0, q.trim() ? 12 : 60), [q, clubs, have, online]);
   const results = useMemo(() => {
-    const all = matchPrograms(q, profile?.grade, have);
+    const skip = new Set([...have, ...clubs.map(x => programKey(x.name))]);
+    const all = matchPrograms(q, profile?.grade, skip);
     return (online ? all.filter(r => r.kind === 'outside') : all).slice(0, 30);
-  }, [q, profile?.grade, have, online]);
+  }, [q, profile?.grade, have, online, clubs]);
   const trimmed = q.trim();
-  const exact = results.some(r => r.name.toLowerCase() === trimmed.toLowerCase());
+  const exact = results.some(r => r.name.toLowerCase() === trimmed.toLowerCase())
+    || clubs.some(x => programKey(x.name) === programKey(trimmed));
   const canAddNew = trimmed.length >= 2 && !exact && !have.has(trimmed.toLowerCase());
 
-  const add = async (name: string, k?: ExtraKind) => {
+  // teacher: a club's sponsor, so the card shows who runs it
+  const add = async (name: string, k?: ExtraKind, teacher = '') => {
     if (!profile) return;
     setError(null);
-    const next = { ...profile, extraCourses: [...profile.extraCourses, toExtra(name, k)] };
+    const next = { ...profile, extraCourses: [...profile.extraCourses, toExtra(name, k, teacher)] };
     try {
       await save(next);
       setAdded(name);
@@ -331,7 +347,17 @@ const AddProgramSheet = ({ visible, onClose, existing }: { visible: boolean; onC
               </View>
             )}
 
-            {results.length === 0 && !canAddNew && (
+            {clubHits.length > 0 && (
+              <>
+                <ListLabel text="Sentinel clubs" sub={trimmed ? undefined : 'Kept up to date by staff'} />
+                <View style={[{ backgroundColor: c.surface, borderRadius: 18, overflow: 'hidden', marginBottom: 14 }, shadow.sm]}>
+                  {clubHits.map((x, i) => <ClubRow key={x.id} x={x} isLast={i === clubHits.length - 1} onAdd={() => add(x.name, x.kind, x.sponsor)} />)}
+                </View>
+                {results.length > 0 && <ListLabel text={trimmed ? 'More programs' : 'Teams, bands and more'} />}
+              </>
+            )}
+
+            {results.length === 0 && clubHits.length === 0 && !canAddNew && (
               <Text style={{ fontSize: 13, color: c.ink3, textAlign: 'center', paddingTop: 20 }}>Type a few letters to search.</Text>
             )}
 
@@ -365,6 +391,46 @@ const CatalogRow = ({ r, isLast, onAdd }: { r: CatalogEntry; isLast: boolean; on
         <Text style={{ fontSize: 13, fontWeight: '600', color: glow(KIND_COLOR[r.kind], mode), marginTop: 1 }}>{KIND_ONE[r.kind]}</Text>
       </View>
       <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: c.navy50, alignItems: 'center', justifyContent: 'center' }}>
+        <Icon name="plus" size={15} stroke={2.2} color={c.link} />
+      </View>
+    </Pressable>
+  );
+};
+
+const ListLabel = ({ text, sub }: { text: string; sub?: string }) => {
+  const { c } = useTheme();
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8, paddingHorizontal: 4, marginBottom: 8 }}>
+      <Text accessibilityRole="header" style={{ fontSize: 15, fontWeight: '700', color: c.ink, letterSpacing: -0.2 }}>{text}</Text>
+      {!!sub && <Text style={{ fontSize: 13, color: c.ink3 }}>{sub}</Text>}
+    </View>
+  );
+};
+
+// A club staff added: the catalog row, plus its blurb and when / where / who.
+const ClubRow = ({ x, isLast, onAdd }: { x: Club; isLast: boolean; onAdd: () => void }) => {
+  const { c, mode } = useTheme();
+  const line = clubLine(x);
+  return (
+    <Pressable
+      onPress={onAdd}
+      accessibilityRole="button"
+      accessibilityLabel={[`Add ${x.name}`, x.blurb, line].filter(Boolean).join('. ')}
+      style={({ pressed }) => ({
+        flexDirection: 'row', alignItems: 'flex-start', gap: 12, paddingVertical: 12, paddingHorizontal: 14,
+        borderBottomWidth: isLast ? 0 : 1, borderBottomColor: c.line2, backgroundColor: pressed ? c.paper2 : 'transparent',
+      })}
+    >
+      <ProgramIcon name={x.name} kind={x.kind} color={KIND_COLOR[x.kind]} size={34} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '600', color: c.ink, letterSpacing: -0.2 }}>{x.name}</Text>
+        <Text style={{ fontSize: 13, fontWeight: '600', color: glow(KIND_COLOR[x.kind], mode), marginTop: 1 }}>
+          {KIND_ONE[x.kind]}{x.isNew ? <Text style={{ color: c.moss }}>  · New this year</Text> : null}
+        </Text>
+        {!!x.blurb && <Text numberOfLines={2} style={{ fontSize: 13.5, color: c.ink2, marginTop: 4, lineHeight: 18 }}>{x.blurb}</Text>}
+        {!!line && <Text numberOfLines={1} style={[{ fontSize: 12.5, fontWeight: '500', color: c.ink3, marginTop: 3 }, tnum]}>{line}</Text>}
+      </View>
+      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: c.navy50, alignItems: 'center', justifyContent: 'center', marginTop: 3 }}>
         <Icon name="plus" size={15} stroke={2.2} color={c.link} />
       </View>
     </Pressable>

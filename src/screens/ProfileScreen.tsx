@@ -26,7 +26,7 @@ import { Badge, isUnlocked } from '../badges';
 import { badgeOf, MAX_PINNED } from '../social';
 import { useEarnedVersion } from '../earned';
 import { SettingsSection } from './Settings';
-import { isTop, mainRole, roleLabel } from '../ranks';
+import { clubRoles, isTop, mainRole, roleLabel } from '../ranks';
 import type { ScreenProps } from '../../App';
 
 // Shape the card/header components read. Built from the saved profile.
@@ -106,10 +106,12 @@ const ProfileHeader = ({ stu, p, onBadges, onXp }: { stu: Stu; p: StudentProfile
   const { roles } = useProfile();
   const n = unlockedCount();
   // App Club role pill: gold for the top roles (President, Teacher Sponsor;
-  // the app's owner reads as President), navy for any other club role.
+  // the app's owner reads as President), navy for any other club role, and
+  // "Teacher" for the teacher role alone (migration 0021).
   const top = isTop(roles) ? mainRole(roles) : null;
   const rolePill = top ? { label: roleLabel(top), bg: c.goldTint, fg: c.gold, icon: 'shield' as IconName }
-    : roles.length ? { label: 'App Club', bg: c.navy50, fg: c.navy700, icon: 'shield' as IconName } : null;
+    : clubRoles(roles).length ? { label: 'App Club', bg: c.navy50, fg: c.navy700, icon: 'shield' as IconName }
+    : roles.length ? { label: roleLabel('teacher'), bg: c.navy50, fg: c.navy700, icon: 'grad' as IconName } : null;
   return (
     <View style={{
       paddingTop: 22, paddingHorizontal: 20, paddingBottom: 18,

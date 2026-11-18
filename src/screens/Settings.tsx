@@ -24,7 +24,7 @@ import {
   APP_VERSION, NOTIFY_TOPICS, useNotifyPrefs, FEEDBACK_AREAS, FEEDBACK_KINDS, useFeedback, feedbackFrom,
 } from '../settings';
 import type { FeedbackKind, FeedbackRow, Role } from '../backend';
-import { isTop, mainRole, rankLabel, roleLabel } from '../ranks';
+import { clubRoles, isTop, mainRole, rankLabel, roleLabel } from '../ranks';
 import { useNotify } from '../notify/context';
 import { useNav } from '../nav';
 import { EVENT_TEMPLATES, ADMIN_TEMPLATES, previewDay, templateById } from '../notify/eventDays';
@@ -38,7 +38,7 @@ type SheetId = 'notify' | 'linked' | 'admin' | 'account' | 'help';
 
 export function SettingsSection({ onEdit }: { onEdit: (w: EditWhat) => void }) {
   const { c } = useTheme();
-  const { profile, roles, signOut } = useProfile();
+  const { profile, roles, signOut, openCatchUp, resetCatchUp } = useProfile();
   const notify = useNotifyPrefs();
   const [open, setOpen] = useState<SheetId | null>(null);
   const close = () => setOpen(null);
@@ -46,6 +46,15 @@ export function SettingsSection({ onEdit }: { onEdit: (w: EditWhat) => void }) {
 
   const doSignOut = async () => {
     if (await ask('Sign out?', 'Your account stays on this device. Sign back in with your school email or student number and your password.', 'Sign out', true)) signOut();
+  };
+
+  const catchUp = profile?.catchUp;
+  const doCatchUp = async () => {
+    if (!catchUp?.doneAt) { openCatchUp(); return; }
+    if (!(await ask('Redo Catch Up?', 'This takes back your Catch Up badges and asks the questions again. Your answers stay filled in. Badges earned any other way are safe.', 'Redo'))) return;
+    const problem = await resetCatchUp();
+    if (problem) { await ask('Could not reset Catch Up', problem, 'OK'); return; }
+    openCatchUp();
   };
 
   return (
@@ -70,6 +79,12 @@ export function SettingsSection({ onEdit }: { onEdit: (w: EditWhat) => void }) {
         <ListCard>
           <Row icon="me" label="Edit profile" sub="Name, grade, pronouns, student number, photo" onPress={() => onEdit('profile')} />
           <Row icon="calendar" label="Edit classes" sub="Day 1 and Day 2 blocks, outside the timetable" onPress={() => onEdit('classes')} />
+          <Row
+            icon="sparkle"
+            label={catchUp?.doneAt ? 'Redo Catch Up' : 'Catch Up'}
+            sub={catchUp?.doneAt ? 'Change your answers about your time at Sentinel' : `Get the badges and XP you would have earned. ${catchUp?.score || 0}% done`}
+            onPress={doCatchUp}
+          />
           <Row icon="shield" label="Account & privacy" sub={profile?.email || 'Password, who sees what, delete account'} onPress={() => setOpen('account')} last />
         </ListCard>
       </View>
@@ -229,7 +244,7 @@ const AdminCard = ({ roles, onPress }: { roles: string[]; onPress: () => void })
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', color: 'rgba(58,38,8,0.75)' }}>
-            {top ? roleLabel(top) : roles.length ? 'Member' : 'School App Club'}
+            {top ? roleLabel(top) : clubRoles(roles as Role[]).length ? 'Member' : roles.length ? roleLabel('teacher') : 'School App Club'}
           </Text>
           <Text style={{ fontFamily: fonts.serif, fontSize: 21, color: '#fff', marginTop: 1 }}>App Club</Text>
           <Text numberOfLines={1} style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.9)', marginTop: 1 }}>

@@ -47,7 +47,7 @@ const GIVEN_KEY = 'spartans-badges-given-v1';
 
 const useGiving = () => {
   const { mode } = useContent();
-  const live = mode === 'live';
+  const live = mode !== 'demo';   // sample students never show on a real account
   const [given, setGiven] = useState<Given[]>([]);
   useEffect(() => { AsyncStorage.getItem(GIVEN_KEY).then(v => v && setGiven(JSON.parse(v))).catch(() => {}); }, []);
 

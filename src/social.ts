@@ -4,26 +4,28 @@
 //   • Friends add each other with a random friend code. Never a student
 //     number, never an email.
 //   • Nobody sees a friend's timetable. You only see the blocks you SHARE
-//     (same slot, same course), which you already know you are in. Spares
-//     are never shown. The server (friend_cards, migration 0009) trims the
-//     row before it leaves Postgres; the client never holds a friend's
-//     full timetable.
+//     (same slot, same course, or a spare you both have), which you already
+//     know you are in. A spare you don't both have stays hidden. The server
+//     (friend_cards, migration 0020) trims the row before it leaves Postgres;
+//     the client never holds a friend's full timetable.
 //   • A friend sees: name, profile photo (else colour + emoji), grade,
 //     level / XP, up to four pinned badges,
 //     the full badge list, how long you have been friends, and homework you
 //     wrote for a class you share (to copy into their own list).
 //
-// Two modes behind one hook, useFriends():
+// Three modes behind one hook, useFriends():
 //   • live — signed in with the backend configured.
-//   • demo — no backend on this device, or signed out. A small sample
-//     directory built from the student's own timetable so compare has
-//     overlaps to show. Kept in memory; resets on launch.
+//   • signed-out — no friends, nothing to load.
+//   • demo — a developer's machine with no backend keys (`demoBuild`), never a
+//     release build. A small sample directory built from the student's own
+//     timetable so compare has overlaps to show. Kept in memory; resets on
+//     launch.
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import { Course, Slot, SLOTS, StudentProfile, useProfile } from './ProfileContext';
 import { social as remoteSocial, badges as remoteBadges, auth as remoteAuth, RemoteProfile, FoundStudent, FriendRequest, FriendCard, HomeworkShare } from './backend';
-import { backendConfigured } from './supabase';
+import { demoBuild } from './supabase';
 import { BADGES, UNLOCKED } from './badges';
 import { RARITY_XP, levelFor, gradeXp } from './xp';
 import { useHomework } from './stores';
@@ -63,8 +65,9 @@ export type SharedHomework = {
 };
 
 // ── Compare ─────────────────────────────────────────────────────
-// Only two states now: same class, or nothing to show.
-export type MatchKind = 'class' | 'none';
+// Same class, a spare you both have, or nothing to show. A shared spare counts
+// as a block together. Lunch and FIT never do: the whole school has them.
+export type MatchKind = 'class' | 'spare' | 'none';
 export type SlotMatch = { slot: Slot; mine?: Course; kind: MatchKind };
 export type Comparison = {
   slots: SlotMatch[];
@@ -74,7 +77,15 @@ export type Comparison = {
 
 export const isSpare = (c?: Course) => !!c && (!!c.spare || /^spare$/i.test(c.name.trim()));
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
-const sameClass = (a?: Course, b?: Course) => !!a && !!b && !isSpare(a) && !isSpare(b) && !!norm(a.name) && norm(a.name) === norm(b.name);
+// What to call a block: spares read "Spare" whatever the row holds.
+export const blockName = (c?: Course) => isSpare(c) ? 'Spare' : c?.name.trim() || '';
+const EVERYONE_HAS = /^(fit|lunch)$/;
+const matchOf = (a?: Course, b?: Course): MatchKind => {
+  if (!a || !b) return 'none';
+  if (isSpare(a) || isSpare(b)) return isSpare(a) && isSpare(b) ? 'spare' : 'none';
+  const name = norm(a.name);
+  return name && name === norm(b.name) && !EVERYONE_HAS.test(name) ? 'class' : 'none';
+};
 
 // `shared` is already trimmed to shared blocks (server or demo), but it is
 // checked against my timetable again so an edit on my side updates at once.
@@ -82,48 +93,56 @@ export const compareSchedules = (mine: Course[], shared: Course[]): Comparison =
   const slots: SlotMatch[] = SLOTS.map(slot => {
     const a = mine.find(c => c.slot === slot);
     const b = shared.find(c => c.slot === slot);
-    return { slot, mine: a, kind: sameClass(a, b) ? 'class' : 'none' };
+    return { slot, mine: a, kind: matchOf(a, b) };
   });
   return {
     slots,
-    sharedBlocks: slots.filter(s => s.kind === 'class'),
+    sharedBlocks: slots.filter(s => s.kind !== 'none'),
     byDay: ([1, 2] as const).map(day => ({ day, rows: slots.filter(s => s.slot.startsWith(`${day}-`)) })),
   };
 };
 
 // Which blocks you share, by slot, from a full timetable (demo + my side).
 export const sharedOf = (mine: Course[], theirs: Course[]): Course[] =>
-  theirs.filter(t => sameClass(mine.find(m => m.slot === t.slot), t));
+  theirs.filter(t => matchOf(mine.find(m => m.slot === t.slot), t) !== 'none');
 
-// What today looks like together: shared blocks on today's plan, plus lunch
-// (one bell for the whole school, so always shared on a school day).
-export type TodayRow = { period: PlanPeriod; kind: 'class' | 'lunch' };
+// What today looks like together: the blocks you share on today's plan.
+export type TodayRow = { period: PlanPeriod; kind: 'class' | 'spare' };
 export const todayTogether = (plan: DayPlan | null, cmp: Comparison): TodayRow[] => {
   if (!plan) return [];
   const out: TodayRow[] = [];
   for (const p of plan.periods) {
-    if (p.kind === 'lunch') out.push({ period: p, kind: 'lunch' });
-    else if (p.kind === 'block' && p.slot) {
-      const m = cmp.slots.find(s => s.slot === p.slot);
-      if (m && m.kind === 'class') out.push({ period: p, kind: 'class' });
-    }
+    if (p.kind !== 'block' || !p.slot) continue;
+    const m = cmp.slots.find(s => s.slot === p.slot);
+    if (m && m.kind !== 'none') out.push({ period: p, kind: m.kind });
   }
   return out;
 };
 
 // Friends who share the period that is on right now (or the next one).
 export const friendsInPeriod = (period: PlanPeriod | null, me: Course[], friends: Friend[]) => {
-  if (!period) return [];
-  if (period.kind === 'lunch') return friends.map(f => ({ friend: f, kind: 'lunch' as const }));
-  if (period.kind !== 'block' || !period.slot) return [];
-  return friends
-    .filter(f => compareSchedules(me, f.shared).slots.find(s => s.slot === period.slot)!.kind === 'class')
-    .map(f => ({ friend: f, kind: 'class' as const }));
+  if (!period || period.kind !== 'block' || !period.slot) return [];
+  return friends.flatMap(f => {
+    const kind = compareSchedules(me, f.shared).slots.find(s => s.slot === period.slot)!.kind;
+    return kind === 'none' ? [] : [{ friend: f, kind }];
+  });
 };
 
-// Names of the classes two people share (for the homework section).
+// One line for the friends in a block: "with Alex", "with Alex & Sam",
+// "with Alex +2". A spare you both have counts the same as a class together and
+// says so: "Spare with Alex". '' when nobody is in it.
+export const togetherLabel = (period: PlanPeriod | null, me: Course[], friends: Friend[]) => {
+  const hits = friendsInPeriod(period, me, friends);
+  if (!hits.length) return '';
+  const names = hits.map(h => h.friend.firstName || h.friend.lastName).filter(Boolean);
+  const who = names.length <= 2 ? names.join(' & ') : `${names[0]} +${names.length - 1}`;
+  return hits.every(h => h.kind === 'spare') ? `Spare with ${who}` : `with ${who}`;
+};
+
+// Names of the classes two people share (for the homework section). A spare
+// has no homework, so it stays out.
 export const sharedClassNames = (me: Course[], f: Friend) =>
-  Array.from(new Set(compareSchedules(me, f.shared).sharedBlocks.map(s => s.mine!.name.trim())));
+  Array.from(new Set(compareSchedules(me, f.shared).sharedBlocks.filter(s => s.kind === 'class').map(s => s.mine!.name.trim())));
 
 // ── Level / badges ──────────────────────────────────────────────
 const byId = new Map(BADGES.map(b => [b.id, b]));
@@ -194,7 +213,7 @@ const demoFriend = (s: Sample, me: StudentProfile, since: string): Friend => {
   const grade = Math.min(12, Math.max(8, me.grade + s.gradeDelta));
   const shared = s.share
     .map(slot => me.courses.find(c => c.slot === slot))
-    .filter((c): c is Course => !!c && !!c.name.trim() && !isSpare(c))
+    .filter((c): c is Course => !!c && (!!c.name.trim() || isSpare(c)))
     .map(c => ({ ...c }));
   return {
     id: s.id, firstName: s.firstName, lastName: s.lastName, grade, avatar: s.avatar,
@@ -245,14 +264,16 @@ const fromShare = (h: HomeworkShare): SharedHomework => ({
 
 // My homework for timetable classes, as the server wants it.
 const toShares = (items: HomeworkItem[], courses: Course[]) =>
-  items.filter(h => !h.done && h.slot).flatMap(h => {
-    const k = courses.find(c => c.slot === h.slot);
+  items.filter(h => !h.done).flatMap(h => {
+    // Homework names its class; only rows saved with a block carry a slot.
+    const program = h.program?.trim().toLowerCase();
+    const k = courses.find(c => h.slot ? c.slot === h.slot : !!program && c.name.trim().toLowerCase() === program);
     if (!k || !k.name.trim() || isSpare(k)) return [];
     return [{ id: h.id, class_name: k.name.trim(), title: h.title, due: h.due, ...(h.time ? { due_time: h.time } : {}), ...(h.notes ? { notes: h.notes } : {}) }];
   });
 
 export const useFriends = (profile: StudentProfile | null, signedIn: boolean): Social => {
-  const mode: Social['mode'] = !backendConfigured ? 'demo' : signedIn ? 'live' : 'signed-out';
+  const mode: Social['mode'] = demoBuild ? 'demo' : signedIn ? 'live' : 'signed-out';
   const [friends, setFriends] = useState<Friend[]>([]);
   const [requests, setRequests] = useState<Request[]>([]);
   const [homework, setHomework] = useState<SharedHomework[]>([]);
@@ -264,10 +285,15 @@ export const useFriends = (profile: StudentProfile | null, signedIn: boolean): S
   const seeded = useRef(false);
   const { items: myHomework } = useHomework();
 
-  // Sample data whenever we can't talk to the server as this student (no
-  // backend on the device, or signed out). Seeded once the profile is known,
-  // with one incoming request so the Requests card has something to show.
-  const demo = mode !== 'live';
+  // Signing out drops the last account's friends from memory.
+  useEffect(() => {
+    if (mode !== 'signed-out') return;
+    setFriends([]); setRequests([]); setHomework([]); setError(null); setLoading(false);
+  }, [mode]);
+
+  // Sample data for demo mode only. Seeded once the profile is known, with one
+  // incoming request so the Requests card has something to show.
+  const demo = mode === 'demo';
   useEffect(() => {
     if (!demo || !profile || seeded.current) return;
     seeded.current = true;
@@ -288,7 +314,7 @@ export const useFriends = (profile: StudentProfile | null, signedIn: boolean): S
   }, [demo, profile?.courses]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = useCallback(async () => {
-    if (demo) { setLoading(false); setReady(true); return; }
+    if (mode !== 'live') { setLoading(false); setReady(true); return; }
     setLoading(true); setError(null);
     try {
       const me = await remoteAuth.userId();
@@ -321,7 +347,7 @@ export const useFriends = (profile: StudentProfile | null, signedIn: boolean): S
   // while it's open so accepted requests and timetable edits show up.
   useEffect(() => {
     refresh();
-    if (demo) return;
+    if (mode !== 'live') return;
     const sub = AppState.addEventListener('change', s => { if (s === 'active') refresh(); });
     const timer = setInterval(() => { if (AppState.currentState === 'active') refresh(); }, 60_000);
     return () => { sub.remove(); clearInterval(timer); };
@@ -331,7 +357,7 @@ export const useFriends = (profile: StudentProfile | null, signedIn: boolean): S
   // so ticking through a list doesn't fire a call per tap.
   const lastSync = useRef('');
   useEffect(() => {
-    if (demo || !profile) return;
+    if (mode !== 'live' || !profile) return;
     const body = JSON.stringify(toShares(myHomework, profile.courses));
     if (body === lastSync.current) return;
     const t = setTimeout(() => {
@@ -339,7 +365,7 @@ export const useFriends = (profile: StudentProfile | null, signedIn: boolean): S
       remoteSocial.syncHomework(JSON.parse(body)).catch(() => { lastSync.current = ''; });
     }, 1500);
     return () => clearTimeout(t);
-  }, [demo, myHomework, profile?.courses]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mode, myHomework, profile?.courses]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const find = useCallback(async (q: string): Promise<FindResult> => {
     const s = cleanCode(q);
@@ -397,7 +423,7 @@ export const useFriends = (profile: StudentProfile | null, signedIn: boolean): S
 
 const toPeer = (p: FoundStudent): Peer => ({ id: p.id, firstName: p.first_name, lastName: p.last_name, grade: p.grade, avatar: avatarOf(p.avatar, `${p.first_name} ${p.last_name}`), photo: photoOf(p.photo_url) });
 
-// The student's own badge ids — demo unlocks today, the server ledger later.
+// The student's own badge ids: what src/earned.ts has written into UNLOCKED.
 export const myBadgeIds = () => Object.keys(UNLOCKED);
 export type { RemoteProfile };
 

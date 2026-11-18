@@ -17,6 +17,11 @@ const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '';
 // otherwise, so the app still runs with no backend (offline contract).
 export const backendConfigured = Boolean(url && key);
 
+// Sample data (demo friends, starter posts, sample club rows) only ever runs
+// on a developer's machine with no keys. A release build can't reach it, even
+// if its keys went missing: it stays empty and says it can't reach the server.
+export const demoBuild = __DEV__ && !backendConfigured;
+
 export const supabase = createClient(url || 'http://localhost', key || 'anon', {
   auth: {
     storage: AsyncStorage,

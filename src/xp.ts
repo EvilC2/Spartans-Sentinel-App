@@ -14,7 +14,7 @@
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BADGES, Rarity, isUnlocked, unlockedOn } from './badges';
-import type { IconName } from './components/Icon';
+import { isCatchUpBadge } from './earned';
 
 export const RARITY_XP: Record<Rarity, number> = {
   common: 10, uncommon: 25, rare: 50, epic: 100, legendary: 200,
@@ -30,16 +30,7 @@ export const GRADE_XP = 4000;        // per grade moved up (9, 10, 11, 12)
 export const FIRST_GRADE = 8;
 export const XP = { triviaRight: 15, triviaWrong: 3, poll: 5, homework: 10, read: 2 };
 
-export const XP_RULES: { kind: XpKind; label: string; xp: string; sub: string; icon: IconName }[] = [
-  { kind: 'daily', label: 'Open Spartans', xp: '+5', sub: `Once a day. A streak adds ${STREAK_BONUS} a day, up to +${STREAK_BONUS_MAX}`, icon: 'sun' },
-  { kind: 'trivia', label: 'Trivia', xp: `+${XP.triviaRight}`, sub: `Right answer. A wrong guess still gets +${XP.triviaWrong}`, icon: 'sparkle' },
-  { kind: 'poll', label: 'Vote in a poll', xp: `+${XP.poll}`, sub: 'Once per poll', icon: 'chart' },
-  { kind: 'homework', label: 'Finish homework', xp: `+${XP.homework}`, sub: 'Tick it off. Up to 5 a day', icon: 'tasks' },
-  { kind: 'read', label: 'Read an announcement', xp: `+${XP.read}`, sub: 'Open a post. Up to 5 a day', icon: 'news' },
-  { kind: 'badge', label: 'Unlock a badge', xp: '+10 to +400', sub: 'More for rarer badges', icon: 'badge' },
-  { kind: 'grade', label: 'Move up a grade', xp: `+${GRADE_XP.toLocaleString()}`, sub: 'Every September. Worth a pile of levels', icon: 'grad' },
-];
-const CAP: Partial<Record<XpKind, number>> = { homework: 5, read: 5 };
+export const DAILY_CAP: Partial<Record<XpKind, number>> = { homework: 5, read: 5 };
 
 export const KIND_LABEL: Record<XpKind, string> = {
   daily: 'Daily', trivia: 'Trivia', poll: 'Polls', homework: 'Homework', read: 'Reading', badge: 'Badges', grade: 'Grades',
@@ -129,9 +120,11 @@ const gradeEntries = (now = new Date()): XpEntry[] => {
   return out;
 };
 
-// Badge XP, as log entries so the history shows them too.
+// Badge XP, as log entries so the history shows them too. Catch Up badges have
+// no date (`at` 0): they stand for the past, so they stay off today's totals
+// and the chart, and the history lists them as "Earlier".
 const badgeEntries = (): XpEntry[] => BADGES.filter(isUnlocked).map(b => ({
-  id: `badge:${b.id}`, kind: 'badge' as const, xp: RARITY_XP[b.rarity], at: unlockedOn(b)?.getTime() ?? 0, label: b.title,
+  id: `badge:${b.id}`, kind: 'badge' as const, xp: RARITY_XP[b.rarity], at: isCatchUpBadge(b.id) ? 0 : unlockedOn(b)?.getTime() ?? 0, label: b.title,
 }));
 
 export const xpLog = (): XpEntry[] => [...state.log, ...badgeEntries(), ...gradeEntries()].sort((a, b) => b.at - a.at);
@@ -142,7 +135,7 @@ export const earnXp = async (kind: Exclude<XpKind, 'badge' | 'daily' | 'grade'>,
   await loadXp();
   const id = `${kind}:${ref}`;
   if (state.log.some(e => e.id === id)) return 0;
-  const cap = CAP[kind];
+  const cap = DAILY_CAP[kind];
   if (cap) {
     const today = isoOf(now);
     if (state.log.filter(e => e.kind === kind && isoOf(e.at) === today).length >= cap) return 0;
@@ -180,20 +173,9 @@ export type XpStats = {
   counts: Record<XpKind, number>;                 // how many times
   triviaRight: number;
   last14: { iso: string; xp: number }[];          // oldest first; grade XP left out so it does not flatten the chart
-  todayCounts: Record<XpKind, number>;            // entries logged today, for the daily quests
+  todayCounts: Record<XpKind, number>;            // entries logged today, for what's left to earn
   last7Active: boolean[];                         // oldest first: did they open the app that day
 };
-
-// ── Daily quests ────────────────────────────────────────────────
-// Nothing new is stored: a quest is done when today's log has enough entries
-// of its kind. Resets at midnight with the log.
-export type Quest = { kind: XpKind; label: string; goal: number; reward: string; icon: IconName };
-export const QUESTS: Quest[] = [
-  { kind: 'daily', label: 'Check in', goal: 1, reward: '+5', icon: 'sun' },
-  { kind: 'trivia', label: 'Answer the trivia', goal: 1, reward: `+${XP.triviaRight}`, icon: 'sparkle' },
-  { kind: 'homework', label: 'Finish 3 homework tasks', goal: 3, reward: `+${XP.homework * 3}`, icon: 'tasks' },
-  { kind: 'read', label: 'Read 3 announcements', goal: 3, reward: `+${XP.read * 3}`, icon: 'news' },
-];
 
 export const xpStats = (now = Date.now()): XpStats => {
   const log = xpLog();
@@ -224,6 +206,40 @@ export const xpStats = (now = Date.now()): XpStats => {
     last7Active: days.slice(-7).map(d => state.log.some(e => e.id === `daily:${d.iso}`)),
   };
 };
+
+// ── Dashboard ───────────────────────────────────────────────────
+// XP per day, oldest first, split by kind. Grade XP and undated entries stay out:
+// neither was earned on a day, and grade XP would flatten every chart.
+export type DayXp = { iso: string; xp: number; byKind: Partial<Record<XpKind, number>> };
+export const xpDays = (count: number, now = Date.now()): DayXp[] => {
+  const out: DayXp[] = [];
+  const at = new Map<string, DayXp>();
+  for (let i = count - 1; i >= 0; i--) {
+    const d = new Date(now); d.setDate(d.getDate() - i);
+    const day: DayXp = { iso: isoOf(d.getTime()), xp: 0, byKind: {} };
+    out.push(day);
+    at.set(day.iso, day);
+  }
+  for (const e of xpLog()) {
+    if (!e.at || e.kind === 'grade') continue;
+    const day = at.get(isoOf(e.at));
+    if (!day) continue;
+    day.xp += e.xp;
+    day.byKind[e.kind] = (day.byKind[e.kind] || 0) + e.xp;
+  }
+  return out;
+};
+
+export const bestXpDay = (): { iso: string; xp: number } | null => {
+  const by = new Map<string, number>();
+  for (const e of xpLog()) if (e.at && e.kind !== 'grade') by.set(isoOf(e.at), (by.get(isoOf(e.at)) || 0) + e.xp);
+  let best: { iso: string; xp: number } | null = null;
+  for (const [iso, xp] of by) if (!best || xp > best.xp) best = { iso, xp };
+  return best;
+};
+
+// What tomorrow's first open pays if the streak holds. `streak` includes today.
+export const nextCheckInXp = (streak: number) => 5 + Math.min(STREAK_BONUS_MAX, STREAK_BONUS * Math.max(0, streak));
 
 // Re-render when XP changes (and once it has loaded).
 export const useXpVersion = () => {

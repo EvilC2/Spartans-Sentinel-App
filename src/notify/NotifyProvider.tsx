@@ -128,11 +128,14 @@ export const NotifyProvider = ({ children }: { children: React.ReactNode }) => {
     grade,
   }), [items, events, social.requests, popups, grade, profile?.courses, content.inPlace]);
 
+  // Calendar banners from before this phone had the app never went out, so a
+  // new account doesn't open to a month of "notifications" it never got.
   const notices = useMemo(() => buildFeed({ ...feedInput, now }, now - INBOX_WINDOW, now)
     .filter(n => prefs.on[n.topic] !== false && !inbox.gone[n.id])
+    .filter(n => !n.event || (!!inbox.since && n.at >= inbox.since - DAY))
     .slice(0, 80),
   // earnedVersion: a badge earned this session joins the list
-  [feedInput, now, prefs.on, inbox.gone, earnedVersion]);
+  [feedInput, now, prefs.on, inbox.gone, inbox.since, earnedVersion]);
 
   // First run: anything older than a day before install counts as read,
   // so a new phone doesn't open to fifty unread.

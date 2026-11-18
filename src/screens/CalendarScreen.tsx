@@ -7,6 +7,8 @@
 // on today and draws each day as a time-blocked column; scrolling it updates
 // the title (This week, Next week, Oct 26 – 30). Day draws one day full width
 // with its homework and events; arrows or a sideways swipe step school days.
+// Homework is never an event: it has its own list in the day sheet and marks on
+// the class blocks, and stays out of the event dots and the month's event list.
 // The + button adds a personal event (stored on this phone).
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -279,7 +281,7 @@ export default function CalendarScreen({ topInset }: ScreenProps) {
                   d={d}
                   isToday={d.iso === todayIso}
                   selected={!d.padding && d.iso === selected}
-                  hasEvents={!d.padding && (!!d.cal?.events?.filter(ev => !ROUTINE.test(ev)).length || eventsOn(d.iso).length > 0 || club.some(e => e.date === d.iso))}
+                  hasEvents={!d.padding && (!!d.cal?.events?.filter(ev => !ROUTINE.test(ev)).length || eventsOn(d.iso).some(e => e.source !== 'homework') || club.some(e => e.date === d.iso))}
                   onPress={() => !d.padding && setSelected(d.iso)}
                 />
               </View>
@@ -645,7 +647,7 @@ const DaySheet = ({ d, isToday, onEditEvent, asDay = false }: { d?: GridCell; is
         )}
 
         {due.length > 0 && (
-          <View style={{ marginTop: 14, paddingTop: 14, borderTopWidth: 1, borderTopColor: c.line2 }}>
+          <View style={{ marginTop: 14, marginHorizontal: -6, paddingTop: 12, paddingBottom: 6, paddingHorizontal: 12, borderRadius: 16, backgroundColor: c.paper2 }}>
             <Text style={{ fontSize: 17, fontWeight: '700', color: c.ink, letterSpacing: -0.3, marginBottom: 4 }}>Homework due</Text>
             {due.map(h => {
               const k = classOf(h);
@@ -750,13 +752,7 @@ const MonthEvents = ({
   const mine: MonthItem[] = events
     .filter(e => inMonth(e.iso) && e.source !== 'homework')
     .map(e => ({ iso: e.iso, title: e.title, detail: e.className, time: e.time ? fmt12(e.time, true) : undefined, tone: glow(c.gold, mode) }));
-  // Homework is one line per day here ("3 homework due"); the day sheet lists each one.
-  const dueBy: Record<string, string[]> = {};
-  for (const e of events) if (inMonth(e.iso) && e.source === 'homework' && !e.done) (dueBy[e.iso] ||= []).push(e.title);
-  const due: MonthItem[] = Object.entries(dueBy).map(([iso, titles]) => ({
-    iso, title: titles.length === 1 ? titles[0] : `${titles.length} homework due`, detail: titles.length === 1 ? 'Homework due' : titles.join(', '), tone: glow(c.gold, mode),
-  }));
-  const items = [...school, ...club, ...mine, ...due].sort((a, b) => a.iso.localeCompare(b.iso));
+  const items = [...school, ...club, ...mine].sort((a, b) => a.iso.localeCompare(b.iso));
   if (!items.length) return null;
   const upcoming = items.filter(x => x.iso >= todayIso).length;
   // One row per date, events stacked inside it.

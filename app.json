@@ -2,6 +2,7 @@
   "expo": {
     "name": "Spartans",
     "slug": "spartans",
+    "scheme": "spartans",
     "version": "1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -77,6 +78,59 @@
           "backgroundColor": "#021F6B",
           "image": "./assets/splash-icon.png",
           "imageWidth": 200
+        }
+      ],
+      [
+        "expo-widgets",
+        {
+          "widgets": [
+            {
+              "name": "SpartansToday",
+              "displayName": "Today's rotation",
+              "description": "Day 1 or Day 2, the class that's on, a live countdown and what's next.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium",
+                  "systemLarge"
+                ]
+              }
+            },
+            {
+              "name": "SpartansClass",
+              "displayName": "Class countdown",
+              "description": "Your class and the time left in it, on the Lock Screen.",
+              "ios": {
+                "supportedFamilies": [
+                  "accessoryRectangular",
+                  "accessoryCircular",
+                  "accessoryInline"
+                ]
+              }
+            },
+            {
+              "name": "SpartansHomework",
+              "displayName": "Homework",
+              "description": "What's still to do, soonest first.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium"
+                ]
+              }
+            },
+            {
+              "name": "SpartansUpAhead",
+              "displayName": "Up ahead",
+              "description": "Days until the next day off, and what's coming up at school.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "systemMedium"
+                ]
+              }
+            }
+          ]
         }
       ]
     ],

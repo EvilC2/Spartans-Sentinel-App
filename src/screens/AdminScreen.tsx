@@ -6,13 +6,18 @@
 //                     (The app's owner sees this too.)
 //   Teacher Sponsor   the same access, laid out for looking rather than
 //                     doing: what's going on first, decisions, then teams.
-//   Developer         the Developer screen: every tool on one screen. "View"
-//                     is how developers look at the rest of the club.
+//   Developer         their role card and a line about the team's work.
 //   Everyone else     their own pages, grouped by team.
 // Anyone who runs people (top roles, team managers) gets Members at the
 // very bottom, always in the same place.
-// The "View" button in the header's top right is the TEMPORARY view
-// switcher (admin/ViewAs); it lights up gold while you view as someone else.
+// Staff (top roles and the `teacher` role, migration 0021) also get "School":
+// Clubs & programs (admin/ClubsPage), the real club list and who runs each
+// program. A teacher with no club role sees just that, under their card,
+// instead of the join page.
+// Dev tools are the app owner's alone (src/devAccess.ts): the Developer screen
+// (admin/DevPages, under the Developer team) and the "View" button in the
+// header's top right, the TEMPORARY view switcher (admin/ViewAs), which lights
+// up gold while you view as someone else.
 // The server enforces the real roles either way (migrations 0013 and 0017).
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -34,12 +39,14 @@ import { AwardGrant, ListGrant, QrGrant } from '../admin/BadgeGrant';
 import { DeveloperScreen } from '../admin/DevPages';
 import { Decisions, Marketing, HrPage, NeedsYourSay, RightNow, SchoolContacts, StucoPage } from '../admin/ExecPages';
 import { RoleCard } from '../admin/RoleCard';
+import { ClubsPrograms } from '../admin/ClubsPage';
 import { ViewAsButton, ViewAsSheet } from '../admin/ViewAs';
-import { Act, Group, Hint, PageTitle, Row } from '../admin/ui';
+import { Group, Hint, PageTitle, Row } from '../admin/ui';
+import { useDevAccess } from '../devAccess';
 import { loadDesigns, useBadgeDesigns } from '../badgeDesigns';
 import { APP_VERSION } from '../settings';
 import {
-  ART, TEAMS, TEAM_ORDER, TeamId, can, isDev, isLead, isTop, jobOf, leads, mainRole, onTeam, roleLabel, teamOf, tierOf,
+  ART, TEAMS, TEAM_ORDER, TeamId, can, clubRoles, isDev, isLead, isStaff, isTop, jobOf, leads, mainRole, onTeam, roleLabel, teamOf, tierOf,
 } from '../ranks';
 import type { ScreenProps } from '../../App';
 
@@ -65,7 +72,7 @@ const posts = (kinds: PostKind[]) => (g: Go) => <Posts kinds={kinds} editable={g
 const PAGES: PageDef[] = [
   // Maintenance
   { id: 'mnt.screen', team: 'maintenance', label: 'On screen', sub: 'What students see right now', art: ART.desktop,
-    show: r => onTeam(r, 'maintenance'), render: g => <OnScreenPage g={g} /> },
+    show: r => onTeam(r, 'maintenance'), render: g => <OnScreen onOpen={g.openPost} /> },
   jobPage('maintenance', 'trivia', 'mnt.trivia', posts(['trivia'])),
   jobPage('maintenance', 'facts', 'mnt.facts', posts(['fact'])),
   jobPage('maintenance', 'polls', 'mnt.polls', posts(['poll'])),
@@ -86,6 +93,9 @@ const PAGES: PageDef[] = [
   jobPage('executive', 'stuco', 'exe.stuco', g => <StucoPage canEdit={can(g.roles, 'stuco')} />),
   { id: 'exe.decisions', team: 'executive', label: 'Decisions', sub: 'Everything that needed a final say', art: ART.star,
     show: isTop, render: g => <View style={{ gap: 24 }}><Decisions canDecide={isTop(g.roles)} /><SchoolContacts /></View> },
+  // School (staff, not a team)
+  { id: 'school.clubs', team: null, label: 'Clubs & programs', sub: 'The club list, and who runs each program', art: ART.council,
+    show: isStaff, render: g => <ClubsPrograms roles={g.roles} /> },
 ];
 // Pages reached from Members, not listed under a team.
 const membersPage = (scope: TeamId | 'all'): PageDef => ({
@@ -95,24 +105,6 @@ const membersPage = (scope: TeamId | 'all'): PageDef => ({
 });
 const pageById = (id: string): PageDef | undefined =>
   id.startsWith('members.') ? membersPage(id.slice(8) as TeamId | 'all') : PAGES.find(p => p.id === id);
-
-// On screen, plus the one-time "copy the starter posts up" for a new server.
-const OnScreenPage = ({ g }: { g: Go }) => {
-  const store = useContent();
-  const [busy, setBusy] = useState(false);
-  return (
-    <>
-      {store.mode === 'live' && leads(g.roles, 'maintenance') && store.posts.length === 0 && (
-        <>
-          <Hint text="The server has no posts yet, so students see an empty Buzz. Copy the starter trivia, polls and news up to begin with." />
-          <Act label={busy ? 'Copying…' : 'Load the starter posts'} icon="download" fill disabled={busy}
-            onPress={async () => { setBusy(true); try { await store.importStarter(); } finally { setBusy(false); } }} />
-        </>
-      )}
-      <OnScreen onOpen={g.openPost} />
-    </>
-  );
-};
 
 type Route = { kind: 'home' } | { kind: 'team'; team: TeamId } | { kind: 'page'; id: string; from: Route };
 
@@ -126,6 +118,7 @@ export default function AdminScreen({ topInset }: ScreenProps) {
   const [detail, setDetail] = useState<Post | null>(null);
   const [viewing, setViewing] = useState(false);
   const { designs } = useBadgeDesigns();
+  const devAccess = useDevAccess();
   const scroll = useRef<ScrollView>(null);
   useEffect(() => { refreshRoles(); store.refresh(); }, []);
   useEffect(() => { loadDesigns(signedIn); }, [signedIn]);
@@ -137,7 +130,8 @@ export default function AdminScreen({ topInset }: ScreenProps) {
   const visible = useMemo(() => PAGES.filter(p => p.show(roles)), [roles.join()]);
   const top = isTop(roles);
   const dev = isDev(roles);
-  const inClub = roles.length > 0;
+  const inClub = clubRoles(roles).length > 0;
+  const staff = isStaff(roles);
   const pending = designs.filter(d => d.status === 'pending').length;
   const countFor = (p: PageDef) => p.id === 'bdg.creator' && leads(roles, 'badges') ? pending : 0;
 
@@ -154,10 +148,14 @@ export default function AdminScreen({ topInset }: ScreenProps) {
   const editFromDetail = (p: Post) => { setDetail(null); setTimeout(() => setEditing(p), 450); };
 
   const headerClub = store.canViewAs ? <ViewAsButton onPress={() => setViewing(true)} /> : null;
-  const sheets = <ViewAsSheet visible={viewing} onClose={() => setViewing(false)} />;
+  const sheets = store.canViewAs ? <ViewAsSheet visible={viewing} onClose={() => setViewing(false)} /> : null;
+  // The Developer team's page: the dev tools for the owner, a plain line for the rest.
+  const developerPage = devAccess
+    ? <DeveloperScreen onViewAs={() => setViewing(true)} />
+    : <Hint text="The Developer team's work happens in the app's code, so there's nothing to run here." />;
 
-  // Not in the club: the join page.
-  if (!inClub) {
+  // Not in the club (and not staff): the join page.
+  if (!inClub && !staff) {
     return (
       <>
         <JoinClub topInset={topInset} club={headerClub} />
@@ -175,9 +173,10 @@ export default function AdminScreen({ topInset }: ScreenProps) {
   const tier = tierOf(roles);
   const jobsOn = (t: TeamId) => roles.filter(r => teamOf(r) === t && !isLead(r)).map(roleLabel);
   const devOnly = dev && !roles.some(r => isLead(r) && teamOf(r) === 'developer') && tier === 'developer';
-  const cardRole = top ? roleLabel(main!) : devOnly ? 'Developer' : main ? roleLabel(main) : 'Member';
+  const cardRole = top ? roleLabel(main!) : devOnly ? 'Developer' : main ? roleLabel(main) : !inClub ? roleLabel('teacher') : 'Member';
   const myTeams = TEAM_ORDER.filter(t => roles.some(r => teamOf(r) === t));
   const cardFoot = top ? (sponsorView ? 'Every team. You can open anything.' : 'Every team, and the final say.')
+    : !inClub ? 'Clubs, programs and their announcements'
     : myTeams.map(t => {
       const jobs = jobsOn(t);
       const lead = TEAMS[t].lead && roles.includes(TEAMS[t].lead!);
@@ -188,7 +187,7 @@ export default function AdminScreen({ topInset }: ScreenProps) {
   const card = (
     <RoleCard tier={tier} role={cardRole} foot={cardFoot} tag={tier === 'developer' ? `build ${APP_VERSION}` : undefined}
       name={profile ? fullName(profile) || 'You' : 'You'} initials={profile ? initials(profile) : '?'} photo={profile?.photoUri}
-      sub={sponsorView ? 'Teacher' : profile?.grade ? `Grade ${profile.grade}` : undefined} />
+      sub={sponsorView || (!inClub && staff) ? 'Teacher' : profile?.grade ? `Grade ${profile.grade}` : undefined} />
   );
 
   // ── Rows ──
@@ -208,6 +207,10 @@ export default function AdminScreen({ topInset }: ScreenProps) {
     </Group>
   ) : null;
 
+  const schoolGroup = staff ? (
+    <Group title="School">{visible.filter(p => p.id.startsWith('school.')).map(pageRow)}</Group>
+  ) : null;
+
   const home = top ? (
     sponsorView ? (
       <>
@@ -225,7 +228,7 @@ export default function AdminScreen({ topInset }: ScreenProps) {
     )
   ) : (
     <>
-      {dev && <DeveloperScreen onViewAs={() => setViewing(true)} />}
+      {dev && developerPage}
       {myTeams.filter(t => t !== 'developer').map(t => {
         const list = visible.filter(p => p.team === t);
         if (!list.length) return null;
@@ -243,7 +246,7 @@ export default function AdminScreen({ topInset }: ScreenProps) {
         <View style={{ paddingHorizontal: 20, paddingTop: 16, gap: 24 }}>
           {page ? (
             <>
-              <PageTitle kicker={page.team ? TEAMS[page.team].label : 'App Club'} title={page.label} sub={page.sub} art={page.art} />
+              <PageTitle kicker={page.team ? TEAMS[page.team].label : page.id.startsWith('school.') ? 'School' : 'App Club'} title={page.label} sub={page.sub} art={page.art} />
               {page.team === 'maintenance' && !!store.note && <Hint text={store.note} warn />}
               <View style={{ gap: 14 }}>{page.render(go)}</View>
             </>
@@ -251,7 +254,7 @@ export default function AdminScreen({ topInset }: ScreenProps) {
             <>
               <PageTitle kicker="Team" title={TEAMS[team].label} sub={TEAMS[team].sub} art={TEAMS[team].art} />
               {team === 'developer'
-                ? <DeveloperScreen onViewAs={() => setViewing(true)} />
+                ? developerPage
                 : <Group title="Pages">{visible.filter(p => p.team === team).map(pageRow)}</Group>}
               {TEAMS[team].lead && leads(roles, team) && (
                 <Group title="Members">
@@ -263,6 +266,7 @@ export default function AdminScreen({ topInset }: ScreenProps) {
             <>
               {card}
               {home}
+              {schoolGroup}
               {membersGroup}
               <Redeem prominent={false} />
             </>

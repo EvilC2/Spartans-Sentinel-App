@@ -1,4 +1,4 @@
-// Sentinel app — shared mock data (news, announcements, quick links, homework).
+// Sentinel app — shared mock data (news, announcements, quick links).
 // The student, their courses, and "today" are NOT here any more:
 //   src/ProfileContext.tsx  — student + courses, from the intro flow
 //   src/calendar.ts         — the real 2025–2026 school calendar
@@ -39,40 +39,6 @@ const SENTINEL = {
     { id: 'e2', date: 'Fri May 22', title: 'Sr. Boys Rugby Provincials', loc: 'Burnaby Lake',    time: 'All day' },
     { id: 'e3', date: 'Thu May 28', title: 'Collaboration Day',         loc: 'Early dismissal', time: '2:45 PM' },
     { id: 'e4', date: 'Fri May 29', title: 'Grad BBQ',                  loc: 'Front Lawn',      time: '12:00 PM' },
-  ],
-
-  // ── Homework ─────────────────────────────────────────────────────
-  // Mock items keyed by timetable slot; the group header shows the student's own course.
-  // `due` is an ISO date: each one is also a calendar event whose source is the class (src/programs.ts).
-  homework: [
-    {
-      slot: '1-1',
-      items: [
-        { id: 'h1', title: 'Reading response (500 words)', due: '2026-09-18', priority: 'high', done: false },
-        { id: 'h2', title: 'Annotate the handout',           due: '2026-09-18', priority: 'med', done: false },
-        { id: 'h3', title: 'Quiz prep · units 9–10',           due: '2026-09-21', priority: 'low', done: true },
-      ],
-    },
-    {
-      slot: '1-2',
-      items: [
-        { id: 'h4', title: 'Problem set 9.4 · #1–18 odd',            due: '2026-09-18', priority: 'high', done: false },
-        { id: 'h5', title: 'Lab write-up',             due: '2026-09-17', priority: 'med', done: false },
-      ],
-    },
-    {
-      slot: '1-3',
-      items: [
-        { id: 'h6', title: 'Lab: data table',         due: '2026-09-16', priority: 'high', done: false },
-        { id: 'h7', title: 'Read ch. 8.2–8.4',                       due: '2026-09-18', priority: 'low', done: false },
-      ],
-    },
-    {
-      slot: '1-4',
-      items: [
-        { id: 'h8', title: 'Presentation: practice with partner', due: '2026-09-17', priority: 'med', done: false },
-      ],
-    },
   ],
 
   // ── News / Announcements feed ───────────────────────────────────

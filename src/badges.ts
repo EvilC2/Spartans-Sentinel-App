@@ -7,8 +7,8 @@
 // tags several badges with it, so it is kept as a ninth tier: dark, and the
 // description stays hidden until unlocked.
 //
-// Unlocks are local-only for now (no backend). `UNLOCKED` is demo data so the
-// page has something to show; swap for a store when accounts sync.
+// `UNLOCKED` is the runtime store of earned badges: empty until src/earned.ts
+// writes into it, so a new account starts with none.
 
 export type Rarity =
   | 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary' | 'exotic' | 'special' | 'seasonal' | 'secret';
@@ -118,9 +118,7 @@ const ROWS: Row[] = [
   ['Baller Jr', 'Join the Junior soccer team', 'rare', 'sports', 'Shin pads on.'],
   ['Baller', 'Join the senior soccer team', 'rare', 'sports', 'Big pitch energy.'],
   ['Ones for every theme day', 'Tight and bright, etc', 'legendary', 'events', 'You never missed one.'],
-  ['School App Jesus', 'Found the school app', 'legendary', 'app', 'It began here.'],
   ['Senior Assassin', 'Participate in senior splash', 'epic', 'events', 'Trust no one.'],
-  ['Campout', 'Attend Senior Campout', 'legendary', 'events', 'Smoke, stars, no sleep.'],
   ['Home Field Advantage', 'Compete at Sentinel', 'rare', 'sports', 'The crowd was yours.'],
   ['Bringing it home', 'Win a championship', 'legendary', 'sports', 'Banner material.'],
   ['The Regular', 'Attend 10 events', 'epic', 'events', 'Always there.'],
@@ -237,7 +235,6 @@ const ROWS: Row[] = [
   ['Prom Night', 'Attend the official school prom', 'epic', 'events', 'Dance like no one is filming. They are.'],
   ['Ticket to the Night', 'Purchase or receive an official prom ticket', 'epic', 'events', 'Admit one.'],
   ['Future Funded', 'Submit a school-approved scholarship application', 'epic', 'academic', 'Paperwork that pays.'],
-  ['Under the Stars', 'Attend the official senior campout', 'epic', 'events', 'No signal. No problem.'],
   ['Golden Hour', 'Participate in the official senior sunrise', 'epic', 'events', 'First light, last year.'],
   ['One Last Sunset', 'Participate in the official senior sunset', 'epic', 'events', 'Golden, then gone.'],
   ['What Does This Do?', 'Find a secret interaction in the app, like long-pressing the Sentinel logo', 'secret', 'app', 'Curiosity rewarded.'],
@@ -268,7 +265,6 @@ const ART: Record<string, any> = {
   'behind-the-curtain': require('../assets/badges/behind-the-curtain.png'),
   'behind-the-wheel': require('../assets/badges/behind-the-wheel.png'),
   'bringing-it-home': require('../assets/badges/bringing-it-home.png'),
-  'campout': require('../assets/badges/campout.png'),
   'cap-gown': require('../assets/badges/cap-gown.png'),
   'class-colours': require('../assets/badges/class-colours.png'),
   'class-dismissed': require('../assets/badges/class-dismissed.png'),
@@ -321,7 +317,6 @@ const ART: Record<string, any> = {
   'published': require('../assets/badges/published.png'),
   'ready-for-the-walk': require('../assets/badges/ready-for-the-walk.png'),
   'say-cheese': require('../assets/badges/say-cheese.png'),
-  'school-app-jesus': require('../assets/badges/school-app-jesus.png'),
   'secret-admirer': require('../assets/badges/secret-admirer.png'),
   'senior-assassin': require('../assets/badges/senior-assassin.png'),
   'senior-meeting': require('../assets/badges/senior-meeting.png'),
@@ -344,7 +339,6 @@ const ART: Record<string, any> = {
   'top-dog': require('../assets/badges/top-dog.png'),
   'trick-or-treat': require('../assets/badges/trick-or-treat.png'),
   'triple-threat': require('../assets/badges/triple-threat.png'),
-  'under-the-stars': require('../assets/badges/under-the-stars.png'),
   'volunteer': require('../assets/badges/volunteer.png'),
   'watch-the-roads': require('../assets/badges/watch-the-roads.png'),
   'welcome-to-sentinel': require('../assets/badges/welcome-to-sentinel.png'),
@@ -388,20 +382,9 @@ export const BADGES: Badge[] = ROWS.map(([title, desc, rarity, category, flavor]
   return { id, title, desc, rarity, category, flavor, art: ART[id], season, tint };
 });
 
-// Demo unlocks (ISO dates). Replace with a real store once accounts sync.
-export const UNLOCKED: Record<string, string> = {
-  'hello-world': '2026-09-08',
-  'welcome-to-sentinel': '2026-09-08',
-  'achievement-unlocked': '2026-09-08',
-  'first-bell': '2026-09-08',
-  'back-to-school': '2026-09-09',
-  'where-am-i': '2026-09-10',
-  'early-bird': '2026-09-10',
-  'phew-that-was-easy': '2026-06-27',
-  'campout': '2026-08-28',
-  'game-day': '2026-09-11',
-  'got-homework': '2026-09-11',
-};
+// Badges this account has earned (id → ISO date). Starts empty and is filled
+// at runtime by src/earned.ts; every screen reads it synchronously.
+export const UNLOCKED: Record<string, string> = {};
 
 export const isUnlocked = (b: Badge) => b.id in UNLOCKED;
 export const unlockedOn = (b: Badge): Date | null => UNLOCKED[b.id] ? new Date(UNLOCKED[b.id] + 'T12:00:00') : null;

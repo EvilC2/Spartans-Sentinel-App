@@ -4,13 +4,15 @@
 //   stuco      Student Council Rep: what the student council asked for
 //   decisions  President / Teacher Sponsor: the final say
 // Same three modes as the content store (src/content):
-//   demo   no backend: this phone, starting from sample items
+//   demo   a developer's machine with no keys: this phone, from sample items
 //   live   the server's club_items table (migration 0017)
-//   local  backend set up but 0017 not run: this phone, with a note
+//   local  backend set up but 0017 not run, or the server can't be reached:
+//          this phone, starting empty, with a note
 
 import { useCallback, useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useContent } from '../content';
+import { demoBuild } from '../supabase';
 import type { ClubItemRow } from '../backend';
 
 export type BoardId = 'campaigns' | 'checkins' | 'stuco' | 'decisions';
@@ -108,7 +110,8 @@ export const useBoard = (board: BoardId) => {
   const [note, setNote] = useState<string | null>(null);
 
   const readLocal = useCallback(async () => {
-    try { const v = await AsyncStorage.getItem(KEY(board)); return v ? (JSON.parse(v) as Item[]) : SEEDS[board]; } catch { return SEEDS[board]; }
+    const start = demoBuild ? SEEDS[board] : [];
+    try { const v = await AsyncStorage.getItem(KEY(board)); return v ? (JSON.parse(v) as Item[]) : start; } catch { return start; }
   }, [board]);
   const keepLocal = (list: Item[]) => { setItems(list); AsyncStorage.setItem(KEY(board), JSON.stringify(list)).catch(() => {}); };
 

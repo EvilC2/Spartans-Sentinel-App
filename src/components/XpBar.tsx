@@ -3,16 +3,17 @@
 // any surface: Home under the greeting, Profile under the name.
 //   compact  just "Lv 23", for places with no room for a bar
 //   rank     adds the rank title after the level
-//   inside   rank emblem (level inside) and a thicker, shorter bar with
-//            "into / span XP" written on it
+//   inside   Home, under the greeting: "Level 3" and "40 XP to level 4" as a
+//            line of text, the same bold-then-quiet as the date line above it,
+//            over a thin bar like the one on the day card. The rank emblem
+//            stays in the XP sheet, one tap away.
 
 import React from 'react';
 import { View, Text, Pressable, StyleProp, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../ThemeContext';
 import { tnum, G90 } from '../theme';
-import { levelState, levelTitle, rankFor, useXpVersion } from '../xp';
-import { RankEmblem } from './RankEmblem';
+import { levelState, levelTitle, useXpVersion } from '../xp';
 import { useEarnedVersion } from '../earned';
 
 export const XP_GOLD = '#E8D8AE';   // light end of the XP bar gradient
@@ -21,6 +22,34 @@ export const XpBar = ({ onPress, compact = false, rank = false, inside = false, 
   const { c } = useTheme();
   useXpVersion(); useEarnedVersion();
   const lv = levelState();
+  const label = `Level ${lv.level}, ${levelTitle(lv.level)}. ${lv.toNext} XP to level ${lv.level + 1}. Open XP and levels`;
+
+  if (inside) {
+    return (
+      <Pressable
+        onPress={onPress}
+        disabled={!onPress}
+        accessibilityRole={onPress ? 'button' : undefined}
+        accessibilityLabel={label}
+        style={({ pressed }) => [{ minHeight: 44, justifyContent: 'center', opacity: pressed ? 0.6 : 1 }, style]}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 10 }}>
+          <Text numberOfLines={1} style={[{ fontSize: 14, fontWeight: '700', color: c.ink, letterSpacing: -0.1 }, tnum]}>
+            Level {lv.level}
+          </Text>
+          <Text numberOfLines={1} style={[{ flexShrink: 1, fontSize: 13, color: c.ink3, letterSpacing: -0.1 }, tnum]}>
+            {lv.toNext.toLocaleString()} XP to level {lv.level + 1}
+          </Text>
+        </View>
+        {/* Empty at 0 XP: no token fill, the line above says what's needed. */}
+        <View style={{ marginTop: 6, height: 4, borderRadius: 2, backgroundColor: c.line, overflow: 'hidden' }}>
+          {lv.progress > 0 && (
+            <View style={{ width: `${lv.progress * 100}%`, minWidth: 4, height: '100%', borderRadius: 2, backgroundColor: c.gold }} />
+          )}
+        </View>
+      </Pressable>
+    );
+  }
 
   const level = (
     <Text style={[{ fontSize: 15, fontWeight: '700', color: c.ink, letterSpacing: -0.2 }, tnum]}>
@@ -36,30 +65,11 @@ export const XpBar = ({ onPress, compact = false, rank = false, inside = false, 
       disabled={!onPress}
       hitSlop={10}
       accessibilityRole={onPress ? 'button' : undefined}
-      accessibilityLabel={`Level ${lv.level}, ${levelTitle(lv.level)}. ${lv.toNext} XP to level ${lv.level + 1}. Open XP and levels`}
+      accessibilityLabel={label}
       style={({ pressed }) => [{ flexDirection: 'row', alignItems: 'center', gap: 10, opacity: pressed ? 0.6 : 1 }, style]}
     >
-      {inside ? <RankEmblem rank={rankFor(lv.level)} level={lv.level} size={30} /> : level}
-      {!compact && inside && (
-        <>
-          <View style={{ flex: 1, maxWidth: 190, height: 18, borderRadius: 9, backgroundColor: c.line, overflow: 'hidden', justifyContent: 'center' }}>
-            <LinearGradient
-              colors={[XP_GOLD, c.gold]}
-              start={G90.start}
-              end={G90.end}
-              style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.max(6, Math.round(lv.progress * 100))}%`, borderRadius: 9 }}
-            />
-            <Text style={[{ fontSize: 10.5, fontWeight: '700', color: c.ink, textAlign: 'center', letterSpacing: 0.1 }, tnum]}>
-              {lv.into.toLocaleString()} / {lv.span.toLocaleString()} XP
-            </Text>
-          </View>
-          {/* the level this bar fills up to; the emblem on the left is the one it's leaving */}
-          <Text style={[{ fontSize: 13, fontWeight: '800', color: c.ink2, letterSpacing: -0.2 }, tnum]}>
-            <Text style={{ fontSize: 10, fontWeight: '700', color: c.ink3, letterSpacing: 0.6 }}>LV </Text>{lv.level + 1}
-          </Text>
-        </>
-      )}
-      {!compact && !inside && (
+      {level}
+      {!compact && (
         <>
           <View style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: c.line, overflow: 'hidden' }}>
             <LinearGradient

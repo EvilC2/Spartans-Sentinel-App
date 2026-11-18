@@ -34,13 +34,12 @@ import { useToday } from '../useToday';
 import { useHomework } from '../stores';
 import { fmt12 } from '../bell';
 import { subjectImage } from '../programIcons';
-import { FOOD_ART } from '../menu';
 import { levelState, levelTitle, rankFor, useXpVersion, LevelState } from '../xp';
 import { useEarnedVersion } from '../earned';
 import {
   useSocial, Friend, Request, Peer, FindResult, Social, SharedHomework,
   compareSchedules, todayTogether, friendsInPeriod, sortFriends, fullName, peerInitials, badgeOf, friendXp,
-  myFriendCode, formatCode, cleanCode, friendsForDays, sharedClassNames, DEMO_CODE, MAX_PINNED, myAvatar, mePeer, isSpare,
+  myFriendCode, formatCode, cleanCode, friendsForDays, sharedClassNames, DEMO_CODE, MAX_PINNED, myAvatar, mePeer, blockName,
 } from '../social';
 import type { ScreenProps } from '../../App';
 
@@ -183,14 +182,14 @@ export default function SocialScreen({ topInset }: ScreenProps) {
   const outgoing = social.requests.filter(r => r.direction === 'out');
   const openFriend = open ? social.friends.find(f => f.id === open.id) || null : null;
 
-  // The class row (the caf's category row): my real classes, one per name.
+  // The class row (the caf's category row): my classes, one per name, spares too.
   const classes = useMemo(() => {
     const seen = new Set<string>();
     const out: { key: string; name: string }[] = [];
     for (const k of mine) {
-      const name = k.name.trim();
+      const name = blockName(k);
       const key = name.toLowerCase();
-      if (!name || isSpare(k) || seen.has(key)) continue;
+      if (!name || seen.has(key)) continue;
       seen.add(key);
       out.push({ key, name });
     }
@@ -198,10 +197,10 @@ export default function SocialScreen({ topInset }: ScreenProps) {
   }, [mine]);
   const picked = classes.find(k => k.key === cls);
   const shown = picked
-    ? friends.filter(f => compareSchedules(mine, f.shared).sharedBlocks.some(s => s.mine?.name.trim().toLowerCase() === picked.key))
+    ? friends.filter(f => compareSchedules(mine, f.shared).sharedBlocks.some(s => blockName(s.mine).toLowerCase() === picked.key))
     : friends;
-  // Who's in class with you right now (the "Now" tag on cards). Not at
-  // lunch: lunch is shared with everyone, so the tag would mean nothing.
+  // Who's with you this block (the "Now" tag on cards). Only blocks: lunch and
+  // FIT are shared with everyone, so the tag would mean nothing.
   const nowPeriod = t.phase !== 'before' && t.phase !== 'after' && t.phase !== 'none' && t.current?.kind === 'block' ? t.current : null;
   const nowIds = new Set(nowPeriod ? friendsInPeriod(nowPeriod, mine, friends).map(x => x.friend.id) : []);
 
@@ -213,7 +212,7 @@ export default function SocialScreen({ topInset }: ScreenProps) {
 
         {profile && <YouCard profile={profile} friendCount={friends.length} onPreview={() => setPreview(true)} onAvatar={() => setPicking(true)} onPins={() => setPins(true)} />}
 
-        {social.mode === 'signed-out' && <SmallNote icon="users" text="Sign in to add real friends. These are samples." />}
+        {social.mode === 'signed-out' && <SmallNote icon="users" text="Sign in to add friends." />}
         {social.mode === 'demo' && (
           <SmallNote icon="sparkle" text={<>Sample friends. Try code <Text style={[{ fontWeight: '700', color: c.ink2 }, tnum]}>{formatCode(DEMO_CODE)}</Text></>} />
         )}
@@ -280,7 +279,7 @@ export default function SocialScreen({ topInset }: ScreenProps) {
         </View>
 
         <Text style={{ paddingTop: 20, paddingHorizontal: 20, textAlign: 'center', fontSize: 12, color: c.ink4, letterSpacing: 0.2, lineHeight: 17 }}>
-          Friends only see the classes you share.{'\n'}Never your timetable or student number.
+          Friends only see the classes and spares you share.{'\n'}Never your timetable or student number.
         </Text>
       </ScrollView>
 
@@ -434,8 +433,8 @@ const RequestStrip = ({ incoming, outgoing, social }: { incoming: Request[]; out
 };
 
 // ────────────────────────────────────────────────────────────────
-// Today — the caf's specials strip: each period left today that you share
-// with friends. Lunch is gold; classes are sky. Tap opens the first friend.
+// Today — the caf's specials strip: each block left today that you share
+// with friends, spares included. Tap opens the first friend.
 // ────────────────────────────────────────────────────────────────
 type Today = ReturnType<typeof useToday>;
 const TodayStrip = ({ t, me, friends, onOpen }: { t: Today; me: Course[]; friends: Friend[]; onOpen: (f: Friend) => void }) => {
@@ -444,7 +443,7 @@ const TodayStrip = ({ t, me, friends, onOpen }: { t: Today; me: Course[]; friend
   const from = t.currentIndex >= 0 ? t.currentIndex : 0;
   const rows = t.plan.periods
     .map((p, i) => ({ p, i }))
-    .filter(({ p, i }) => i >= from && (p.kind === 'lunch' || p.kind === 'block'))
+    .filter(({ p, i }) => i >= from && p.kind === 'block')
     .map(({ p, i }) => ({ p, i, with_: friendsInPeriod(p, me, friends).map(x => x.friend) }))
     .filter(r => r.with_.length > 0);
   if (!rows.length) return null;
@@ -453,25 +452,24 @@ const TodayStrip = ({ t, me, friends, onOpen }: { t: Today; me: Course[]; friend
       <Heading text="Today together" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
         {rows.map(({ p, i, with_ }) => {
-          const lunch = p.kind === 'lunch';
           const now = i === t.currentIndex && t.phase !== 'before';
-          const name = lunch ? 'Lunch' : (p.course?.name.trim() || me.find(k => k.slot === p.slot)?.name.trim() || `Block ${p.slot}`);
+          const name = blockName(p.course) || blockName(me.find(k => k.slot === p.slot)) || `Block ${p.slot}`;
           return (
             <Pressable key={i} onPress={() => onOpen(with_[0])} accessibilityRole="button" accessibilityLabel={`${name}, ${fmt12(p.start)}, ${withWho(with_)}`}
               style={({ pressed }) => [{
                 width: 250, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 20,
-                backgroundColor: lunch ? c.goldTint : c.skyTint, borderWidth: 1, borderColor: lunch ? '#E7D2A0' : '#BFDDF7', opacity: pressed ? 0.85 : 1,
+                backgroundColor: c.skyTint, borderWidth: 1, borderColor: '#BFDDF7', opacity: pressed ? 0.85 : 1,
               }, shadow.sm]}>
-              <Image source={lunch ? FOOD_ART.plate : subjectImage(name)} style={{ width: 56, height: 56 }} />
+              <Image source={subjectImage(name)} style={{ width: 56, height: 56 }} />
               <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={[{ fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: lunch ? c.gold : c.sky600 }, tnum]}>
-                  {now ? `Now · till ${fmt12(p.end)}` : fmt12(p.start)}{!lunch && p.slot ? ` · ${p.slot}` : ''}
+                <Text style={[{ fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: c.sky600 }, tnum]}>
+                  {now ? `Now · till ${fmt12(p.end)}` : fmt12(p.start)}{p.slot ? ` · ${p.slot}` : ''}
                 </Text>
                 <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '700', color: c.ink, letterSpacing: -0.3, marginTop: 1 }}>{name}</Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
                   <View style={{ flexDirection: 'row' }}>
                     {with_.slice(0, 3).map((f, j) => (
-                      <View key={f.id} style={{ marginLeft: j ? -8 : 0, zIndex: 5 - j }}><PeerAvatar peer={f} size={20} ring={lunch ? c.goldTint : c.skyTint} /></View>
+                      <View key={f.id} style={{ marginLeft: j ? -8 : 0, zIndex: 5 - j }}><PeerAvatar peer={f} size={20} ring={c.skyTint} /></View>
                     ))}
                   </View>
                   <Text numberOfLines={1} style={{ fontSize: 12.5, color: c.ink3, flexShrink: 1 }}>{withWho(with_)}</Text>
@@ -492,7 +490,7 @@ const TodayStrip = ({ t, me, friends, onOpen }: { t: Today; me: Course[]; friend
 const FriendCard = ({ f, me, now, onPress }: { f: Friend; me: Course[]; now: boolean; onPress: () => void }) => {
   const { c } = useTheme();
   const shared = compareSchedules(me, f.shared).sharedBlocks;
-  const names = Array.from(new Set(shared.map(s => s.mine!.name.trim())));
+  const names = Array.from(new Set(shared.map(s => blockName(s.mine))));
   const level = levelState(friendXp(f)).level;
   const scale = useRef(new Animated.Value(1)).current;
   const bump = () => {
@@ -886,14 +884,13 @@ const FriendSheet = ({ friend, me, plan, isSchoolDay, onClose, social }: { frien
             <Heading text="Today together" />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
               {today.map((row, i) => {
-                const lunch = row.kind === 'lunch';
-                const m = lunch ? null : cmp.slots.find(s => s.slot === row.period.slot)?.mine;
-                const name = lunch ? 'Lunch' : (m?.name.trim() || 'Class');
+                const m = cmp.slots.find(s => s.slot === row.period.slot)?.mine;
+                const name = blockName(m) || 'Class';
                 return (
-                  <View key={i} style={[{ width: 220, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 20, backgroundColor: lunch ? c.goldTint : c.skyTint, borderWidth: 1, borderColor: lunch ? '#E7D2A0' : '#BFDDF7' }, shadow.sm]}>
-                    <Image source={lunch ? FOOD_ART.plate : subjectImage(name)} style={{ width: 48, height: 48 }} />
+                  <View key={i} style={[{ width: 220, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 20, backgroundColor: c.skyTint, borderWidth: 1, borderColor: '#BFDDF7' }, shadow.sm]}>
+                    <Image source={subjectImage(name)} style={{ width: 48, height: 48 }} />
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={[{ fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: lunch ? c.gold : c.sky600 }, tnum]}>{fmt12(row.period.start)}</Text>
+                      <Text style={[{ fontSize: 10, fontWeight: '800', letterSpacing: 1, textTransform: 'uppercase', color: c.sky600 }, tnum]}>{fmt12(row.period.start)}</Text>
                       <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '700', color: c.ink, letterSpacing: -0.3, marginTop: 1 }}>{name}</Text>
                       {!!m?.room && <Text style={[{ fontSize: 12.5, color: c.ink3, marginTop: 1 }, tnum]}>{roomShort(m.room)}</Text>}
                     </View>
@@ -916,7 +913,7 @@ const FriendSheet = ({ friend, me, plan, isSchoolDay, onClose, social }: { frien
             ) : (
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
                 {cmp.sharedBlocks.map(r => {
-                  const name = r.mine!.name.trim();
+                  const name = blockName(r.mine);
                   const sub = [r.mine!.room ? roomShort(r.mine!.room) : '', r.mine!.teacher ? teacherShort(r.mine!.teacher) : ''].filter(Boolean).join(' · ');
                   return (
                     <View key={r.slot} style={[{ width: '48.2%', marginBottom: 12, borderRadius: 20, padding: 14, paddingTop: 12, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line }, shadow.sm]}>
@@ -1017,7 +1014,7 @@ const YouSheet = ({ visible, profile, friendCount, onClose, onAvatar }: { visibl
   const sees: [boolean, string][] = [
     [true, 'Your name, grade and profile photo'],
     [true, 'Your level, XP and badges'],
-    [true, 'Classes you share with them'],
+    [true, 'Classes and spares you share with them'],
     [true, 'Homework you wrote for those classes'],
     [false, 'Your timetable'],
     [false, 'Your student number'],

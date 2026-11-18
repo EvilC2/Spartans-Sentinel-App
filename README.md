@@ -38,7 +38,7 @@ src/PreviewTime.tsx         TEMPORARY time-of-day scrubber behind the play butto
 src/weather.ts              live weather for the hero card (Open-Meteo, no key, school coords)
 src/staff.ts                staff directory with real emails (school staff page, Sep 2026)
 src/ProfileContext.tsx      student + 8 timetable slots (1-1…2-4) + extra classes, persisted
-src/badges.ts               badge catalogue (120) — rarity, category, demo unlocks; art is placeholder
+src/badges.ts               badge catalogue (120) — rarity, category, earned-badge store; art is placeholder
 src/catalog.ts              course list (2025–26 Course Book) + staff list for autocomplete
 src/auth.ts                 pure-JS SHA-256; passwords stored salted-hashed, never in clear
 src/supabase.ts             Supabase client (keys from .env — see BACKEND.md)
@@ -88,8 +88,8 @@ sheet.
 Bell times come from the "2026-2027 Sentinel Bell Schedule" PDF (`src/bell.ts`).
 
 "Today" uses the device clock while the date is inside the school year and
-falls back to Thu Sep 17 2026, 9:32 AM otherwise (labelled "demo date"). The
-dashed play button beside the greeting is a TEMPORARY scrubber for previewing
+falls back to Thu Sep 17 2026, 9:32 AM otherwise (labelled "demo date" for the
+owner only). The dashed play button (owner only, `src/devAccess.ts`) beside the greeting is a TEMPORARY scrubber for previewing
 other times of day — delete it and `src/PreviewTime.tsx` once the live card is
 signed off.
 

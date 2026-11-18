@@ -1,6 +1,6 @@
 // Spartans — rank emblem. A hex shield in the rank's tier colours with the
 // level number in the middle. Used big in the XP sheet hero, small on the
-// rank road and next to the Home XP bar.
+// rank road and on Social.
 //   ring    0–1: draws a progress ring round the shield (progress to next level)
 //   locked  grey, with no number: a rank not reached yet
 

@@ -3,34 +3,36 @@
 // Day view) reads it from here, and App Club Admin writes it here.
 //
 // Three modes:
-//   demo   No backend on this build. Starter posts plus this phone's edits;
-//          you count as the app's owner and President so App Club can be tried.
+//   demo   A developer's machine with no backend keys (`demoBuild`), never a
+//          release build. Starter posts plus this phone's edits; you count as
+//          the app's owner and President so App Club can be tried.
 //   live   Signed in with the backend. Posts come from the server `posts`
 //          table (migration 0008); edits go there and every phone sees them.
-//   local  Backend is set up but the posts table isn't yet (0008 not run).
-//          Same as demo, but roles come from the server, and the admin
-//          screen says changes stay on this phone.
+//          No connection: still live, showing the last copy from the server.
+//   local  Signed out, or the posts table isn't there yet (0008 not run). No
+//          posts but this phone's own; roles come from the server, and the
+//          admin screen says changes stay on this phone.
 //
 // View as (TEMPORARY, for testing App Club): `viewAs` swaps the roles every
 // screen sees for another set, so the club can be checked as any role. Only
-// offered in demo mode, to developers and to top ranks (`canViewAs`). The
-// server still checks the real roles, so it never grants anything.
+// offered to the app's owner (`canViewAs`, src/devAccess.ts). The server still
+// checks the real roles, so it never grants anything.
 //
 // Views and answers: shown posts are batched and counted (see_posts), trivia
 // and poll answers are saved (answer_post) and the counts come back
-// (post_tally). Demo/local mode keeps them on this phone, on top of sample
-// numbers for the starter posts.
+// (post_tally). Demo/local mode keeps them on this phone; in demo they sit on
+// top of sample numbers for the starter posts.
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { backendConfigured } from '../supabase';
+import { backendConfigured, demoBuild } from '../supabase';
 import { useProfile } from '../ProfileContext';
+import { useDevAccess } from '../devAccess';
 import type { Role, PostRow, PostStat, Popup } from '../backend';
 import { Post, PostKind, Place, DataOf, isLive, canEdit as canEditKind, tidy, titleOf } from './model';
 import { seedPosts, SAMPLE_STATS } from './seed';
 import { earnXp, checkIn, XP } from '../xp';
-import { isDev, isTop } from '../ranks';
 
 export type ContentMode = 'demo' | 'live' | 'local';
 export type Mine = { seen?: boolean; opens?: number; choice?: number };
@@ -65,7 +67,6 @@ type Ctx = {
   stats: (id: string) => Stats | null;
   loadStats: (ids: string[]) => Promise<void>;
   refresh: () => Promise<void>;
-  importStarter: () => Promise<number>;
   // a photo picked on this phone → a URL the post can keep (uploaded when live)
   uploadImage: (uri: string, mime?: string) => Promise<string>;
 };
@@ -114,7 +115,7 @@ const endOfDay = (iso: string) => { const d = new Date(iso); d.setHours(23, 59, 
 
 export const ContentProvider = ({ children }: { children: React.ReactNode }) => {
   const { signedIn, roles: serverRoles } = useProfile();
-  const [mode, setMode] = useState<ContentMode>(backendConfigured ? 'live' : 'demo');
+  const [mode, setMode] = useState<ContentMode>(backendConfigured ? 'live' : demoBuild ? 'demo' : 'local');
   const [note, setNote] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [local, setLocal] = useState<Local>({ edits: {}, own: [] });
@@ -131,7 +132,7 @@ export const ContentProvider = ({ children }: { children: React.ReactNode }) => 
   const [viewAs, setViewAs] = useState<Role[] | null>(null);
   // Demo: you own the app and are its President.
   const realRoles: Role[] = useMemo(() => mode === 'demo' ? ['owner', 'president'] : serverRoles, [mode, serverRoles]);
-  const canViewAs = mode === 'demo' || isTop(realRoles) || isDev(realRoles);
+  const canViewAs = useDevAccess();
   const roles: Role[] = canViewAs && viewAs ? viewAs : realRoles;
 
   // ── Load from this phone ──
@@ -163,7 +164,7 @@ export const ContentProvider = ({ children }: { children: React.ReactNode }) => 
   const refresh = useCallback(async () => {
     setNow(Date.now());
     setSeedAt(Date.now());
-    if (!backendConfigured || !signedIn) { setMode(backendConfigured ? 'local' : 'demo'); return; }
+    if (!backendConfigured || !signedIn) { setMode(demoBuild ? 'demo' : 'local'); return; }
     try {
       const { posts } = await import('../backend');
       const rows = (await posts.list()).map(fromRow);
@@ -185,7 +186,9 @@ export const ContentProvider = ({ children }: { children: React.ReactNode }) => 
         setMode('local');
         setNote('The server does not have admin posts yet (migrations 0007 and 0008). Until they are run, changes here stay on this phone.');
       } else {
-        // Offline: keep the cached copy, still live.
+        // Offline: keep the cached copy, still live. (The signed-out moment at
+        // launch set 'local', which has no server posts, so set it back.)
+        setMode('live');
         setNote(server.length ? 'Offline. Showing the last copy from the server.' : 'Could not reach the server.');
       }
     }
@@ -204,6 +207,7 @@ export const ContentProvider = ({ children }: { children: React.ReactNode }) => 
   // ── What this account sees ──
   const posts = useMemo<Post[]>(() => {
     if (live) return server;
+    if (!demoBuild) return local.own;
     const seeds = seedPosts().filter(p => !(local.edits[p.id] as any)?.deleted).map(p => (local.edits[p.id] as Post) || p);
     return [...seeds, ...local.own];
   }, [live, server, local, seedAt]);
@@ -389,21 +393,11 @@ export const ContentProvider = ({ children }: { children: React.ReactNode }) => 
     return dest.uri;
   }, [live]);
 
-  // Live server with no posts yet: copy the starter posts up (owner).
-  const importStarter = useCallback(async () => {
-    if (!live) return 0;
-    const { posts: api } = await import('../backend');
-    const seeds = seedPosts();
-    for (const p of seeds) await api.create(toRow(p));
-    await refresh();
-    return seeds.length;
-  }, [live, refresh]);
-
   const value = useMemo<Ctx>(() => ({
     ready, mode, note, posts, roles, realRoles, viewAs, setViewAs, canViewAs, now, inPlace, live: liveOf, popups,
     mine: id => mine[id] || {}, tally, seen, opened, answer,
-    canEdit, save, remove, move, stats, loadStats, refresh, importStarter, uploadImage,
-  }), [ready, mode, note, posts, roles, realRoles, viewAs, canViewAs, now, inPlace, liveOf, popups, mine, tally, seen, opened, answer, canEdit, save, remove, move, stats, loadStats, refresh, importStarter, uploadImage]);
+    canEdit, save, remove, move, stats, loadStats, refresh, uploadImage,
+  }), [ready, mode, note, posts, roles, realRoles, viewAs, canViewAs, now, inPlace, liveOf, popups, mine, tally, seen, opened, answer, canEdit, save, remove, move, stats, loadStats, refresh, uploadImage]);
 
   return <C.Provider value={value}>{children}</C.Provider>;
 };

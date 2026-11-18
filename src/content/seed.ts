@@ -1,7 +1,8 @@
-// Spartans — starter posts. The trivia, polls and news the app has always
-// shipped with (src/data.ts), as Posts, so admins can edit or take down
-// anything students see. Times are rebuilt on every launch so the samples
-// sit around today. Also the sample numbers shown in demo mode.
+// Spartans — sample posts for demo mode only: a developer's machine with no
+// backend keys (`demoBuild`). Real accounts never see these; their posts come
+// from the server. Sample trivia, polls and news (src/data.ts) as Posts, so
+// App Club can be tried with no server. Times are rebuilt on every launch so
+// the samples sit around today. Also the sample numbers shown in demo mode.
 
 import S from '../data';
 import type { Post, NewsCategory } from './model';

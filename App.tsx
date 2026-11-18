@@ -9,8 +9,8 @@
 // The web build's `.app-frame` (max-width 430, centred, shadowed on desktop)
 // is kept so tablets and the web target still show the phone-width column.
 
-import React, { useEffect, useState } from 'react';
-import { View, StatusBar, useWindowDimensions } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { AppState, View, StatusBar, useWindowDimensions } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import {
@@ -43,7 +43,11 @@ import MapScreen from './src/screens/MapScreen';
 import LunchScreen from './src/screens/LunchScreen';
 import AdminScreen from './src/screens/AdminScreen';
 import OnboardingScreen, { ProfileEditor, EditWhat } from './src/screens/OnboardingScreen';
+import CatchUpScreen from './src/screens/CatchUpScreen';
+import { useCatchUpPractice, endCatchUpPractice } from './src/catchUpPractice';
 import { LoadingSplash } from './src/components/SplashHero';
+import { WidgetSync } from './src/widgets/sync';
+import { useDeepLinks } from './src/widgets/links';
 
 export type ScreenProps = {
   onNavigate: (t: TabId) => void;
@@ -53,10 +57,13 @@ export type ScreenProps = {
 
 // The loading splash stays up at least this long, even if the profile loads sooner.
 const SPLASH_MIN_MS = 2000;
+// Coming back to the app counts as opening it again after this long away, so
+// flicking to Messages and back doesn't bring Catch Up up each time.
+const REOPEN_AFTER_MS = 15 * 60_000;
 
 function Shell() {
   const { c, mode } = useTheme();
-  const { profile, loaded: profileLoaded, signedIn } = useProfile();
+  const { profile, loaded: profileLoaded, signedIn, catchUpOpen, openCatchUp, closeCatchUp } = useProfile();
   const [splashHeld, setSplashHeld] = useState(true);
   useEffect(() => {
     const t = setTimeout(() => setSplashHeld(false), SPLASH_MIN_MS);
@@ -75,6 +82,31 @@ function Shell() {
   };
 
   const showIntro = loaded && (!profile || !signedIn);
+
+  // Catch Up asks on every open until it's finished: at launch, right after a
+  // new account is made, and when coming back after a while.
+  const catchUpDue = loaded && !!profile && signedIn && !profile.catchUp?.doneAt;
+  useEffect(() => { if (catchUpDue) openCatchUp(); }, [catchUpDue]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const dueRef = useRef(catchUpDue);
+  dueRef.current = catchUpDue;
+  useEffect(() => {
+    let leftAt = 0;
+    const sub = AppState.addEventListener('change', s => {
+      if (s === 'background') leftAt = Date.now();
+      else if (s === 'active' && leftAt) {
+        if (dueRef.current && Date.now() - leftAt >= REOPEN_AFTER_MS) openCatchUp();
+        leftAt = 0;
+      }
+    });
+    return () => sub.remove();
+  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+  // Practice runs (Developer screen) open over everything and save nothing.
+  const practice = useCatchUpPractice();
+  const showCatchUp = loaded && !!profile && signedIn && (catchUpOpen || !!practice);
+  const inApp = loaded && !!profile && signedIn;
+
+  // Widget and Live Activity taps (spartans://homework …) open that page.
+  useDeepLinks(nav.go, inApp);
 
   return (
     <View style={{
@@ -95,6 +127,7 @@ function Shell() {
         overflow: 'hidden',
       }, wide ? shadow.lg : shadow.none]}>
         {!loaded && <LoadingSplash />}
+        {inApp && <WidgetSync />}
 
         {showIntro && (
           <OnboardingScreen
@@ -104,7 +137,16 @@ function Shell() {
         )}
 
         {/* Settings editors cover the tabs; Save or Cancel returns to where you were. */}
-        {!showIntro && editing && (
+        {showCatchUp && (
+          <CatchUpScreen
+            key={practice ? `practice-${practice.grade}` : 'real'}
+            practice={practice}
+            topInset={insets.top} bottomInset={insets.bottom}
+            onClose={practice ? endCatchUpPractice : closeCatchUp}
+          />
+        )}
+
+        {!showIntro && !showCatchUp && editing && (
           <ProfileEditor
             what={editing}
             topInset={insets.top}
@@ -113,7 +155,7 @@ function Shell() {
           />
         )}
 
-        {loaded && profile && signedIn && !editing && (
+        {loaded && profile && signedIn && !editing && !showCatchUp && (
           <>
             {tab === 'home' && <HomeScreen {...screenProps} />}
             {tab === 'programs' && <ProgramsScreen {...screenProps} />}

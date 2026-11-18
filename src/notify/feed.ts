@@ -17,7 +17,7 @@ import type { Request } from '../social';
 import type { Popup } from '../backend';
 import { CALENDAR, fromISO, toISO } from '../calendar';
 import { BADGES, UNLOCKED } from '../badges';
-import { earnedAt } from '../earned';
+import { catchUpBadgeIds, earnedAt, isCatchUpBadge } from '../earned';
 import { eventDaysOn, addDays, EventDay } from './eventDays';
 
 export type Topic = 'announcements' | 'homework' | 'events' | 'buzz' | 'friends' | 'badges';
@@ -156,8 +156,22 @@ const friendNotices = (requests: Request[]): Notice[] => requests
     action: { kind: 'tab' as const, tab: 'social' as const },
   }));
 
+// Catch Up gives dozens of badges at once: one notice for the lot.
+const catchUpNotice = (): Notice[] => {
+  const ids = catchUpBadgeIds().filter(id => id in UNLOCKED && BADGES.some(b => b.id === id));
+  if (!ids.length) return [];
+  const when = Math.max(...ids.map(id => earnedAt(id) ?? 0));
+  return [{
+    id: `catchup:${when}`, topic: 'badges' as const,
+    title: 'Catch Up complete',
+    body: `${ids.length} ${ids.length === 1 ? 'badge' : 'badges'} added to your collection`,
+    at: when, icon: 'badge' as const,
+    action: { kind: 'tab' as const, tab: 'me' as const },
+  }];
+};
+
 const badgeNotices = (): Notice[] => BADGES
-  .filter(b => b.id in UNLOCKED)
+  .filter(b => b.id in UNLOCKED && !isCatchUpBadge(b.id))
   .map(b => ({
     id: `badge:${b.id}`, topic: 'badges' as const,
     title: `Badge unlocked: ${b.title}`,
@@ -185,6 +199,7 @@ export const buildFeed = (input: FeedInput, from: number, to: number): Notice[] 
     ...personalNotices(input.events),
     ...friendNotices(input.requests),
     ...badgeNotices(),
+    ...catchUpNotice(),
     ...announcementNotices(input.announcements),
   ];
   const seen = new Set<string>();

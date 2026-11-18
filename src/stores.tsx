@@ -1,7 +1,7 @@
 // Spartans — small persisted stores that several screens share.
 //   PinsProvider    — which More pages are pinned to Quick links on Home
 //   GradesProvider  — per-class, per-term marks entered on the class card
-//   HomeworkProvider — which homework items are checked off
+//   HomeworkProvider — the student's own homework: order, edits, what is ticked
 //   EventsProvider  — personal calendar events added with the + button, plus
 //                     homework due dates (read-only events sourced from a class)
 // All four are AsyncStorage-backed and local to the device (no backend yet).
@@ -9,7 +9,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useProfile } from './ProfileContext';
-import { ALL_HOMEWORK, HomeworkItem } from './programs';
+import type { HomeworkItem } from './programs';
 import { pageById } from './pages';
 import { earnXp, XP } from './xp';
 
@@ -89,53 +89,49 @@ export const termAverage = (t: Partial<Record<Term, string>>) => {
 };
 
 // ── Homework ────────────────────────────────────────────────────
-// Sample items come from src/data.ts (keyed by block). Students can also add
-// their own to any program, or to Unsorted (no program), which is how classes
-// outside the timetable get homework: those are stored here, tagged with the
-// program name. Sample items can be edited too: the changes sit in `edits`
-// and are laid over the sample on read.
+// Every item is one the student typed; nobody starts with any. Each is tagged
+// with its program name, or none for Unsorted, which is how classes outside the
+// timetable get homework too.
+//
+// The array order IS the list order, so a class's list reads in the order it
+// was written and rearranging it just rearranges the array. Adding goes to the
+// end, which is the bottom of that class. Ticked items keep their place, so
+// unticking puts one back where it was.
 //
 // Done state is the date it was ticked off ('2026-09-23'), so the Homework
 // page can keep it in the list for the rest of that day before it moves to
-// the Completed part of its section. Old rows stored `true` (no date).
+// Completed. Old rows stored `true` (no date).
 export type HomeworkPatch = Partial<Pick<HomeworkItem, 'title' | 'due' | 'time' | 'notes' | 'program'>>;
-type HomeworkEdit = HomeworkPatch & { deleted?: boolean };
 
 type HomeworkCtx = {
-  items: HomeworkItem[];                 // sample + own, with edits and `done` / `doneOn` applied
+  items: HomeworkItem[];                 // the student's own, in their order, with `done` / `doneOn` applied
   isDone: (id: string) => boolean;
   toggle: (id: string, todayIso?: string) => void;
   add: (program: string, title: string, due: string, extra?: Pick<HomeworkItem, 'time' | 'notes' | 'slot'>) => void;
   update: (id: string, patch: HomeworkPatch) => void;
   remove: (id: string) => void;
+  // These items, in this order, into the places they already hold between them;
+  // everything else (other classes, Completed) stays where it is.
+  reorder: (ids: string[]) => void;
 };
-const Homework = createContext<HomeworkCtx>({ items: [], isDone: () => false, toggle: () => {}, add: () => {}, update: () => {}, remove: () => {} });
+const Homework = createContext<HomeworkCtx>({ items: [], isDone: () => false, toggle: () => {}, add: () => {}, update: () => {}, remove: () => {}, reorder: () => {} });
 
 const localIso = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 
 export const HomeworkProvider = ({ children }: { children: React.ReactNode }) => {
   const [done, setDone] = usePersisted<Record<string, boolean | string>>('spartans-homework-done-v1', {});
   const [own, setOwn] = usePersisted<HomeworkItem[]>('spartans-homework-own-v1', []);
-  const [edits, setEdits] = usePersisted<Record<string, HomeworkEdit>>('spartans-homework-edits-v1', {});
+  // This key held edits to the sample homework, which is gone. Nothing reads it.
+  useEffect(() => { AsyncStorage.removeItem('spartans-homework-edits-v1').catch(() => {}); }, []);
   const value = useMemo<HomeworkCtx>(() => {
-    // An edit that sets `program` moves a sample item off its block.
-    const sample = ALL_HOMEWORK.filter(h => !edits[h.id]?.deleted).map(h => {
-      const e = edits[h.id];
-      if (!e) return h;
-      const { deleted, ...patch } = e;
-      const out: HomeworkItem = { ...h, ...patch };
-      if (patch.program !== undefined) delete out.slot;
-      return out;
-    });
-    const all = [...sample, ...own];
-    const mark = (id: string) => id in done ? done[id] : !!all.find(h => h.id === id)?.done;
+    const mark = (id: string) => id in done ? done[id] : !!own.find(h => h.id === id)?.done;
     const isDone = (id: string) => !!mark(id);
     return {
-      items: all.map(h => { const m = mark(h.id); return { ...h, done: !!m, doneOn: typeof m === 'string' ? m : undefined }; }),
+      items: own.map(h => { const m = mark(h.id); return { ...h, done: !!m, doneOn: typeof m === 'string' ? m : undefined }; }),
       isDone,
       toggle: (id, todayIso) => {
         // Finishing homework pays XP once per item (see xp.ts for the daily cap).
-        if (!isDone(id)) earnXp('homework', id, XP.homework, `Finished: ${all.find(h => h.id === id)?.title || 'homework'}`);
+        if (!isDone(id)) earnXp('homework', id, XP.homework, `Finished: ${own.find(h => h.id === id)?.title || 'homework'}`);
         setDone(d => ({ ...d, [id]: isDone(id) ? false : (todayIso || localIso()) }));
       },
       add: (program, title, due, extra) => setOwn(list => [...list, {
@@ -144,16 +140,28 @@ export const HomeworkProvider = ({ children }: { children: React.ReactNode }) =>
         ...(extra?.slot ? { slot: extra.slot } : {}),
         ...(extra?.time ? { time: extra.time } : {}), ...(extra?.notes?.trim() ? { notes: extra.notes.trim() } : {}),
       }]),
-      update: (id, patch) => {
-        if (id.startsWith('own-')) setOwn(list => list.map(h => h.id === id ? { ...h, ...patch } : h));
-        else setEdits(m => ({ ...m, [id]: { ...(m[id] || {}), ...patch } }));
-      },
-      remove: id => {
-        if (id.startsWith('own-')) setOwn(list => list.filter(h => h.id !== id));
-        else setEdits(m => ({ ...m, [id]: { ...(m[id] || {}), deleted: true } }));
-      },
+      update: (id, patch) => setOwn(list => {
+        const cur = list.find(h => h.id === id);
+        if (!cur) return list;
+        const next: HomeworkItem = { ...cur, ...patch };
+        // Moved to another program: it joins the bottom of that list, and its
+        // old block must go or it would still count as homework for that class.
+        if (patch.program !== undefined && (cur.slot || classKey(patch.program) !== classKey(cur.program || ''))) {
+          delete next.slot;
+          return [...list.filter(h => h.id !== id), next];
+        }
+        return list.map(h => h.id === id ? next : h);
+      }),
+      remove: id => setOwn(list => list.filter(h => h.id !== id)),
+      reorder: ids => setOwn(list => {
+        const byId = new Map(list.map(h => [h.id, h]));
+        const queue = ids.filter(id => byId.has(id));
+        const moving = new Set(queue);
+        let i = 0;
+        return list.map(h => moving.has(h.id) ? byId.get(queue[i++])! : h);
+      }),
     };
-  }, [done, own, edits]);
+  }, [done, own]);
   return <Homework.Provider value={value}>{children}</Homework.Provider>;
 };
 export const useHomework = () => useContext(Homework);
@@ -182,10 +190,9 @@ export const EventsProvider = ({ children }: { children: React.ReactNode }) => {
   const [stored, setEvents] = usePersisted<PersonalEvent[]>('spartans-events-v1', []);
   const { profile } = useProfile();
   const { items } = useHomework();
-  // Homework due dates become read-only events tagged with the class name, so
-  // the calendar (dots, day sheet, month list) shows them without knowing
-  // where they came from. One data model: a due date is an event whose
-  // source is a program.
+  // Homework due dates are carried here as read-only rows tagged with the class
+  // name (source 'homework'). They are not events: every list of events, the
+  // calendar's included, filters them out.
   const derived = useMemo<PersonalEvent[]>(() => items.map(h => {
     const k = h.slot ? profile?.courses.find(x => x.slot === h.slot) : undefined;
     return { id: 'hw:' + h.id, iso: h.due, time: h.time, title: h.title, className: h.program || k?.name || (h.slot ? `Block ${h.slot}` : undefined), source: 'homework' as const, done: h.done };

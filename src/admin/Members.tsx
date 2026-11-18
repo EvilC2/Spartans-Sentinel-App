@@ -23,7 +23,7 @@ import { ask } from '../confirm';
 import { useContent } from '../content';
 import type { Role } from '../backend';
 import {
-  TEAMS, TEAM_ORDER, TOP, TeamId, ALL_ROLES, canAssign, isTop, isLead, jobOf, roleLabel, roleArt, teamOf,
+  TEAMS, TEAM_ORDER, TOP, TeamId, ALL_ROLES, canAssign, clubRoles, isTop, isLead, jobOf, roleLabel, roleArt, teamOf,
 } from '../ranks';
 import { Toggle } from '../screens/Settings';
 import { Act, Card, CardHead, ClubSheet, Field, Hint, Pill, Search, Seg, toneOf } from './ui';
@@ -188,7 +188,7 @@ export const Members = ({ scope }: { scope: TeamId | 'all' }) => {
       {t.people === null && !t.err && <Text style={{ fontSize: 13, color: c.ink3 }}>Loading…</Text>}
 
       {t.people && scope === 'all' && group === 'az' && (
-        <PeopleCard title="Everyone" people={people.filter(p => p.roles.length)} line={p => topOf(p) ? topLabel(p) : TEAM_ORDER.filter(tm => inTeam(p, tm)).map(tm => `${TEAMS[tm].label}: ${summaryIn(p, tm)}`).join(' · ')} onOpen={setOpen} />
+        <PeopleCard title="Everyone" people={people.filter(p => clubRoles(p.roles).length)} line={p => topOf(p) ? topLabel(p) : TEAM_ORDER.filter(tm => inTeam(p, tm)).map(tm => `${TEAMS[tm].label}: ${summaryIn(p, tm)}`).join(' · ')} onOpen={setOpen} />
       )}
       {t.people && (scope !== 'all' || group === 'teams') && (
         <>

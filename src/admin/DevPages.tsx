@@ -1,13 +1,14 @@
-// Spartans — App Club → the Developer screen. Every developer, whatever
-// their role on the team, gets the same tools on one screen (no sub-pages):
+// Spartans — App Club → the Developer screen. The app owner's tools on one
+// screen (no sub-pages). Nobody else gets here: AdminScreen shows it only with
+// useDevAccess (src/devAccess.ts).
 //   View as        see the club the way any role does
-//   Temp adjusters testing controls students never see (time preview)
+//   Temp adjusters testing controls nobody else sees (time preview, Catch Up practice)
+//   Widgets        what the last widget / Live Activity write did (iOS)
 //   Server         which migrations are on the server (the backend check)
 //   Jump to        every screen in the app
 //   This build     version, platform, server mode
-// Developers see only this in App Club; "View" is how they look at the rest.
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Platform } from 'react-native';
 import app from '../../app.json';
 import { useTheme } from '../ThemeContext';
@@ -22,6 +23,9 @@ import { PAGES } from '../pages';
 import { mainRole, roleLabel, rankLabel } from '../ranks';
 import { Toggle } from '../screens/Settings';
 import { Act, Group, Hint, Row } from './ui';
+import { getWidgetStatus, onWidgetStatus, requestWidgetRefresh } from '../widgets/status';
+import { startCatchUpPractice } from '../catchUpPractice';
+import { useProfile } from '../ProfileContext';
 
 const SCREENS: { tab: TabId; label: string; art: any }[] = [
   { tab: 'home', label: 'Home', art: require('../../assets/map/school.png') },
@@ -38,6 +42,7 @@ export const DeveloperScreen = ({ onViewAs }: { onViewAs: () => void }) => {
   const nav = useNav();
   const store = useContent();
   const pt = usePreviewTime();
+  const { profile } = useProfile();
   const viewing = store.viewAs !== null
     ? (store.viewAs.length ? roleLabel(mainRole(store.viewAs) || store.viewAs[0]) : 'Not in the club')
     : null;
@@ -48,11 +53,15 @@ export const DeveloperScreen = ({ onViewAs }: { onViewAs: () => void }) => {
         {viewing && <Row icon="swap" label="Back to your own view" onPress={() => store.setViewAs(null)} />}
       </Group>
 
-      <Group title="Temp adjusters" footer="Only on this phone. Students never see these.">
+      <Group title="Temp adjusters" footer="Only on this phone. Nobody else sees these.">
         <Row icon="clock" label="Time preview on Home" sub="Scrub the day card to any time today"
           trailing={<Toggle on={pt.tools} onChange={pt.setTools} label="Time preview on Home" />} />
         {pt.active && <Row icon="swap" label="Back to the real time" onPress={pt.clear} />}
+        <Row icon="play" label="Practice Catch Up" sub="Run it as any grade, as often as you like. Saves nothing, gives no badges."
+          onPress={() => startCatchUpPractice(profile?.grade ?? 8)} />
       </Group>
+
+      {Platform.OS === 'ios' && <WidgetCheck />}
 
       <ServerCheck />
 
@@ -67,6 +76,31 @@ export const DeveloperScreen = ({ onViewAs }: { onViewAs: () => void }) => {
         <Row icon="shield" label="Your roles" sub={rankLabel(store.realRoles) || 'None'} />
       </Group>
     </View>
+  );
+};
+
+// ── Widgets ─────────────────────────────────────────────────────
+// Release builds hide widget errors; this shows them. "Refresh" rewrites every
+// widget and steps the Live Activity (for the previewed time, if one is set).
+const WidgetCheck = () => {
+  const [st, setSt] = useState(getWidgetStatus);
+  useEffect(() => onWidgetStatus(setSt), []);
+  const names = Object.keys(st.results);
+  return (
+    <Group title="Widgets & Live Activity" footer={st.previewing
+      ? 'Written for the previewed time. Back to the real time rewrites them.'
+      : 'Widgets refresh when the app opens. The Live Activity starts only while the app is open, from an hour before first bell.'}>
+      {names.length === 0 && <Row icon="clock" label="Not written yet" sub="Sign in and open Home" />}
+      {names.map(n => (
+        <Row key={n} icon={st.results[n] === 'ok' ? 'check' : 'close'} label={n}
+          sub={st.results[n] === 'ok' ? undefined : st.results[n]}
+          detail={st.results[n] === 'ok' ? 'Up to date' : 'Failed'} />
+      ))}
+      <Row icon="phone" label="Live Activity" sub={st.live} />
+      <Row icon="swap" label="Refresh widgets now"
+        detail={st.at ? new Date(st.at).toTimeString().slice(0, 5) : undefined}
+        onPress={requestWidgetRefresh} />
+    </Group>
   );
 };
 

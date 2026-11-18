@@ -14,6 +14,7 @@ import * as Clipboard from 'expo-clipboard';
 
 import { useTheme } from '../ThemeContext';
 import { useProfile } from '../ProfileContext';
+import { useDevAccess } from '../devAccess';
 import { MAX_PINNED } from '../social';
 import { shadow, fonts } from '../theme';
 import { Icon, IconName, MessagesGlyph } from '../components/Icon';
@@ -35,14 +36,16 @@ export const unlockedCount = () => BADGES.filter(isUnlocked).length;
 // ────────────────────────────────────────────────────────────────
 // List sheet
 // ────────────────────────────────────────────────────────────────
-// Preview (the play button beside the close button): while it is on, any
-// badge you tap shows as if you had earned it, and the badges you tapped get
-// the full unlock animation once you leave the sheet with the X.
+// Preview (the play button beside the close button, owner only): while it is
+// on, any badge you tap shows as if you had earned it, and the badges you
+// tapped get the full unlock animation once you leave the sheet with the X.
 export const BadgesSheet = ({ visible, onClose }: { visible: boolean; onClose: () => void }) => {
   const { c } = useTheme();
+  const devAccess = useDevAccess();
   const [sort, setSort] = useState<SortMode>('rarity');
   const [open, setOpen] = useState<Badge | null>(null);
-  const [preview, setPreview] = useState(false);
+  const [previewOn, setPreview] = useState(false);
+  const preview = devAccess && previewOn;
   const [picked, setPicked] = useState<Badge[]>([]);
   const [queue, setQueue] = useState<Badge[]>([]);
   const catalog = useCatalogVersion();   // approved Badge team designs join BADGES at runtime
@@ -52,7 +55,7 @@ export const BadgesSheet = ({ visible, onClose }: { visible: boolean; onClose: (
   const [scanMsg, setScanMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const onScan = async (raw: string) => {
     setScan(false);
-    try { const b = await claimBadgeCode(raw, mode === 'live'); setScanMsg({ ok: true, text: `You got ${b.title}!` }); setTimeout(() => setOpen(b), 350); }
+    try { const b = await claimBadgeCode(raw, mode !== 'demo'); setScanMsg({ ok: true, text: `You got ${b.title}!` }); setTimeout(() => setOpen(b), 350); }
     catch (e: any) { setScanMsg({ ok: false, text: String(e?.message || 'Could not read that code.') }); }
   };
 
@@ -112,19 +115,21 @@ export const BadgesSheet = ({ visible, onClose }: { visible: boolean; onClose: (
             >
               <Icon name="qr" size={15} stroke={2} color={c.ink2} />
             </Pressable>
-            <Pressable
-              onPress={() => { setPreview(p => !p); if (preview) setPicked([]); }}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityState={{ selected: preview }}
-              accessibilityLabel="Preview unlocks"
-              style={({ pressed }) => ({
-                width: 32, height: 32, borderRadius: 16, backgroundColor: preview ? c.navy700 : c.paper2,
-                alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.6 : 1,
-              })}
-            >
-              <Icon name="play" size={14} stroke={2} color={preview ? '#fff' : c.ink2} style={{ marginLeft: 2 }} />
-            </Pressable>
+            {devAccess && (
+              <Pressable
+                onPress={() => { setPreview(p => !p); if (preview) setPicked([]); }}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityState={{ selected: preview }}
+                accessibilityLabel="Preview unlocks"
+                style={({ pressed }) => ({
+                  width: 32, height: 32, borderRadius: 16, backgroundColor: preview ? c.navy700 : c.paper2,
+                  alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.6 : 1,
+                })}
+              >
+                <Icon name="play" size={14} stroke={2} color={preview ? '#fff' : c.ink2} style={{ marginLeft: 2 }} />
+              </Pressable>
+            )}
             <Pressable onPress={close} hitSlop={8} accessibilityRole="button" accessibilityLabel="Close" style={({ pressed }) => ({
               width: 32, height: 32, borderRadius: 16, backgroundColor: c.paper2,
               alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.6 : 1,

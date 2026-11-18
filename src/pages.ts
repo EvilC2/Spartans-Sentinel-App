@@ -26,7 +26,7 @@ export type Page = {
 export const PAGES: Page[] = [
   { id: 'map', label: 'Map', icon: 'map', art: require('../assets/map/map.png'), tone: 'sky', sub: 'Find any room, get the route', go: 'map' },
   { id: 'lunch', label: 'Cafeteria', icon: 'fork', art: require('../assets/food/plate.png'), tone: 'gold', sub: 'Menu, prices, gift card', go: 'lunch' },
-  { id: 'homework', label: 'Homework', icon: 'tasks', art: require('../assets/homework/notepad.png'), tone: 'crimson', sub: 'By class, by due date', go: 'homework' },
+  { id: 'homework', label: 'Homework', icon: 'tasks', art: require('../assets/homework/notepad.png'), tone: 'crimson', sub: 'Every class, in your order', go: 'homework' },
   { id: 'contacts', label: 'Contacts', icon: 'phone', art: require('../assets/pages/phone.png'), tone: 'moss', sub: 'Teachers, office, counselling', go: 'contacts' },
   { id: 'library', label: 'Library', icon: 'book', art: require('../assets/subjects/books.png'), tone: 'moss', sub: 'Hours and books out', soon: 'Phase 2' },
   { id: 'grades', label: 'Grades', icon: 'chart', art: require('../assets/subjects/chart.png'), tone: 'sky', sub: 'Every class, every term', soon: 'Phase 4' },

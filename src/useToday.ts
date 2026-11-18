@@ -9,6 +9,7 @@ import { CALENDAR, CalDay, inSchoolYear, toISO } from './calendar';
 import { buildDayPlan, DayPlan, PlanPeriod, toMin } from './bell';
 import type { Course } from './ProfileContext';
 import { usePreviewTime } from './PreviewTime';
+import { useDevAccess } from './devAccess';
 
 export const DEMO_NOW = new Date(2026, 8, 17, 9, 32);
 
@@ -90,7 +91,11 @@ export const computeToday = (now: Date, courses: Course[], isPreview = false): T
 export const useToday = (courses: Course[]) => {
   const now = useNow();
   const { active } = usePreviewTime();
-  return useMemo(() => computeToday(now, courses, active), [now, courses, active]);
+  const devAccess = useDevAccess();
+  return useMemo(() => {
+    const t = computeToday(now, courses, active);
+    return devAccess ? t : { ...t, isDemo: false };   // the "demo date" label is owner only
+  }, [now, courses, active, devAccess]);
 };
 
 // ── formatting ───────────────────────────────────────────────────

@@ -8,13 +8,16 @@
 // Sentinel's timetable has 8 blocks on a Day 1 / Day 2 rotation:
 // 1-1 … 1-4 on Day 1 and 2-1 … 2-4 on Day 2. Block 1-1 is homeroom.
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { hashPassword, MIN_PASSWORD } from './auth';
 import { setXpGrade } from './xp';
 import { AvatarSpec, avatarOf } from './components/Avatar';
 import { backendConfigured } from './supabase';
-import { auth as remoteAuth, profile as remoteProfile, admin as remoteAdmin, Role, RemoteProfile } from './backend';
+import { auth as remoteAuth, profile as remoteProfile, admin as remoteAdmin, badges as remoteBadges, catchUp as remoteCatchUp, Role, RemoteProfile } from './backend';
+import { Badge } from './badges';
+import { catchUpBadgeIds, clearEarned, earnCatchUp, mergeServerAwards, revokeBadges } from './earned';
+import type { Answers } from './catchUp';
 
 const KEY = 'sentinel-profile-v2';
 const SESSION_KEY = 'sentinel-session-v1';   // "1" while signed in on this device
@@ -40,6 +43,11 @@ export type Course = {
 export type ExtraKind = 'outside' | 'online' | 'sport' | 'music' | 'extra' | 'club' | 'program';
 export type ExtraCourse = { name: string; teacher: string; kind?: ExtraKind };
 
+// Catch Up (src/catchUp.ts). The server copy decides, except while `pending`:
+// finished on this phone, not yet accepted by the server. `claimed` is what to
+// send it, kept until it has been.
+export type CatchUpState = { score: number; doneAt?: string; answers?: Answers; claimed?: string[]; pending?: boolean };
+
 export type StudentProfile = {
   firstName: string;
   lastName: string;
@@ -57,6 +65,7 @@ export type StudentProfile = {
   avatar?: AvatarSpec;     // colour + emoji friends see when there is no photo
   courses: Course[];      // exactly one per slot
   extraCourses: ExtraCourse[];  // outside the timetable (Theatre Company, Choir, academies…)
+  catchUp?: CatchUpState;
 };
 
 export const SLOT_COLORS: Record<Slot, string> = {
@@ -233,6 +242,12 @@ type Ctx = {
   refreshRoles: () => Promise<void>;
   setPinnedBadges: (ids: string[]) => Promise<void>;   // Social: up to four badges under your name
   setAvatar: (a: AvatarSpec) => Promise<void>;          // Social: what friends see instead of a photo
+  catchUpOpen: boolean;                                 // the Catch Up flow is on screen (App.tsx)
+  openCatchUp: () => void;
+  closeCatchUp: () => void;
+  saveCatchUpProgress: (answers: Answers, score: number) => void;
+  finishCatchUp: (answers: Answers, badgeIds: string[]) => Promise<Badge[]>;   // the badges this really unlocked
+  resetCatchUp: () => Promise<string | null>;           // null = ok, else error text
 };
 
 const ProfileCtx = createContext<Ctx>({
@@ -240,6 +255,8 @@ const ProfileCtx = createContext<Ctx>({
   save: async () => {}, setPinnedBadges: async () => {}, setAvatar: async () => {}, signIn: async () => 'Not ready', signOut: async () => {}, clear: async () => {},
   changePassword: async () => 'Not ready', deleteAccount: async () => 'Not ready',
   redeemInvite: async () => { throw new Error('Not ready'); }, refreshRoles: async () => {},
+  catchUpOpen: false, openCatchUp: () => {}, closeCatchUp: () => {}, saveCatchUpProgress: () => {},
+  finishCatchUp: async () => [], resetCatchUp: async () => 'Not ready',
 });
 
 // Server row → the shape the app already uses. Server wins on conflict; local
@@ -254,7 +271,14 @@ const fromRemote = (r: RemoteProfile, local: StudentProfile | null): StudentProf
   pinnedBadges: Array.isArray(r.pinned_badges) ? r.pinned_badges : (local?.pinnedBadges || []),
   ...(r.avatar ? { avatar: avatarOf(r.avatar) } : local?.avatar ? { avatar: local.avatar } : {}),
   photoUrl: r.photo_url || undefined,
+  catchUp: catchUpFrom(r, local?.catchUp),
 });
+// A server without migration 0019 sends no catch_up_score: keep the phone's copy.
+const catchUpFrom = (r: RemoteProfile, local?: CatchUpState): CatchUpState | undefined => {
+  if (r.catch_up_score === undefined || local?.pending) return local;
+  const answers = r.catch_up_answers && Object.keys(r.catch_up_answers).length ? r.catch_up_answers : local?.answers;
+  return { score: r.catch_up_score, doneAt: r.catch_up_done_at || undefined, answers };
+};
 const toRemote = (p: StudentProfile) => ({
   first_name: p.firstName, last_name: p.lastName, grade: p.grade,
   pronouns: p.pronouns || null, student_id: p.studentId || null, artona_url: p.artonaUrl || null,
@@ -295,10 +319,34 @@ export const ProfileProvider = ({ children, onReset }: { children: React.ReactNo
   const [loaded, setLoaded] = useState(false);
   const [online, setOnline] = useState(false);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [catchUpOpen, setCatchUpOpen] = useState(false);
+  const latest = useRef<StudentProfile | null>(null);
+  latest.current = profile;
+  const lastProgress = useRef<Promise<unknown>>(Promise.resolve());
 
   useEffect(() => { setXpGrade(profile?.grade ?? 8); }, [profile?.grade]);
 
   const cacheRoles = (r: Role[]) => { setRoles(r); AsyncStorage.setItem(ROLES_KEY, JSON.stringify(r)).catch(() => {}); };
+
+  const patchCatchUp = (fn: (c: CatchUpState | undefined) => CatchUpState | undefined) =>
+    setProfile(p => {
+      if (!p) return p;
+      const next = { ...p, catchUp: fn(p.catchUp) };
+      AsyncStorage.setItem(KEY, JSON.stringify(next)).catch(() => {});
+      return next;
+    });
+
+  // Send a Catch Up finished on this phone. A failure stays pending and is
+  // tried again on the next sync, so the badges and the "done" are never lost.
+  const pushCatchUp = async (c?: CatchUpState) => {
+    if (!backendConfigured || !c?.pending || !c.doneAt) return;
+    try {
+      if (!(await remoteAuth.session())) return;
+      await lastProgress.current.catch(() => {});
+      await remoteCatchUp.finish(c.answers || {}, c.claimed || []);
+      patchCatchUp(x => x ? { score: x.score, doneAt: x.doneAt, answers: x.answers } : x);
+    } catch { /* offline, or 0019 not run yet */ }
+  };
 
   // Pull the server copy of the profile + roles; quietly keep the cache if offline.
   const sync = async (local: StudentProfile | null) => {
@@ -306,11 +354,17 @@ export const ProfileProvider = ({ children, onReset }: { children: React.ReactNo
     try {
       // No server session (offline sign-in): running on the device copy.
       if (!(await remoteAuth.session())) { setOnline(false); return; }
+      await pushCatchUp((latest.current ?? local)?.catchUp);
       const [r, myRoles] = await Promise.all([remoteProfile.me(), remoteAdmin.myRoles()]);
       if (r) {
-        const merged = fromRemote(r, local);
-        setProfile(merged);
-        await AsyncStorage.setItem(KEY, JSON.stringify(merged));
+        // Merged onto the latest copy: this call may have started before a
+        // change made on this phone, and must not undo it.
+        setProfile(prev => {
+          const merged = fromRemote(r, prev ?? local);
+          AsyncStorage.setItem(KEY, JSON.stringify(merged)).catch(() => {});
+          return merged;
+        });
+        remoteBadges.of(r.id).then(mergeServerAwards).catch(() => {});
       }
       cacheRoles(myRoles);
       setOnline(true);
@@ -401,6 +455,7 @@ export const ProfileProvider = ({ children, onReset }: { children: React.ReactNo
       return /invalid login/i.test(msg) ? 'Wrong email or password.' : msg;
     }
     const same = (profile?.email || '').toLowerCase() === email;
+    if (!same) await clearEarned();
     const base = { ...(same && profile ? profile : emptyProfile()), email, passwordHash: hashPassword(password) };
     setProfile(base);
     setSignedIn(true);
@@ -423,6 +478,7 @@ export const ProfileProvider = ({ children, onReset }: { children: React.ReactNo
 
   const signOut = async () => {
     setSignedIn(false);
+    cacheRoles([]);   // the next person on this phone must not inherit them
     await AsyncStorage.removeItem(SESSION_KEY);
     if (backendConfigured) await remoteAuth.signOut().catch(() => {});
   };
@@ -469,6 +525,7 @@ export const ProfileProvider = ({ children, onReset }: { children: React.ReactNo
           : msg;
       }
     }
+    await clearEarned();
     const keys = (await AsyncStorage.getAllKeys().catch(() => [] as readonly string[])).filter(isAccountKey);
     await AsyncStorage.multiRemove(keys).catch(() => {});
     setProfile(null);
@@ -544,8 +601,48 @@ export const ProfileProvider = ({ children, onReset }: { children: React.ReactNo
     } catch { /* offline: pushed with the next save */ }
   };
 
+  // ── Catch Up ──
+  // Progress goes up as they answer, so the account's score stays true even if
+  // they stop halfway.
+  const saveCatchUpProgress = (answers: Answers, score: number) => {
+    patchCatchUp(c => (c?.doneAt ? c : { score, answers }));
+    if (!backendConfigured) return;
+    lastProgress.current = remoteAuth.session()
+      .then(s => (s ? remoteProfile.update({ catch_up_score: score, catch_up_answers: answers }) : null))
+      .catch(() => {});
+  };
+
+  // Badges land straight away, on this phone, and the server catches up behind.
+  const finishCatchUp = async (answers: Answers, badgeIds: string[]) => {
+    await revokeBadges(catchUpBadgeIds());   // a redo replaces the last answers
+    const now = new Date();
+    const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const fresh = await earnCatchUp(badgeIds, iso, now.getTime());
+    const done: CatchUpState = { score: 100, doneAt: now.toISOString(), answers, claimed: badgeIds, pending: true };
+    patchCatchUp(() => done);
+    pushCatchUp(done);
+    return fresh;
+  };
+
+  const resetCatchUp = async () => {
+    const mine = latest.current?.catchUp;
+    let gone = catchUpBadgeIds();
+    if (backendConfigured && !mine?.pending) {
+      try {
+        if (!(await remoteAuth.session())) return 'Sign out and back in while online, then try again.';
+        gone = [...new Set([...gone, ...(await remoteCatchUp.reset())])];
+      } catch { return 'Could not reach the server. Connect to the internet and try again.'; }
+    }
+    await revokeBadges(gone);
+    patchCatchUp(c => ({ score: 0, answers: c?.answers }));
+    return null;
+  };
+
   return (
-    <ProfileCtx.Provider value={{ profile, loaded, signedIn, online, roles, save, signIn, signOut, clear, changePassword, deleteAccount, redeemInvite, refreshRoles, setPinnedBadges, setAvatar }}>
+    <ProfileCtx.Provider value={{
+      profile, loaded, signedIn, online, roles, save, signIn, signOut, clear, changePassword, deleteAccount, redeemInvite, refreshRoles, setPinnedBadges, setAvatar,
+      catchUpOpen, openCatchUp: () => setCatchUpOpen(true), closeCatchUp: () => setCatchUpOpen(false), saveCatchUpProgress, finishCatchUp, resetCatchUp,
+    }}>
       {children}
     </ProfileCtx.Provider>
   );

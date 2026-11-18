@@ -1,10 +1,10 @@
 // Spartans — App Club "View" (TEMPORARY, for testing). The button in the
 // header's top right opens a list of every view: someone who isn't in the
-// club (the join page), President, Teacher Sponsor, and every role on every
-// team. Picking one makes App Club act as that role; picking your own role
+// club (the join page), President, Teacher Sponsor, a teacher (staff, no
+// team), and every role on every team. Picking one makes App Club act as that role; picking your own role
 // goes back to you. While you're viewing as someone else the button lights
-// up gold, and nothing else on the page changes. Offered in demo mode, to
-// developers and to top ranks; the server still checks your real roles.
+// up gold, and nothing else on the page changes. Offered to the app's owner
+// only (`canViewAs`, src/devAccess.ts); the server still checks your real roles.
 
 import React from 'react';
 import { View, Text, Pressable, Image } from 'react-native';
@@ -46,7 +46,7 @@ export const ViewAsSheet = ({ visible, onClose }: { visible: boolean; onClose: (
   const { viewAs, setViewAs, realRoles, mode } = useContent();
   const mine = mainRole(realRoles);
   // What's showing now: the view you picked, or your own main role.
-  const current: Role | 'none' | null = viewAs === null ? mine : viewAs.length ? mainRole(viewAs) : 'none';
+  const current: Role | 'none' | null = viewAs === null ? mine : viewAs.length ? mainRole(viewAs) || viewAs[0] : 'none';
   const pick = (r: Role | 'none') => {
     setViewAs(r === 'none' ? [] : r === mine ? null : [r]);
     onClose();
@@ -73,6 +73,7 @@ export const ViewAsSheet = ({ visible, onClose }: { visible: boolean; onClose: (
       <Group>
         <Opt r="none" label="Not in the club" sub="The join page" art={ART.globe} />
         {TOP.filter(r => r !== 'owner').map(r => <Opt key={r} r={r} label={roleLabel(r)} sub={TEAMS.executive.jobs.find(j => j.role === r)?.sub} art={roleArt(r)} />)}
+        <Opt r="teacher" label={roleLabel('teacher')} sub="Clubs & programs, posts to any program" art={roleArt('teacher')} />
       </Group>
       {TEAM_ORDER.map(t => {
         const team = TEAMS[t];

@@ -4,6 +4,8 @@
 // TEACHERS: teaching staff, counselling and admin from the school's Staff page (Sep 2026).
 //   Matching is by last name first, then first name.
 
+import { REAL_CLUBS } from './clubList';
+
 export const COURSES: string[] = [
   // ── Grade 8 core ──
   'English 8', 'Mathematics 8', 'Mathematics 8 Enriched', 'Mathématiques 8', 'Science 8', 'Sciences 8',
@@ -77,12 +79,15 @@ export const ACADEMIES: string[] = [
 export const EXTRAS: string[] = [
   'YELL (Young Entrepreneur Leadership Launchpad)', 'Theatre Company', 'Theatre Production', 'Concert Choir',
   'Jazz Band', 'Concert Band', 'Orchestra', 'Student Council', 'Grad Committee', 'Yearbook',
-  'The Sentinel Sun (Newspaper)', 'Multicultural Club', 'Rotary Interact Club', 'Science Club', 'Robotics Club',
-  'Debate Club', 'Model UN', 'Chess Club', 'Math Club', 'Peer Tutoring', 'Leadership', 'Link Crew',
+  'The Sentinel Sun (Newspaper)', 'Peer Tutoring', 'Leadership', 'Link Crew',
+  // Clubs come from Sentinel's real club sheet (src/clubList.ts, appended
+  // below); the old placeholder ones (Science, Debate, Model UN, Chess, Math…)
+  // are gone.
   'Sr. Boys Basketball', 'Sr. Girls Basketball', 'Jr. Boys Basketball', 'Jr. Girls Basketball',
   'Sr. Boys Soccer', 'Sr. Girls Soccer', 'Sr. Boys Rugby', 'Sr. Girls Rugby', 'Volleyball', 'Cross Country',
   'Track & Field', 'Swimming', 'Tennis', 'Golf', 'Ultimate', 'Field Hockey', 'Badminton', 'Ski & Snowboard',
   'French Immersion', 'Exchange Program',
+  ...REAL_CLUBS.map(c => c.name),
 ];
 
 export type Teacher = { last: string; first: string; dept: string };

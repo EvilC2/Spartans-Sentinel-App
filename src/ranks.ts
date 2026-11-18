@@ -11,12 +11,15 @@
 //              `owner` isn't a role you pick: it's the fact of owning the app,
 //              kept on the server so someone can always fix things. It has
 //              top powers and shows as the President view.
-//   Developer  any Developer role: the Developer screen (tools, and "View" to
-//              see the club as any role). The server lets them do any job,
-//              but they can't hand out roles.
+//   Developer  any Developer role. The server lets them do any job, but they
+//              can't hand out roles. The Developer screen and "View" are the
+//              owner's alone (src/devAccess.ts).
 //   Manager    their whole team: every job in it, approving its work, and
 //              adding or removing its members. Executive has no manager.
 //   Member     only the jobs a manager gave them inside that team.
+// Teacher (migration 0021) is staff, not a team: no App Club jobs, only
+// Clubs & programs (the school's club list, who runs each program) and
+// posting announcements to any program. Top roles are staff too.
 // Roles are rows in the server's members table; `has_role()` there follows
 // the same rules (migrations 0013 and 0017), so the app and the server agree.
 
@@ -143,6 +146,11 @@ export const isLead = (r: Role) => LEADS.includes(r);
 export const isTop = (roles: Role[]) => roles.some(r => TOP.includes(r));
 // Old name: "has owner powers".
 export const isOwner = isTop;
+// Staff: runs the club list and may post to any program (is_staff() in 0021).
+export const STAFF: Role[] = [...TOP, 'teacher'];
+export const isStaff = (roles: Role[]) => roles.some(r => STAFF.includes(r));
+// Roles that put you in App Club (teacher alone doesn't).
+export const clubRoles = (roles: Role[]) => roles.filter(r => r !== 'teacher');
 export const isDev = (roles: Role[]) => roles.some(r => teamOf(r) === 'developer');
 // Manager of this team (top ranks count).
 export const leads = (roles: Role[], t: TeamId) => {
@@ -193,6 +201,7 @@ export const tierOf = (roles: Role[]): Tier =>
 // Human name for any role, for lists and invite codes.
 export const roleLabel = (r: Role): string => {
   if (r === 'owner') return 'Owner';
+  if (r === 'teacher') return 'Teacher';
   if (r === 'events') return 'Events (old role)';
   if (r === 'library') return 'Library (old role)';
   const t = teamOf(r);
@@ -219,12 +228,13 @@ export const rankLabel = (roles: Role[]): string => {
     if (!mine.length) continue;
     parts.push(t === 'executive' ? mine.map(roleLabel).join(', ') : `${TEAMS[t].label}: ${mine.map(roleLabel).join(', ')}`);
   }
+  if (roles.includes('teacher')) parts.push(roleLabel('teacher'));
   return parts.join(' · ');
 };
 
 // The art for a role (the owner gets the roundel; managers the key).
 export const roleArt = (r: Role): ImageSourcePropType =>
-  r === 'owner' ? A.shield : isLead(r) ? A.key : jobOf(r)?.art || A.star;
+  r === 'owner' ? A.shield : r === 'teacher' ? A.gradcap : isLead(r) ? A.key : jobOf(r)?.art || A.star;
 
 // Every role someone can be given, in team order (owner isn't one).
 export const ALL_ROLES: { team: TeamId; role: Role }[] = [

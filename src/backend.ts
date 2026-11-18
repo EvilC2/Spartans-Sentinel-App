@@ -14,7 +14,8 @@ export type Role = 'trivia' | 'polls' | 'news' | 'menu' | 'popups' | 'events' | 
   // migration 0016: five teams (src/ranks.ts)
   | 'facts' | 'lead_developer' | 'dev_innovator' | 'dev_seasonal' | 'dev_backend' | 'dev_apple' | 'dev_android'
   | 'badge_award' | 'badge_list' | 'badge_qr' | 'feedback_real'
-  | 'president' | 'marketing' | 'hr' | 'stuco' | 'sponsor';
+  | 'president' | 'marketing' | 'hr' | 'stuco' | 'sponsor'
+  | 'teacher';   // migration 0021: staff outside the club teams (Clubs & programs only)
 export type ContentStatus = 'draft' | 'queued' | 'published';
 export type BuzzKind = 'trivia' | 'fact' | 'poll' | 'news';
 
@@ -34,6 +35,9 @@ export type RemoteProfile = {
   xp_total: number;
   pinned_badges?: string[];   // migration 0009: up to four badge ids under your name
   avatar?: { tone: number; glyph?: string } | null;   // migration 0014: colour + emoji friends see
+  catch_up_score?: number;              // migration 0019: 0-100, 100 once finished
+  catch_up_answers?: Record<string, string | string[]>;
+  catch_up_done_at?: string | null;
 };
 
 export type BuzzItem = {
@@ -134,7 +138,10 @@ export const profile = {
 // ── Roles / App Club Admin ───────────────────────────────────────
 export const admin = {
   myRoles: async (): Promise<Role[]> => {
-    const rows = unwrap(await supabase.from('members').select('role').is('revoked_at', null));
+    // Owners can read every members row (RLS), so filter to our own.
+    const id = await auth.userId();
+    if (!id) return [];
+    const rows = unwrap(await supabase.from('members').select('role').eq('user_id', id).is('revoked_at', null));
     return (rows as { role: Role }[]).map(r => r.role);
   },
   redeemInvite: (code: string) => rpc<Role>('redeem_invite', { p_code: code }),
@@ -294,6 +301,15 @@ export const badges = {
     supabase.from('badge_awards').update({ revoked_at: new Date().toISOString() }).eq('id', awardId).then(unwrap),
 };
 
+// ── Catch Up (migration 0019) ────────────────────────────────────
+// The server only keeps badges on its own Catch Up list.
+export const catchUp = {
+  finish: (answers: Record<string, string | string[]>, badgeIds: string[]) =>
+    rpc<number>('finish_catch_up', { p_answers: answers, p_badges: badgeIds }),
+  // Takes the badges back and asks again; returns the ids taken back.
+  reset: () => rpc<string[]>('reset_catch_up', {}),
+};
+
 // ── Badge team: new badge designs (migration 0011) ───────────────
 // Shapes of `how` and `art` live in src/badgeDesigns.ts.
 export type BadgeDesignRow = {
@@ -424,6 +440,68 @@ export const grants = {
     rpc<number>('award_badge_many', { p_users: userIds, p_badge: badgeId, p_reason: reason }),
   // Students: scan a badge's QR code.
   claim: (code: string) => rpc<string | null>('claim_badge_code', { p_code: code }),
+};
+
+// ── Clubs and program announcements (migration 0021) ─────────────
+// The school's real clubs, kept by staff (Owner, President, Teacher Sponsor,
+// teacher). A program is its name lowercased and trimmed (`program_key`, the
+// same as classKey() in src/programs.ts). Hooks and offline fallbacks live in
+// src/clubs.ts.
+export type ClubKind = 'club' | 'sport' | 'music' | 'extra' | 'outside';
+export type ClubRow = {
+  id: string; name: string; kind: ClubKind; blurb: string | null; meets: string | null; room: string | null;
+  sponsor: string | null; active: boolean; created_by: string | null; created_at: string; updated_at: string;
+  gc_code?: string | null;   // migration 0023: Google Classroom code to join
+  is_new?: boolean;          // migration 0023: new this year
+};
+export type ClubWrite = Partial<Pick<ClubRow, 'name' | 'kind' | 'blurb' | 'meets' | 'room' | 'sponsor' | 'active' | 'gc_code' | 'is_new'>>;
+
+export const clubs = {
+  // students: active clubs; staff: every club (RLS)
+  list: () => supabase.from('clubs').select('*').order('name').limit(500).then(unwrap) as Promise<ClubRow[]>,
+  // staff
+  add: (c: ClubWrite & Pick<ClubRow, 'name'>) =>
+    supabase.from('clubs').insert(c).select().single().then(unwrap) as Promise<ClubRow>,
+  update: (id: string, c: ClubWrite) =>
+    supabase.from('clubs').update(c).eq('id', id).select().single().then(unwrap) as Promise<ClubRow>,
+  remove: (id: string) => supabase.from('clubs').delete().eq('id', id).then(unwrap),
+};
+
+export type ProgramPostRow = {
+  id: string; program_key: string; title: string; body: string; pinned: boolean;
+  author: string | null; author_name: string | null; created_at: string; updated_at: string;
+};
+
+export const programPosts = {
+  // anyone signed in; pinned first, then newest
+  list: (key: string) =>
+    supabase.from('program_posts').select('*').eq('program_key', key)
+      .order('pinned', { ascending: false }).order('created_at', { ascending: false }).limit(50).then(unwrap) as Promise<ProgramPostRow[]>,
+  // staff, or a manager of this program (can_post_program); the server stamps the author
+  add: (p: Pick<ProgramPostRow, 'program_key' | 'title' | 'body' | 'pinned'>) =>
+    supabase.from('program_posts').insert(p).select().single().then(unwrap) as Promise<ProgramPostRow>,
+  update: (id: string, p: Partial<Pick<ProgramPostRow, 'title' | 'body' | 'pinned'>>) =>
+    supabase.from('program_posts').update(p).eq('id', id).select().single().then(unwrap) as Promise<ProgramPostRow>,
+  // the author, or staff
+  remove: (id: string) => supabase.from('program_posts').delete().eq('id', id).then(unwrap),
+};
+
+export type ManagerRow = {
+  program_key: string; program_name: string; user_id: string; first_name: string; last_name: string;
+  email: string; grade: number; created_at: string;
+};
+
+export const programManagers = {
+  // staff: who runs what, with names (all programs, or one)
+  list: (key?: string) => rpc<ManagerRow[]>('program_manager_list', key ? { p_key: key } : {}),
+  add: (key: string, name: string, userId: string) =>
+    supabase.from('program_managers').upsert({ program_key: key, program_name: name.trim(), user_id: userId }).then(unwrap),
+  remove: (key: string, userId: string) =>
+    supabase.from('program_managers').delete().eq('program_key', key).eq('user_id', userId).then(unwrap),
+  // anyone: the program keys I run
+  mine: () => rpc<string[]>('my_programs_to_manage', {}),
+  // staff: people search for picking a manager
+  find: (q: string) => rpc<Person[]>('find_people_staff', { q }),
 };
 
 // ── Push ─────────────────────────────────────────────────────────

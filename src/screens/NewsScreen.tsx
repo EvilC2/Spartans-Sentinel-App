@@ -62,18 +62,31 @@ export default function AnnouncementsScreen({ onNavigate, topInset }: Props) {
       } />
       <View style={{ height: 14 }} />
 
+      {/* ── Nothing posted yet: no chips to filter, just say so ─ */}
+      {news.length === 0 && (
+        <View style={{ paddingHorizontal: 20, paddingTop: 6 }}>
+          <View style={{ borderRadius: 24, borderWidth: 1, borderColor: c.line, borderStyle: 'dashed', padding: 22, alignItems: 'center', gap: 6 }}>
+            <Icon name="news" size={22} stroke={1.8} color={c.ink4} />
+            <Text style={{ fontSize: 14, fontWeight: '600', color: c.ink2 }}>No announcements yet</Text>
+            <Text style={{ fontSize: 12.5, color: c.ink3, textAlign: 'center' }}>News from the App Club shows up here.</Text>
+          </View>
+        </View>
+      )}
+
       {/* ── Category filter chips ───────────────────────────── */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{
-          gap: 8, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 14,
-        }}
-      >
-        {FILTERS.map(f => (
-          <FilterChip key={f} label={f} active={f === filter} onPress={() => setFilter(f)} />
-        ))}
-      </ScrollView>
+      {news.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{
+            gap: 8, paddingHorizontal: 20, paddingTop: 6, paddingBottom: 14,
+          }}
+        >
+          {FILTERS.map(f => (
+            <FilterChip key={f} label={f} active={f === filter} onPress={() => setFilter(f)} />
+          ))}
+        </ScrollView>
+      )}
 
       {/* ── Pinned / featured card ──────────────────────────── */}
       {showPinned && !!pinned && (
@@ -116,12 +129,14 @@ export default function AnnouncementsScreen({ onNavigate, topInset }: Props) {
       ))}
 
       {/* ── End-of-feed footer ──────────────────────────────── */}
-      <Text style={{
-        paddingTop: 32, paddingHorizontal: 20, paddingBottom: 8,
-        textAlign: 'center', fontSize: 12, color: c.ink4, letterSpacing: 0.2,
-      }}>
-        {news.length ? '— End of feed —' : 'No announcements right now.'}
-      </Text>
+      {news.length > 0 && (
+        <Text style={{
+          paddingTop: 32, paddingHorizontal: 20, paddingBottom: 8,
+          textAlign: 'center', fontSize: 12, color: c.ink4, letterSpacing: 0.2,
+        }}>
+          End of feed
+        </Text>
+      )}
     </ScrollView>
   );
 }

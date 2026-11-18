@@ -20,6 +20,7 @@ import { CALENDAR, toISO } from '../calendar';
 import { buildDayPlan } from '../bell';
 import { ProgramIcon, glow, wash } from './ProgramIcon';
 import { ProgramBody } from './ProgramBody';
+import { ScrollerCtx, useHomeworkScroller } from './HomeworkList';
 import { Program, programsFor, programId, KIND_ONE } from '../programs';
 import { useNav } from '../nav';
 
@@ -76,6 +77,7 @@ const ClassSheet = ({ item: ref, onClose }: { item: ClassRef | null; onClose: ()
   const { height } = useWindowDimensions();
   const { profile } = useProfile();
   const nav = useNav();
+  const { scroller, rootProps, scrollProps } = useHomeworkScroller(0);
 
   if (!ref) return null;
   // The same Program the Programs tab builds, or a stand-in for one it doesn't list.
@@ -120,14 +122,18 @@ const ClassSheet = ({ item: ref, onClose }: { item: ClassRef | null; onClose: ()
             <Icon name="close" size={16} stroke={2.2} color={c.ink2} />
           </Pressable>
 
-          <ScrollView
-            style={{ flex: 1, backgroundColor: mode === 'dark' ? '#1C2531' : c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20 }}
-            contentContainerStyle={{ paddingBottom: 40 }}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <ProgramBody pr={pr} onNavigate={t => { onClose(); nav.go(t); }} />
-          </ScrollView>
+          <ScrollerCtx.Provider value={scroller}>
+            <View {...rootProps} style={{ flex: 1 }}>
+              <ScrollView
+                {...scrollProps}
+                style={{ flex: 1, backgroundColor: mode === 'dark' ? '#1C2531' : c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20 }}
+                contentContainerStyle={{ paddingBottom: 40 }}
+                showsVerticalScrollIndicator={false}
+              >
+                <ProgramBody pr={pr} onNavigate={t => { onClose(); nav.go(t); }} />
+              </ScrollView>
+            </View>
+          </ScrollerCtx.Provider>
           </View>
         </View>
       </KeyboardAvoidingView>

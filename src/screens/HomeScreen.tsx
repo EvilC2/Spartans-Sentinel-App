@@ -1,6 +1,6 @@
 // Spartans — Home screen
 // Standard header, then the greeting: date, "Good morning, …", then a row
-// with the badge icon (→ Badges) beside the XP bar (→ XP & levels). Then the hero "Day" card with the
+// with level and progress (→ XP & levels) and the badge count (→ Badges). Then the hero "Day" card with the
 // live block rotation (real 2026–2027 calendar + bell schedule + the student's
 // own courses), live weather, and one "now" panel: the class that is on (or up
 // next), the mm:ss countdown, when it ends and what follows. Then "The Buzz" (a tall window rotating banner news / trivia / polls;
@@ -22,6 +22,7 @@ import { SpartanMark, SectionHeader, NowDot, Grid } from '../components/Chrome';
 import { QuickLink } from '../components/Cards';
 import { Buzz, postToSlide } from '../components/Buzz';
 import { useProfile, shortName, teacherShort, roomLabel, Course } from '../ProfileContext';
+import { useSocial, togetherLabel } from '../social';
 import { useToday, fmtWeekday, fmtMonthDay, fmtClock, greeting, TodayState } from '../useToday';
 import { fmt12, fmtCountdown, PlanPeriod } from '../bell';
 import { usePreviewTime } from '../PreviewTime';
@@ -76,8 +77,8 @@ export default function HomeScreen({ onNavigate, topInset }: ScreenProps) {
     >
       <AppHeader topInset={topInset} title="Home" />
 
-      {/* ── Greeting: date, name, badge icon, XP bar ──────────── */}
-      <View style={{ paddingTop: 16, paddingHorizontal: 20, paddingBottom: 16 }}>
+      {/* ── Greeting: date, name, level and badges ────────────── */}
+      <View style={{ paddingTop: 16, paddingHorizontal: 20, paddingBottom: 8 }}>
         <Text numberOfLines={2} style={{ fontSize: 15, color: c.ink3, letterSpacing: -0.1 }}>
           <Text style={{ color: c.ink, fontWeight: '700' }}>{fmtWeekday(t.now)}</Text>
           {'  '}{fmtMonthDay(t.now)}
@@ -93,9 +94,10 @@ export default function HomeScreen({ onNavigate, topInset }: ScreenProps) {
         }}>
           {greeting(t.now)}, {profile?.firstName || 'there'}.
         </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 12 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+          <XpBar inside onPress={() => setXp(true)} style={{ flex: 1, minWidth: 0 }} />
+          <View style={{ width: 1, height: 26, marginLeft: 14, backgroundColor: c.line }} />
           <BadgeButton onPress={() => setBadges(true)} />
-          <XpBar inside onPress={() => setXp(true)} style={{ flex: 1 }} />
         </View>
       </View>
 
@@ -153,19 +155,27 @@ export default function HomeScreen({ onNavigate, topInset }: ScreenProps) {
   );
 }
 
-// Badge button: just the badge icon, no pill, outline, level or count. Tap
-// for Badges. XP has its own button (XpBar) under the greeting.
+// Badge button: the badge icon and how many you have, closing the row XpBar
+// starts. Tap for Badges. Faded until the first badge is earned, like a locked
+// badge on the Badges sheet.
 const BadgeButton = ({ onPress }: { onPress: () => void }) => {
+  const { c } = useTheme();
   useEarnedVersion();
+  const count = unlockedCount();
   return (
     <Pressable
       onPress={onPress}
-      hitSlop={8}
       accessibilityRole="button"
-      accessibilityLabel={`Badges, ${unlockedCount()} unlocked`}
-      style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1, transform: [{ scale: pressed ? 0.95 : 1 }] })}
+      accessibilityLabel={`Badges, ${count} unlocked`}
+      style={({ pressed }) => ({
+        minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 5, paddingLeft: 10,
+        opacity: pressed ? 0.6 : 1,
+      })}
     >
-      <BadgeIcon size={48} />
+      <View style={{ opacity: count ? 1 : 0.55 }}>
+        <BadgeIcon size={30} />
+      </View>
+      <Text style={[{ fontSize: 14, fontWeight: '700', color: count ? c.ink : c.ink3, letterSpacing: -0.1 }, tnum]}>{count}</Text>
     </Pressable>
   );
 };
@@ -346,6 +356,11 @@ const DayHeroCard = ({ t, scrubOpen, onToggleScrub, onCourse }: { t: TodayState;
     : `Next · ${t.next.kind === 'block' ? shortName(t.next.course?.name || '') || `Block ${t.next.slot}` : t.next.label} at ${fmt12(t.next.start)}`;
   const footer = !plan ? '' : t.phase === 'after' ? "School's out for today" : after;
   const openFocus = focus?.course ? () => onCourse(focus.course!) : undefined;
+  // Friends in the block on now (or up next): "with Alex", and a spare you
+  // both have reads "Spare with Alex" — it counts as a block together.
+  const { friends } = useSocial();
+  const { profile } = useProfile();
+  const together = plan && t.phase !== 'after' ? togetherLabel(focus, profile?.courses || [], friends) : '';
 
   return (
     <View style={{ paddingHorizontal: 20 }}>
@@ -436,6 +451,12 @@ const DayHeroCard = ({ t, scrubOpen, onToggleScrub, onCourse }: { t: TodayState;
         {/* what follows + the TEMP scrubber button in the corner */}
         <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
           <Text numberOfLines={1} style={[{ flex: 1, fontSize: 12.5, color: off ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.7)' }, tnum]}>{footer || ' '}</Text>
+          {!!together && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 1 }} accessibilityLabel={together}>
+              <Icon name="users" size={13} stroke={2} color={c.moss} />
+              <Text numberOfLines={1} style={{ fontSize: 12.5, fontWeight: '700', color: c.moss, flexShrink: 1 }}>{together}</Text>
+            </View>
+          )}
           {tempTools && <TimeScrubButton open={scrubOpen} active={t.isPreview} onPress={onToggleScrub} />}
         </View>
 
