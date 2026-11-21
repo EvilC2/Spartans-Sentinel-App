@@ -26,7 +26,7 @@ import { AppState } from 'react-native';
 import { Course, Slot, SLOTS, StudentProfile, useProfile } from './ProfileContext';
 import { social as remoteSocial, badges as remoteBadges, auth as remoteAuth, RemoteProfile, FoundStudent, FriendRequest, FriendCard, HomeworkShare } from './backend';
 import { demoBuild } from './supabase';
-import { BADGES, UNLOCKED } from './badges';
+import { BADGES, UNLOCKED, isUnlocked } from './badges';
 import { RARITY_XP, levelFor, gradeXp } from './xp';
 import { useHomework } from './stores';
 import type { HomeworkItem } from './programs';
@@ -77,14 +77,18 @@ export type Comparison = {
 
 export const isSpare = (c?: Course) => !!c && (!!c.spare || /^spare$/i.test(c.name.trim()));
 const norm = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+// A course's two halves run in one room at one time ("Work Experience 12A" and
+// "12B", "Career Life Connections 12A"/"12B"), so in the same block they count
+// as the same class. Only the letter right after the grade is dropped.
+const sameClassName = (s: string) => norm(s).replace(/(\d{1,2})[ab]$/, '$1');
 // What to call a block: spares read "Spare" whatever the row holds.
 export const blockName = (c?: Course) => isSpare(c) ? 'Spare' : c?.name.trim() || '';
 const EVERYONE_HAS = /^(fit|lunch)$/;
 const matchOf = (a?: Course, b?: Course): MatchKind => {
   if (!a || !b) return 'none';
   if (isSpare(a) || isSpare(b)) return isSpare(a) && isSpare(b) ? 'spare' : 'none';
-  const name = norm(a.name);
-  return name && name === norm(b.name) && !EVERYONE_HAS.test(name) ? 'class' : 'none';
+  const name = sameClassName(a.name);
+  return name && name === sameClassName(b.name) && !EVERYONE_HAS.test(name) ? 'class' : 'none';
 };
 
 // `shared` is already trimmed to shared blocks (server or demo), but it is
@@ -157,6 +161,11 @@ export const friendLevel = (f: Friend) => levelFor(friendXp(f));
 export const fullName = (p: Peer) => [p.firstName, p.lastName].filter(Boolean).join(' ');
 export const peerInitials = (p: Peer) => ((p.firstName[0] || '') + (p.lastName[0] || '')).toUpperCase() || '?';
 export const MAX_PINNED = 4;
+// Your pins that still count: the badge exists and you have it. A pin can go
+// dead when a badge is removed from the catalog or taken back, and it used to
+// hold a place, so Profile showed 3 while Pin said all 4 were used.
+export const livePins = (ids: string[] | undefined) =>
+  (ids || []).filter(id => { const b = byId.get(id); return !!b && isUnlocked(b); });
 
 // Friend codes: 8 chars, no 0/O/1/I. The server issues the real one; before
 // sign-in a stable one is derived from the account so the card never changes.

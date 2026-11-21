@@ -20,6 +20,9 @@ screen always say the same thing.
 | Topic (Settings switch) | Example | Sent by | When |
 | --- | --- | --- | --- |
 | Homework due | "Due tomorrow: Lab report" | the phone | 7 PM the evening before |
+| Homework due | "Test Thursday: Unit 3" (quizzes and tests) | the phone | 7 PM three evenings before, if it was added before then |
+| Homework due | "Test tomorrow: Unit 3 · Good luck!" | the phone | 7 PM the evening before |
+| First class | "First up: Chemistry 11 at 8:30" | the phone | 15 min before first block on school days; tapping it opens the app, which starts the Lock Screen card |
 | Calendar | "Tomorrow is a Pro-D Day. No classes." | the phone | 7 PM the evening before |
 | Calendar | "Collab Day: sleep in, classes start at 9:25." | the phone | 7:15 AM on the day |
 | Calendar | Your own events | the phone | 30 min before (or 7:30 AM if no time) |

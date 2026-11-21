@@ -9,7 +9,7 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useProfile } from './ProfileContext';
-import type { HomeworkItem } from './programs';
+import { guessKind, type HomeworkItem, type HomeworkKind } from './programs';
 import { pageById } from './pages';
 import { earnXp, XP } from './xp';
 
@@ -101,13 +101,14 @@ export const termAverage = (t: Partial<Record<Term, string>>) => {
 // Done state is the date it was ticked off ('2026-09-23'), so the Homework
 // page can keep it in the list for the rest of that day before it moves to
 // Completed. Old rows stored `true` (no date).
-export type HomeworkPatch = Partial<Pick<HomeworkItem, 'title' | 'due' | 'time' | 'notes' | 'program'>>;
+// `kind: null` means "plain homework", picked on purpose.
+export type HomeworkPatch = Partial<Pick<HomeworkItem, 'title' | 'due' | 'time' | 'notes' | 'program'>> & { kind?: HomeworkKind | null };
 
 type HomeworkCtx = {
   items: HomeworkItem[];                 // the student's own, in their order, with `done` / `doneOn` applied
   isDone: (id: string) => boolean;
   toggle: (id: string, todayIso?: string) => void;
-  add: (program: string, title: string, due: string, extra?: Pick<HomeworkItem, 'time' | 'notes' | 'slot'>) => void;
+  add: (program: string, title: string, due: string, extra?: Pick<HomeworkItem, 'time' | 'notes' | 'slot'> & { kind?: HomeworkKind | null }) => void;
   update: (id: string, patch: HomeworkPatch) => void;
   remove: (id: string) => void;
   // These items, in this order, into the places they already hold between them;
@@ -134,16 +135,31 @@ export const HomeworkProvider = ({ children }: { children: React.ReactNode }) =>
         if (!isDone(id)) earnXp('homework', id, XP.homework, `Finished: ${own.find(h => h.id === id)?.title || 'homework'}`);
         setDone(d => ({ ...d, [id]: isDone(id) ? false : (todayIso || localIso()) }));
       },
-      add: (program, title, due, extra) => setOwn(list => [...list, {
+      add: (program, title, due, extra) => setOwn(list => {
+        // Picked in the add sheet (even "Homework" = null) beats the guess.
+        const picked = extra && 'kind' in extra;
+        const kind = picked ? extra!.kind || undefined : guessKind(title);
+        return [...list, {
         id: `own-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         program: program.trim(), title: title.trim(), due, priority: 'med', done: false, own: true,
+        ...(kind ? { kind } : {}), ...(picked ? { kindPicked: true } : {}),
         ...(extra?.slot ? { slot: extra.slot } : {}),
         ...(extra?.time ? { time: extra.time } : {}), ...(extra?.notes?.trim() ? { notes: extra.notes.trim() } : {}),
-      }]),
+      }];
+      }),
       update: (id, patch) => setOwn(list => {
         const cur = list.find(h => h.id === id);
         if (!cur) return list;
-        const next: HomeworkItem = { ...cur, ...patch };
+        const { kind: pickedKind, ...rest } = patch;
+        const next: HomeworkItem = { ...cur, ...rest };
+        if ('kind' in patch) {
+          // Picked by hand: keep it, and stop guessing from the title.
+          if (pickedKind) next.kind = pickedKind; else delete next.kind;
+          next.kindPicked = true;
+        } else if (patch.title !== undefined && !cur.kindPicked) {
+          const g = guessKind(patch.title);
+          if (g) next.kind = g; else delete next.kind;
+        }
         // Moved to another program: it joins the bottom of that list, and its
         // old block must go or it would still count as homework for that class.
         if (patch.program !== undefined && (cur.slot || classKey(patch.program) !== classKey(cur.program || ''))) {

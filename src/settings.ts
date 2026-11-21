@@ -22,7 +22,8 @@ const NOTIFY_KEY = 'spartans-notify-v1';
 
 export const NOTIFY_TOPICS: { id: string; label: string; sub: string; icon: IconName }[] = [
   { id: 'announcements', label: 'Announcements', sub: 'New school and club announcements', icon: 'news' },
-  { id: 'homework', label: 'Homework due', sub: 'The evening before something is due', icon: 'tasks' },
+  { id: 'homework', label: 'Homework due', sub: 'The evening before, and 3 days before a quiz or test', icon: 'tasks' },
+  { id: 'classes', label: 'First class', sub: '15 minutes before first block. Tap it to start the Lock Screen card', icon: 'clock' },
   { id: 'events', label: 'Calendar', sub: 'Your events, days off, Collab and Pro-D days', icon: 'calendar' },
   { id: 'buzz', label: 'The Buzz', sub: 'New trivia, facts and polls', icon: 'sparkle' },
   { id: 'friends', label: 'Friend requests', sub: 'When someone adds you', icon: 'users' },
@@ -32,7 +33,7 @@ export const NOTIFY_TOPICS: { id: string; label: string; sub: string; icon: Icon
 export type NotifyPrefs = { paused: boolean; on: Record<string, boolean> };
 const DEFAULT_NOTIFY: NotifyPrefs = {
   paused: false,
-  on: { announcements: true, homework: true, events: true, buzz: false, friends: true, badges: true },
+  on: { announcements: true, homework: true, classes: true, events: true, buzz: false, friends: true, badges: true },
 };
 
 // One copy for the whole app: Settings writes, the notification system reads.

@@ -18,7 +18,7 @@ import { ScrollView, Text, View } from 'react-native';
 import { useTheme } from '../ThemeContext';
 import { fonts } from '../theme';
 import { AppHeader } from '../components/AppHeader';
-import { glow } from '../components/ProgramIcon';
+import { glow, wash } from '../components/ProgramIcon';
 import { ClassHomework, ScrollerCtx, Section, UNSORTED, splitDone, useHomeworkScroller, useHomeworkSections } from '../components/HomeworkList';
 import { useHomework, classKey } from '../stores';
 import { useNow } from '../useToday';
@@ -97,8 +97,10 @@ const ClassBlock = ({ s, first, list, completed, sections, todayIso, openId, set
 }) => {
   const { c, mode } = useTheme();
   return (
-    <View style={{ paddingTop: first ? 20 : 34 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'flex-end', paddingLeft: GUTTER, paddingRight: 8, paddingBottom: 8 }}>
+    <View style={{ paddingTop: first ? 14 : 28 }}>
+      {/* A faint wash of the class's colour behind its heading, so each class
+          reads as its own group without a hard box. */}
+      <View style={{ flexDirection: 'row', alignItems: 'flex-end', marginHorizontal: 8, marginBottom: 4, paddingLeft: GUTTER - 8, paddingRight: 8, paddingTop: 10, paddingBottom: 9, borderRadius: 14, backgroundColor: s.color && /^#[0-9a-f]{6}$/i.test(s.color) ? wash(glow(s.color, mode), mode === 'dark' ? 0.1 : 0.06) : mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(14,34,56,0.025)' }}>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text accessibilityRole="header" style={{ fontFamily: fonts.serif, fontSize: 23, lineHeight: 29, letterSpacing: -0.3, color: c.ink }}>{s.name}</Text>
           {!!s.sub && (

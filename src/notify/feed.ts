@@ -11,16 +11,18 @@
 
 import type { IconName } from '../components/Icon';
 import type { TabId } from '../components/Chrome';
-import type { HomeworkItem } from '../programs';
+import { HW_KIND_LABEL, isAssessment, type HomeworkItem } from '../programs';
 import type { PersonalEvent } from '../stores';
 import type { Request } from '../social';
 import type { Popup } from '../backend';
 import { CALENDAR, fromISO, toISO } from '../calendar';
+import { fmt12, buildDayPlan } from '../bell';
+import { roomShort, type Course } from '../ProfileContext';
 import { BADGES, UNLOCKED } from '../badges';
 import { catchUpBadgeIds, earnedAt, isCatchUpBadge } from '../earned';
 import { eventDaysOn, addDays, EventDay } from './eventDays';
 
-export type Topic = 'announcements' | 'homework' | 'events' | 'buzz' | 'friends' | 'badges';
+export type Topic = 'announcements' | 'homework' | 'classes' | 'events' | 'buzz' | 'friends' | 'badges';
 
 // What tapping a notice does.
 export type NoticeAction =
@@ -45,6 +47,7 @@ export type Notice = {
 export const TOPIC_LOOK: Record<Topic, { icon: IconName; label: string }> = {
   announcements: { icon: 'news', label: 'School' },
   homework: { icon: 'tasks', label: 'Homework' },
+  classes: { icon: 'clock', label: 'Classes' },
   events: { icon: 'calendar', label: 'Calendar' },
   buzz: { icon: 'sparkle', label: 'The Buzz' },
   friends: { icon: 'users', label: 'Friends' },
@@ -66,6 +69,7 @@ const shortDate = (iso: string) =>
 
 export type FeedInput = {
   homework: HomeworkItem[];
+  courses: Course[];                // for the first-class reminder
   events: PersonalEvent[];          // personal only (homework-derived ones are skipped)
   requests: Request[];
   popups: Popup[];
@@ -84,18 +88,58 @@ const daysBetween = (a: string, b: string) => {
 };
 
 // ── Builders ─────────────────────────────────────────────────────
+// Homework: the evening before. Quizzes and tests also get one three evenings
+// before, so there's time to study ("Chem test Thursday"). That early one is
+// only made for items added before it would go off (the id holds when it was
+// added), so a test added two days out doesn't show a stale "in 3 days".
+export const STUDY_DAYS = 3;
+const addedAt = (h: HomeworkItem) => Number(h.id.split('-')[1]) || 0;
+const weekday = (iso: string) => fromISO(iso).toLocaleDateString('en-US', { weekday: 'long' });
+
 const homeworkNotices = (items: HomeworkItem[]): Notice[] => items
   .filter(h => !h.done && h.due)
-  .map(h => ({
-    id: `hw:${h.id}:${h.due}`,
-    topic: 'homework' as const,
-    title: `Due tomorrow: ${h.title}`,
-    body: [h.program, h.time ? `due ${h.time}` : ''].filter(Boolean).join(' · ') || 'Tap to see your homework',
-    at: at(addDays(h.due, -1), EVE_HOUR),
-    icon: 'tasks' as const,
-    action: { kind: 'tab' as const, tab: 'homework' as const },
-    local: true, until: endOf(h.due),
-  }));
+  .flatMap(h => {
+    const name = h.kind ? HW_KIND_LABEL[h.kind] : '';
+    const where = [h.program, h.time ? `at ${fmt12(h.time, true)}` : ''].filter(Boolean).join(' · ');
+    const base = { topic: 'homework' as const, icon: 'tasks' as const, action: { kind: 'tab' as const, tab: 'homework' as const }, local: true, until: endOf(h.due) };
+    const out: Notice[] = [{
+      ...base,
+      id: `hw:${h.id}:${h.due}`,
+      title: isAssessment(h) ? `${name} tomorrow: ${h.title}` : `Due tomorrow: ${h.title}`,
+      body: isAssessment(h) ? [where, 'Good luck!'].filter(Boolean).join(' · ') : where || 'Tap to see your homework',
+      at: at(addDays(h.due, -1), EVE_HOUR),
+    }];
+    const early = at(addDays(h.due, -STUDY_DAYS), EVE_HOUR);
+    if (isAssessment(h) && addedAt(h) < early) out.push({
+      ...base,
+      id: `hw-early:${h.id}:${h.due}`,
+      title: `${name} ${weekday(h.due)}: ${h.title}`,
+      body: [where, `${STUDY_DAYS} days to get ready`].filter(Boolean).join(' · '),
+      at: early,
+    });
+    return out;
+  });
+
+// First class of each school day, FIRST_CLASS_LEAD minutes before the bell.
+// Apple only lets the app start the Lock Screen card while it's open, so this
+// is the nudge: tap it, the app opens, and the card goes up for the day.
+export const FIRST_CLASS_LEAD = 15;
+const firstClassNotices = (days: string[], courses: Course[]): Notice[] => days.flatMap(iso => {
+  const plan = buildDayPlan(CALENDAR[iso], courses);
+  const first = plan?.blocks[0];
+  if (!plan || !first) return [];
+  const [h, m] = first.start.split(':').map(Number);
+  const name = first.kind === 'fit' ? 'FIT' : first.course?.name || `Block ${first.slot || first.block}`;
+  const room = first.course?.room ? roomShort(first.course.room) : '';
+  return [{
+    id: `class:${iso}`, topic: 'classes' as const, icon: 'clock' as const,
+    title: `First up: ${name} at ${fmt12(first.start)}`,
+    body: [`Day ${plan.dayNum}`, room, 'Tap to put today on your Lock Screen'].filter(Boolean).join(' · '),
+    at: at(iso, h, m) - FIRST_CLASS_LEAD * 60_000,
+    action: { kind: 'tab' as const, tab: 'home' as const },
+    local: true, until: at(iso, h, m) + 10 * 60_000,
+  }];
+});
 
 // School dates: event-day banners (eve + morning) and days off.
 const calendarNotices = (days: string[], popups: Popup[], grade: number): Notice[] => {
@@ -195,6 +239,7 @@ export const buildFeed = (input: FeedInput, from: number, to: number): Notice[] 
   const days = daysBetween(toISO(new Date(from)), addDays(toISO(new Date(to)), 1));
   const all = [
     ...homeworkNotices(input.homework),
+    ...firstClassNotices(days, input.courses),
     ...calendarNotices(days, input.popups, input.grade),
     ...personalNotices(input.events),
     ...friendNotices(input.requests),

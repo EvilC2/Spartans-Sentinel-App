@@ -64,34 +64,38 @@ const HomeworkWidget = (input: HomeworkProps, env: WidgetEnvironment) => {
       <VStack alignment="leading" spacing={3} modifiers={[bg, widgetURL('spartans://homework')]}>
         {head}
         <Spacer />
-        <Text modifiers={[font({ design: 'serif', size: 40 }), foregroundStyle(INK), monospacedDigit()]}>{String(p.open)}</Text>
+        <Text modifiers={[font({ design: 'serif', size: 34 }), foregroundStyle(INK), monospacedDigit(), lineLimit(1)]}>{String(p.open)}</Text>
         <Text modifiers={[font({ size: 11, weight: 'medium' }), foregroundStyle(INK3)]}>{p.open === 1 ? 'thing to do' : 'things to do'}</Text>
         <Spacer />
-        <Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundStyle(INK), lineLimit(1)]}>{first.title}</Text>
-        <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(toneColor(first.tone)), lineLimit(1)]}>{`${first.due} · ${first.cls}`}</Text>
+        <Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundStyle(INK), lineLimit(1), minimumScaleFactor(0.8)]}>{first.title}</Text>
+        <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(toneColor(first.tone)), lineLimit(1), minimumScaleFactor(0.8)]}>{`${first.due} · ${first.cls}`}</Text>
       </VStack>
     );
   }
 
-  const rows = p.items.slice(0, 3).map((h, i) => (
-    <HStack key={`h${i}`} spacing={9}>
+  // A medium widget has about 120pt inside its margins. Three two-line rows
+  // fit, or two rows and the "+ more" line; three rows and "+ more" ran off
+  // the bottom.
+  const shown = p.open > 3 ? 2 : 3;
+  const rows = p.items.slice(0, shown).map((h, i) => (
+    <HStack key={`h${i}`} spacing={8}>
       <Circle modifiers={[foregroundStyle(toneColor(h.tone)), frame({ width: 7, height: 7 })]} />
       <VStack alignment="leading" spacing={0}>
-        <Text modifiers={[font({ size: 13.5, weight: 'semibold' }), foregroundStyle(INK), lineLimit(1), minimumScaleFactor(0.85)]}>{h.title}</Text>
-        <Text modifiers={[font({ size: 11 }), foregroundStyle(INK3), lineLimit(1)]}>{h.cls}</Text>
+        <Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundStyle(INK), lineLimit(1), minimumScaleFactor(0.8)]}>{h.title}</Text>
+        <Text modifiers={[font({ size: 10.5 }), foregroundStyle(INK3), lineLimit(1)]}>{h.cls}</Text>
       </VStack>
       <Spacer />
-      <Text modifiers={[font({ size: 11.5, weight: 'semibold' }), foregroundStyle(toneColor(h.tone))]}>{h.due}</Text>
+      <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(toneColor(h.tone)), lineLimit(1)]}>{h.due}</Text>
     </HStack>
   ));
 
   return (
-    <VStack alignment="leading" spacing={8} modifiers={[bg, widgetURL('spartans://homework')]}>
+    <VStack alignment="leading" spacing={6} modifiers={[bg, widgetURL('spartans://homework')]}>
       {head}
       {rows}
       <Spacer />
-      {p.open > 3 ? (
-        <Text modifiers={[font({ size: 11 }), foregroundStyle(MOSS)]}>{`+ ${p.open - 3} more`}</Text>
+      {p.open > shown ? (
+        <Text modifiers={[font({ size: 11 }), foregroundStyle(MOSS), lineLimit(1)]}>{`+ ${p.open - shown} more`}</Text>
       ) : null}
     </VStack>
   );

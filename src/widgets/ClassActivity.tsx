@@ -117,6 +117,34 @@ const ClassActivity = (p: TodayProps, env: LiveActivityEnvironment) => {
     </VStack>
   );
 
+  // Out of date: the period this update was for has ended and the app hasn't
+  // been opened since (Apple won't let it update itself). Instead of a timer
+  // stuck at 0:00, show the rest of the day. Every row has its own timer:
+  // it shows the full length until that period starts, then counts down, so
+  // whatever is on now is the one ticking.
+  const rest = p.rest || [];
+  const stale = !!env.isStale && rest.length > 0;
+  const restRows = rest.map((r, i) => (
+    <HStack key={`r${i}`} spacing={8}>
+      <Text modifiers={[font({ size: 12, weight: 'semibold' }), foregroundStyle(W55), monospacedDigit(), frame({ width: 38, alignment: 'leading' })]}>{r.time}</Text>
+      <Text modifiers={[font({ size: 14, weight: 'semibold' }), foregroundStyle(W), lineLimit(1), minimumScaleFactor(0.75)]}>{r.name}</Text>
+      <Spacer />
+      <Text
+        timerInterval={{ lower: new Date(r.start), upper: new Date(r.end) }}
+        countsDown
+        modifiers={[font({ size: 13, weight: 'semibold' }), monospacedDigit(), foregroundStyle(BAR_GOLD), multilineTextAlignment('trailing'), frame({ width: 64, alignment: 'trailing' })]}
+      />
+    </HStack>
+  ));
+  const staleBody = (
+    <VStack alignment="leading" spacing={5}>
+      {restRows}
+      <Text modifiers={[font({ size: 10.5 }), foregroundStyle(W40), lineLimit(1)]}>Open Spartans to refresh</Text>
+    </VStack>
+  );
+  // The next period's range, for the Dynamic Island when out of date.
+  const nextRange = stale ? { lower: new Date(rest[0].start), upper: new Date(rest[0].end) } : null;
+
   const icon = p.mode === 'class' ? 'graduationcap.fill' : p.mode === 'before' ? 'sunrise.fill' : live ? 'cup.and.saucer.fill' : 'checkmark.circle.fill';
 
   return {
@@ -133,23 +161,27 @@ const ClassActivity = (p: TodayProps, env: LiveActivityEnvironment) => {
           <Spacer />
           {tiles.length ? <HStack spacing={4}>{tiles}</HStack> : null}
         </HStack>
-        {/* What is on, with the countdown on the right — Home's now panel. */}
-        <HStack alignment="bottom" spacing={10}>
-          {nowLine}
-          <Spacer />
-          <VStack alignment="trailing" spacing={0}>
-            {timer(26, 110)}
-            {until}
+        {stale ? staleBody : (
+          <VStack alignment="leading" spacing={7}>
+            {/* What is on, with the countdown on the right — Home's now panel. */}
+            <HStack alignment="bottom" spacing={10}>
+              {nowLine}
+              <Spacer />
+              <VStack alignment="trailing" spacing={0}>
+                {timer(26, 110)}
+                {until}
+              </VStack>
+            </HStack>
+            {bar}
+            {footer || together ? (
+              <HStack spacing={8}>
+                {footer}
+                <Spacer />
+                {together}
+              </HStack>
+            ) : null}
           </VStack>
-        </HStack>
-        {bar}
-        {footer || together ? (
-          <HStack spacing={8}>
-            {footer}
-            <Spacer />
-            {together}
-          </HStack>
-        ) : null}
+        )}
       </VStack>
     ),
     // Compact Dynamic Island stays narrow — just the icon and the countdown.
@@ -157,17 +189,17 @@ const ClassActivity = (p: TodayProps, env: LiveActivityEnvironment) => {
     compactLeading: (
       <Image systemName={icon} color={accent} size={14} />
     ),
-    compactTrailing: range ? (
+    compactTrailing: nextRange || range ? (
       <Text
-        timerInterval={range}
+        timerInterval={(nextRange || range)!}
         countsDown
         modifiers={[font({ size: 13, weight: 'semibold' }), monospacedDigit(), foregroundStyle(accent), multilineTextAlignment('trailing'), frame({ width: 40, alignment: 'trailing' })]}
       />
     ) : (
       <Text modifiers={[font({ size: 12, weight: 'semibold' }), foregroundStyle(W), lineLimit(1), frame({ maxWidth: 40, alignment: 'trailing' })]}>{p.dayNum ? `D${p.dayNum}` : '–'}</Text>
     ),
-    minimal: range ? (
-      <ProgressView timerInterval={range} countsDown modifiers={[progressViewStyle('circular'), tint(accent), labelsHidden()]} />
+    minimal: nextRange || range ? (
+      <ProgressView timerInterval={(nextRange || range)!} countsDown modifiers={[progressViewStyle('circular'), tint(accent), labelsHidden()]} />
     ) : (
       <Image systemName={icon} color={accent} />
     ),
@@ -177,13 +209,15 @@ const ClassActivity = (p: TodayProps, env: LiveActivityEnvironment) => {
         {eyebrow}
       </VStack>
     ),
-    expandedTrailing: (
+    expandedTrailing: stale ? <Spacer /> : (
       <VStack alignment="trailing" spacing={0} modifiers={[padding({ trailing: 6, top: 4 })]}>
         {timer(24, 100)}
         {until}
       </VStack>
     ),
-    expandedBottom: (
+    expandedBottom: stale ? (
+      <VStack alignment="leading" spacing={6} modifiers={[padding({ horizontal: 6, bottom: 4 })]}>{staleBody}</VStack>
+    ) : (
       <VStack alignment="leading" spacing={6} modifiers={[padding({ horizontal: 6, bottom: 4 })]}>
         <HStack spacing={6}>
           <Text modifiers={[font({ size: 16, weight: 'semibold' }), foregroundStyle(W), lineLimit(1)]}>{p.title}</Text>

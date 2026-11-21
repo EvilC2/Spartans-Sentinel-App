@@ -121,6 +121,7 @@ export const NotifyProvider = ({ children }: { children: React.ReactNode }) => {
       const k = profile?.courses.find(x => x.slot === h.slot);
       return { ...h, program: k?.name || `Block ${h.slot}` };
     }),
+    courses: profile?.courses || [],
     events: events.filter(e => e.source !== 'homework'),
     requests: social.requests,
     popups,

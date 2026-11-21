@@ -55,18 +55,31 @@ const longTimer = (x: Ctx) => x.grade - x.start >= 2;
 export const QUESTIONS: Question[] = [
   {
     id: 'start', section: 'Your time here', art: ART.crest,
-    prompt: 'What grade did you start at Sentinel?',
-    options: x => [8, 9, 10, 11, 12].filter(g => g <= x.grade).map(g => ({ id: String(g), label: `Grade ${g}` })),
+    // Read as "what grade are you starting?" by some Grade 12s, so it says
+    // plainly that Grade 8 means "been here the whole time".
+    prompt: 'Which grade were you in when you first started at Sentinel?',
+    sub: 'Been here since the start of high school? That’s Grade 8.',
+    options: x => [8, 9, 10, 11, 12].filter(g => g <= x.grade).map(g => ({
+      id: String(g),
+      label: `Grade ${g}`,
+      sub: g === 8 ? (x.grade > 8 ? 'Been at Sentinel the whole time' : 'Started this year, like everyone in Grade 8')
+        : g === x.grade ? 'New this year' : undefined,
+    })),
   },
   {
     id: 'arrival', section: 'Your time here', art: ART.crest,
-    prompt: 'How did you end up at Sentinel?',
+    prompt: 'Before Sentinel, where were you?',
     options: x => [
       // Grade 8 is the first year of high school, so a Grade 8 start can't be a transfer.
       ...(x.start === 8
-        ? [{ id: 'local', label: 'Came up from elementary' }]
-        : [{ id: 'transfer', label: 'Transferred from another high school', badges: ['new-kid'] }, { id: 'moved', label: 'Moved here from out of town' }]),
-      { id: 'exchange', label: 'On an exchange program', badges: ['non-capisco'] },
+        ? [{ id: 'local', label: 'Elementary school', sub: 'Came up to Sentinel for Grade 8' }]
+        : [
+          { id: 'transfer', label: 'Another high school', badges: ['new-kid'] },
+          { id: 'elementary', label: 'Elementary or middle school', sub: 'Some schools go past Grade 7' },
+          { id: 'moved', label: 'Somewhere out of town' },
+        ]),
+      { id: 'exchange', label: 'Here on an exchange program', badges: ['non-capisco'] },
+      { id: 'other', label: 'Something else' },
     ],
   },
   {

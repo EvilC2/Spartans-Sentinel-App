@@ -10,7 +10,7 @@
 
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import {
-  View, Text, Pressable, Modal, ScrollView, useWindowDimensions, Platform, KeyboardAvoidingView,
+  View, Text, Pressable, Modal, ScrollView, useWindowDimensions, Platform,
 } from 'react-native';
 import { useTheme } from '../ThemeContext';
 import { fonts, shadow, tnum } from '../theme';
@@ -77,7 +77,10 @@ const ClassSheet = ({ item: ref, onClose }: { item: ClassRef | null; onClose: ()
   const { height } = useWindowDimensions();
   const { profile } = useProfile();
   const nav = useNav();
-  const { scroller, rootProps, scrollProps } = useHomeworkScroller(0);
+  // The sheet stays where it is when the keyboard comes up (pushing a fixed-height
+  // sheet up ran its top off the screen). The list gets room under it instead,
+  // and the scroller keeps the line being typed on above the keyboard.
+  const { scroller, kb, rootProps, scrollProps } = useHomeworkScroller(0);
 
   if (!ref) return null;
   // The same Program the Programs tab builds, or a stand-in for one it doesn't list.
@@ -94,7 +97,7 @@ const ClassSheet = ({ item: ref, onClose }: { item: ClassRef | null; onClose: ()
   return (
     <Modal visible transparent animationType="slide" onRequestClose={onClose}>
       <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(14,34,56,0.35)' }} accessibilityLabel="Close" />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
+      <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
         <View style={[{
           height: Math.round(height * 0.86), backgroundColor: c.paper,
           borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden',
@@ -127,7 +130,7 @@ const ClassSheet = ({ item: ref, onClose }: { item: ClassRef | null; onClose: ()
               <ScrollView
                 {...scrollProps}
                 style={{ flex: 1, backgroundColor: mode === 'dark' ? '#1C2531' : c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20 }}
-                contentContainerStyle={{ paddingBottom: 40 }}
+                contentContainerStyle={{ paddingBottom: 40 + kb }}
                 showsVerticalScrollIndicator={false}
               >
                 <ProgramBody pr={pr} onNavigate={t => { onClose(); nav.go(t); }} />
@@ -136,7 +139,7 @@ const ClassSheet = ({ item: ref, onClose }: { item: ClassRef | null; onClose: ()
           </ScrollerCtx.Provider>
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 };

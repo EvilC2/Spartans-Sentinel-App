@@ -10,8 +10,8 @@
 // progress bar) are drawn live by iOS.
 
 import { CALENDAR, toISO, fromISO, upcomingEvents } from '../calendar';
-import { fmt12, toMin, PlanPeriod } from '../bell';
-import { computeToday } from '../useToday';
+import { fmt12, toMin, gapEyebrow, PlanPeriod } from '../bell';
+import { computeToday, nextSchoolDay as aheadDay } from '../useToday';
 import { shortName, teacherShort, roomLabel, roomShort, Course } from '../ProfileContext';
 import type { HomeworkItem } from '../programs';
 
@@ -28,7 +28,7 @@ export type TodayProps = {
   // The one square left from the home card: the class that is on, or the one
   // coming up. null after school and on days off.
   tile: null | { top: string; name: string; time: string; now: boolean };
-  eyebrow: string;         // "In progress", "Lunch · up next", "First up", "School's out"
+  eyebrow: string;         // "In progress", "Next up · after lunch", "First up", "School's out"
   title: string;           // "Chemistry 11"
   short: string;           // "Chem 11" (lock screen, Dynamic Island)
   sub: string;             // "Room 213 · Smith"
@@ -42,6 +42,10 @@ export type TodayProps = {
   tiles: { top: string; name: string; state: 'done' | 'now' | 'next' }[];
   // Friends in the focus block: "with Alex & Sam", "Spare with Alex". '' = none.
   together: string;
+  // What comes after the period on now, with real times (ms), for the Live
+  // Activity once it's out of date: Apple won't let it update with the app
+  // closed, but each row's own timer still counts down at the right time.
+  rest: { name: string; time: string; start: number; end: number }[];
 };
 
 // Who you share a block with (a class, or a spare you both have). Worked out
@@ -71,20 +75,18 @@ const courseSub = (p: PlanPeriod) =>
 const periodName = (p: PlanPeriod) =>
   p.kind === 'block' || p.kind === 'fit' ? courseShort(p) : p.kind === 'collab' ? 'Late start' : p.label;
 
-// First class of the next school day after `day`, for evenings and days off.
+// First class of the next school day after `day`, for evenings and days off,
+// and that day's blocks for the row of tiles.
 const nextSchoolDay = (day: Date, courses: Course[]) => {
-  for (let i = 1; i <= 30; i++) {
-    const d = addDays(day, i);
-    const t = computeToday(at(d, '00:00'), courses);
-    if (!t.plan) continue;
-    const first = t.plan.blocks[0];
-    const when = i === 1 ? 'Tomorrow' : DOW[d.getDay()];
-    return {
-      title: `${when} · Day ${t.plan.dayNum}`,
-      sub: first ? `First up ${courseShort(first)} at ${fmt12(first.start)}` : '',
-    };
-  }
-  return null;
+  const ahead = aheadDay(day, courses);
+  if (!ahead) return null;
+  const first = ahead.t.plan.blocks[0];
+  const when = ahead.days === 1 ? 'Tomorrow' : DOW[ahead.date.getDay()];
+  return {
+    title: `${when} · Day ${ahead.t.plan.dayNum}`,
+    sub: first ? `First up ${courseShort(first)} at ${fmt12(first.start)}` : '',
+    tiles: tilesOf(ahead.t),
+  };
 };
 
 const tilesOf = (t: ReturnType<typeof computeToday>): TodayProps['tiles'] => {
@@ -99,13 +101,15 @@ const tilesOf = (t: ReturnType<typeof computeToday>): TodayProps['tiles'] => {
 export const todayProps = (now: Date, courses: Course[], together: TogetherFor = nobody): TodayProps => {
   const t = computeToday(now, courses);
   const { plan, cal } = t;
-  const base = { date: dayLabel(now), later: [] as TodayProps['later'], tiles: tilesOf(t), together: '' };
+  const base = { date: dayLabel(now), later: [] as TodayProps['later'], tiles: tilesOf(t), together: '', rest: [] as TodayProps['rest'] };
 
   if (!plan || t.phase === 'after') {
     const ahead = nextSchoolDay(now, courses);
     const after = !!plan;
     return {
       ...base,
+      // Once the day is done, the tiles are the next school day's.
+      tiles: ahead?.tiles || base.tiles,
       headline: plan ? `Day ${plan.dayNum}` : (cal?.label || (cal?.kind === 'weekend' ? 'Weekend' : 'No school')),
       dayNum: plan?.dayNum || 0,
       code: plan?.code || '',
@@ -125,7 +129,7 @@ export const todayProps = (now: Date, courses: Course[], together: TogetherFor =
   const focus = inClass ? t.current! : t.nextBlock;
   const mode: TodayMode = inClass ? 'class' : t.phase === 'before' ? 'before' : 'gap';
   const gapName = t.current ? (t.current.kind === 'collab' ? 'Late start' : t.current.label) : '';
-  const eyebrow = mode === 'class' ? 'In progress' : mode === 'before' ? 'First up' : `${gapName} · up next`;
+  const eyebrow = mode === 'class' ? 'In progress' : mode === 'before' ? 'First up' : gapEyebrow(t.current);
 
   // Countdown: end of the period that is on, or the first bell before school.
   const target = t.phase === 'during' ? t.current! : plan.periods[0];
@@ -146,6 +150,16 @@ export const todayProps = (now: Date, courses: Course[], together: TogetherFor =
     const then = plan.periods.slice(i + 1).find(p => p.kind === 'block' || p.kind === 'fit');
     footer = then ? `Then · ${periodName(then)} at ${fmt12(then.start)}` : 'Last block of the day';
   }
+
+  // Everything after the period on now (before school: the whole day), minus
+  // the 10-minute transitions.
+  const restFrom = t.phase === 'before' ? 0 : plan.periods.indexOf(t.current!) + 1;
+  const rest = plan.periods.slice(restFrom).filter(p => p.kind !== 'transition').slice(0, 4).map(p => ({
+    name: periodName(p),
+    time: fmt12(p.start),
+    start: at(day, p.start).getTime(),
+    end: at(day, p.end).getTime(),
+  }));
 
   const fromIdx = focus ? plan.periods.indexOf(focus) + 1 : plan.periods.length;
   const later = plan.periods.slice(fromIdx).map(p => ({
@@ -177,6 +191,7 @@ export const todayProps = (now: Date, courses: Course[], together: TogetherFor =
     footer,
     later,
     together: focus ? together(focus) : '',
+    rest,
   };
 };
 

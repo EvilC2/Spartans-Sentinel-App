@@ -115,3 +115,19 @@ export const greeting = (d: Date) => {
   const h = d.getHours();
   return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
 };
+
+// The next day with classes after `now`'s date: tomorrow on a school night, Monday
+// on a weekend, the first day back after a break. Its state is worked out for
+// midnight, so every block reads as still to come. null if none within `max` days.
+export type SchoolDayAhead = { date: Date; days: number; when: string; t: TodayState & { plan: DayPlan } };
+export const nextSchoolDay = (now: Date, courses: Course[], max = 30): SchoolDayAhead | null => {
+  for (let i = 1; i <= max; i++) {
+    const date = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    const t = computeToday(date, courses);
+    if (!t.plan) continue;
+    // "Tomorrow", a weekday name within the week, then just "Next".
+    const when = i === 1 ? 'Tomorrow' : i < 7 ? DOW[date.getDay()] : 'Next';
+    return { date, days: i, when, t: t as SchoolDayAhead['t'] };
+  }
+  return null;
+};

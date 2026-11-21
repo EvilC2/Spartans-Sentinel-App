@@ -34,6 +34,7 @@ type Filter = 'all' | 'unread' | Topic;
 const tintFor = (topic: Topic, c: Palette) => ({
   announcements: { bg: c.navy50, fg: c.navy700 },
   homework: { bg: c.crimsonTint, fg: c.crimson },
+  classes: { bg: c.navy50, fg: c.navy700 },
   events: { bg: c.skyTint, fg: c.sky600 },
   buzz: { bg: c.goldTint, fg: c.gold },
   friends: { bg: c.navy50, fg: c.moss },

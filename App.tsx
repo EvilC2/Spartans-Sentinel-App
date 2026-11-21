@@ -10,7 +10,8 @@
 // is kept so tablets and the web target still show the phone-width column.
 
 import React, { useEffect, useRef, useState } from 'react';
-import { AppState, View, StatusBar, useWindowDimensions } from 'react-native';
+import { View, StatusBar, useWindowDimensions } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
 import {
@@ -57,9 +58,10 @@ export type ScreenProps = {
 
 // The loading splash stays up at least this long, even if the profile loads sooner.
 const SPLASH_MIN_MS = 2000;
-// Coming back to the app counts as opening it again after this long away, so
-// flicking to Messages and back doesn't bring Catch Up up each time.
-const REOPEN_AFTER_MS = 15 * 60_000;
+// Catch Up opens by itself once, the first time. After "Not now" it waits on
+// a card at the top of the Badges page until it's done. ("spartans-" so
+// Delete account clears it.)
+const CATCH_UP_ASKED_KEY = 'spartans-catchup-asked-v1';
 
 function Shell() {
   const { c, mode } = useTheme();
@@ -83,23 +85,19 @@ function Shell() {
 
   const showIntro = loaded && (!profile || !signedIn);
 
-  // Catch Up asks on every open until it's finished: at launch, right after a
-  // new account is made, and when coming back after a while.
+  // Catch Up is optional: it asks once (at first launch or right after a new
+  // account), then lives on the Badges page until it's finished.
   const catchUpDue = loaded && !!profile && signedIn && !profile.catchUp?.doneAt;
-  useEffect(() => { if (catchUpDue) openCatchUp(); }, [catchUpDue]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const dueRef = useRef(catchUpDue);
-  dueRef.current = catchUpDue;
   useEffect(() => {
-    let leftAt = 0;
-    const sub = AppState.addEventListener('change', s => {
-      if (s === 'background') leftAt = Date.now();
-      else if (s === 'active' && leftAt) {
-        if (dueRef.current && Date.now() - leftAt >= REOPEN_AFTER_MS) openCatchUp();
-        leftAt = 0;
-      }
-    });
-    return () => sub.remove();
-  }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+    if (!catchUpDue) return;
+    let gone = false;
+    AsyncStorage.getItem(CATCH_UP_ASKED_KEY).then(v => {
+      if (gone || v) return;
+      AsyncStorage.setItem(CATCH_UP_ASKED_KEY, '1').catch(() => {});
+      openCatchUp();
+    }).catch(() => {});
+    return () => { gone = true; };
+  }, [catchUpDue]);   // eslint-disable-line react-hooks/exhaustive-deps
   // Practice runs (Developer screen) open over everything and save nothing.
   const practice = useCatchUpPractice();
   const showCatchUp = loaded && !!profile && signedIn && (catchUpOpen || !!practice);

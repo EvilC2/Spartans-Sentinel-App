@@ -180,7 +180,27 @@ export const matchesProgram = (text: string, pr: Program) => {
 // homework. Items carry the `program` name. `program: ''` is Unsorted. `slot` is
 // a timetable block, only on rows saved with one. `time` is "HH:MM" (24h),
 // optional; `doneOn` is the date it was ticked off (set by the homework store).
-export type HomeworkItem = { id: string; slot?: Slot; program?: string; title: string; due: string; time?: string; notes?: string; priority: 'high' | 'med' | 'low'; done: boolean; doneOn?: string; own?: boolean };
+// `kind` is optional: plain homework has none. It is guessed from the title
+// ("Unit 3 quiz" → quiz) until the student picks one (`kindPicked`), and after
+// that the title no longer changes it.
+export type HomeworkKind = 'quiz' | 'test' | 'project';
+export type HomeworkItem = { id: string; slot?: Slot; program?: string; title: string; due: string; time?: string; notes?: string; priority: 'high' | 'med' | 'low'; done: boolean; doneOn?: string; own?: boolean; kind?: HomeworkKind; kindPicked?: boolean };
+
+export const HW_KINDS: HomeworkKind[] = ['quiz', 'test', 'project'];
+export const HW_KIND_LABEL: Record<HomeworkKind, string> = { quiz: 'Quiz', test: 'Test', project: 'Project' };
+
+// "Chem test", "Unit 4 Quiz", "French oral exam", "Science fair project".
+// A test wins over a quiz ("quiz on the practice test" is still a test).
+export const guessKind = (title: string): HomeworkKind | undefined => {
+  const t = title.toLowerCase();
+  if (/\b(tests?|exams?|midterms?|finals?)\b/.test(t)) return 'test';
+  if (/\b(quiz|quizzes|pop quiz)\b/.test(t)) return 'quiz';
+  if (/\bprojects?\b/.test(t)) return 'project';
+  return undefined;
+};
+
+// Quizzes and tests get the early reminders and their own calendar dot.
+export const isAssessment = (h: Pick<HomeworkItem, 'kind'>) => h.kind === 'quiz' || h.kind === 'test';
 
 export const programHomework = (pr: Program, items: HomeworkItem[]) =>
   items.filter(h => (h.slot && pr.slots.includes(h.slot)) || (h.program && classKey(h.program) === classKey(pr.name)));

@@ -92,27 +92,31 @@ const Intro = ({ grade, score, topInset, bottomInset, onStart, onLater, practice
   }, [rise]);
   const tease = TEASE.map(id => BADGES.find(b => b.id === id)).filter((b): b is Badge => !!b);
   const xp = gradeXp(grade);
+  const count = questionsFor(grade, {}).length;
 
   return (
     <LinearGradient colors={['#14304E', '#0E2238', '#071423']} start={G165.start} end={G165.end} style={{ flex: 1, paddingTop: topInset + 24, paddingBottom: bottomInset + 20, paddingHorizontal: 24 }}>
-      <Animated.View style={{ flex: 1, justifyContent: 'center', opacity: rise, transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 32 }}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
+      <Animated.View style={{ opacity: rise, transform: [{ translateY: rise.interpolate({ inputRange: [0, 1], outputRange: [14, 0] }) }] }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 24 }}>
           {tease.map((b, n) => {
             const size = n === 2 ? 104 : n === 1 || n === 3 ? 76 : 56;
             return <View key={b.id} style={{ marginHorizontal: -4 }}><BadgeArt badge={b} size={size} locked /></View>;
           })}
         </View>
         <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 2, color: '#E8D8AE', textTransform: 'uppercase' }}>{CATCH_UP_NAME}</Text>
-        <Text style={{ fontFamily: fonts.serif, fontSize: 36, lineHeight: 41, letterSpacing: -0.8, color: '#fff', marginTop: 8 }}>
+        <Text style={{ fontFamily: fonts.serif, fontSize: 34, lineHeight: 39, letterSpacing: -0.8, color: '#fff', marginTop: 8 }}>
           Get what you would have earned.
         </Text>
-        <Text style={{ fontSize: 17, lineHeight: 24, color: 'rgba(255,255,255,0.82)', marginTop: 14 }}>
-          You didn't have this app on your first day at Sentinel. Tell us what you've done since, and you'll get the badges and XP you would already have.
+        <Text style={{ fontSize: 16.5, lineHeight: 23, color: 'rgba(255,255,255,0.82)', marginTop: 12 }}>
+          Spartans is new this year, so nobody had it on their first day. Whatever grade you're in, answer a few questions and you'll get the badges and XP you'd already have if it had been around all along.
         </Text>
-        <Text style={{ fontSize: 14, lineHeight: 20, color: 'rgba(255,255,255,0.6)', marginTop: 14 }}>
-          It takes about 2 minutes and runs on the honour system, so answer truthfully.
-          {xp > 0 ? ` Grade ${grade} already counts for ${xp.toLocaleString()} XP.` : ''}
-        </Text>
+        <View style={{ marginTop: 16, gap: 9 }}>
+          <Point icon="check" text="Badges for things you've done: teams, games, clubs, events, and your years at Sentinel." />
+          <Point icon="check" text="This year's seasonal badges that have already gone by, like Halloween." />
+          <Point icon="close" text="Not included: badges someone has to award you, or seasonal ones from past years." />
+          <Point icon="clock" text={`About ${count} quick questions, 2 minutes. Honour system, so answer truthfully.${xp > 0 ? ` Grade ${grade} already counts for ${xp.toLocaleString()} XP.` : ''}`} />
+        </View>
         {practice && (
           <View style={{ marginTop: 22, padding: 14, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.08)' }}>
             <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 1.2, color: '#E8D8AE', textTransform: 'uppercase' }}>Practice run · nothing is saved</Text>
@@ -137,6 +141,7 @@ const Intro = ({ grade, score, topInset, bottomInset, onStart, onLater, practice
           </View>
         )}
       </Animated.View>
+      </ScrollView>
 
       <Pressable
         onPress={onStart}
@@ -145,12 +150,33 @@ const Intro = ({ grade, score, topInset, bottomInset, onStart, onLater, practice
       >
         <Text style={{ fontSize: 17, fontWeight: '700', color: '#0E2238' }}>{score ? `Keep going (${score}% done)` : 'Start'}</Text>
       </Pressable>
-      <Pressable onPress={onLater} accessibilityRole="button" style={{ height: 48, alignItems: 'center', justifyContent: 'center', marginTop: 4 }}>
-        <Text style={{ fontSize: 15, fontWeight: '600', color: 'rgba(255,255,255,0.7)' }}>{practice ? 'Close practice' : 'Not now'}</Text>
+      {/* A real button, not small print: skipping is fine, and it says where
+          Catch Up will be waiting. */}
+      <Pressable
+        onPress={onLater}
+        accessibilityRole="button"
+        accessibilityHint={practice ? undefined : 'Catch Up waits at the top of your Badges page'}
+        style={({ pressed }) => ({ height: 54, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginTop: 10, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)', backgroundColor: pressed ? 'rgba(255,255,255,0.08)' : 'transparent' })}
+      >
+        <Text style={{ fontSize: 17, fontWeight: '700', color: '#fff' }}>{practice ? 'Close practice' : 'Not now'}</Text>
       </Pressable>
+      {!practice && (
+        <Text style={{ fontSize: 13, lineHeight: 18, color: 'rgba(255,255,255,0.55)', textAlign: 'center', marginTop: 8 }}>
+          It's optional. It'll wait at the top of your Badges page.
+        </Text>
+      )}
     </LinearGradient>
   );
 };
+
+const Point = ({ icon, text }: { icon: 'check' | 'close' | 'clock'; text: string }) => (
+  <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10 }}>
+    <View style={{ width: 20, height: 20, borderRadius: 10, marginTop: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: icon === 'check' ? 'rgba(232,216,174,0.18)' : 'rgba(255,255,255,0.08)' }}>
+      <Icon name={icon} size={11} stroke={2.4} color={icon === 'check' ? '#E8D8AE' : 'rgba(255,255,255,0.6)'} />
+    </View>
+    <Text style={{ flex: 1, fontSize: 14, lineHeight: 20, color: 'rgba(255,255,255,0.75)' }}>{text}</Text>
+  </View>
+);
 
 // ── One question ──────────────────────────────────────────────────
 const Ask = ({ q, grade, answers, index, total, last, busy, topInset, bottomInset, onAnswer, onNext, onBack, onLater }: {

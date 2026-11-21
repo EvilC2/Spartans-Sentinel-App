@@ -9,10 +9,11 @@
 // with its homework and events; arrows or a sideways swipe step school days.
 // Homework is never an event: it has its own list in the day sheet and marks on
 // the class blocks, and stays out of the event dots and the month's event list.
-// The + button adds a personal event (stored on this phone).
+// The + button adds homework (or a quiz, test, project) or a personal event,
+// and says which is which. Homework days get a grey dot, quiz/test days a diamond.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Animated, Easing, Modal, TextInput, KeyboardAvoidingView, Platform, useWindowDimensions, PanResponder } from 'react-native';
+import { View, Text, Pressable, ScrollView, Animated, Easing, Modal, TextInput, Keyboard, Platform, useWindowDimensions, PanResponder } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 import { useTheme } from '../ThemeContext';
 import { fonts, shadow, tnum } from '../theme';
@@ -32,6 +33,9 @@ import { useClassSheet } from '../components/ClassCard';
 import { DayColumn, HomeworkMark, blockHomework } from '../components/DayColumn';
 import { glow } from '../components/ProgramIcon';
 import { useNav } from '../nav';
+import { DueFields, TimeFields, FoldRow, dayLabel, useKindColor, KindChips, KindTag, addDays } from '../components/HomeworkList';
+import { guessKind, HW_KIND_LABEL, type HomeworkKind } from '../programs';
+import { useKeyboardHeight, sheetHeight } from '../useKeyboard';
 import type { ScreenProps } from '../../App';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -120,8 +124,23 @@ export default function CalendarScreen({ topInset }: ScreenProps) {
   const [nonce, setNonce] = useState(0);   // bump to re-centre the week strip on today
   const [gridW, setGridW] = useState(0);
   const [adding, setAdding] = useState<PersonalEvent | 'new' | null>(null);
+  // Stable between renders so the sheet doesn't take each clock tick as a reopen.
+  const editorInitial = useMemo(() => (adding === 'new' ? { iso: selected } : adding || undefined), [adding, selected]);
   const { eventsOn } = useEvents();
   const club = usePosted('event', 'calendar');
+  const hwAll = useHomework();
+  // What's still due on each day, for the marks on the month grid.
+  const workByDay = useMemo(() => {
+    const m: Record<string, DayWork> = {};
+    for (const h of hwAll.items) {
+      if (h.done) continue;
+      const w = m[h.due] || (m[h.due] = { homework: 0, test: null });
+      if (h.kind === 'test') w.test = 'test';
+      else if (h.kind === 'quiz') w.test = w.test || 'quiz';
+      else w.homework++;
+    }
+    return m;
+  }, [hwAll.items]);
 
   const [year, month] = YEAR_MONTHS[mi];
   const cells = monthGrid(year, month);
@@ -254,7 +273,7 @@ export default function CalendarScreen({ topInset }: ScreenProps) {
         <Pressable
           onPress={() => setAdding('new')}
           accessibilityRole="button"
-          accessibilityLabel="Add an event"
+          accessibilityLabel="Add homework, a test or an event"
           style={({ pressed }) => ({ width: 36, height: 36, borderRadius: 18, backgroundColor: c.action, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.8 : 1 })}
         >
           <Icon name="plus" size={18} stroke={2.4} color="#fff" />
@@ -282,11 +301,13 @@ export default function CalendarScreen({ topInset }: ScreenProps) {
                   isToday={d.iso === todayIso}
                   selected={!d.padding && d.iso === selected}
                   hasEvents={!d.padding && (!!d.cal?.events?.filter(ev => !ROUTINE.test(ev)).length || eventsOn(d.iso).some(e => e.source !== 'homework') || club.some(e => e.date === d.iso))}
+                  work={d.padding ? undefined : workByDay[d.iso]}
                   onPress={() => !d.padding && setSelected(d.iso)}
                 />
               </View>
             ))}
           </View>
+          <DotKey />
         </Animated.View>
       ) : mode === 'week' ? (
         <WeekView todayIso={todayIso} anchorIso={weekIso} weekOff={weekOff} nonce={nonce} selected={selected} onSelect={setSelected} onVisible={setWeekShown} />
@@ -304,7 +325,7 @@ export default function CalendarScreen({ topInset }: ScreenProps) {
 
       <EventEditor
         visible={adding !== null}
-        initial={adding === 'new' ? { iso: selected } : adding || undefined}
+        initial={editorInitial}
         onClose={() => setAdding(null)}
       />
     </ScrollView>
@@ -320,9 +341,13 @@ const cellFor = (iso: string): GridCell => {
 // ────────────────────────────────────────────────────────────────
 // Day cell
 // ────────────────────────────────────────────────────────────────
-const DayCell = ({ d, isToday, selected, hasEvents, onPress }: { d: GridCell; isToday: boolean; selected: boolean; hasEvents: boolean; onPress: () => void }) => {
+// Open homework due on a day, and the biggest quiz/test among it.
+type DayWork = { homework: number; test: 'test' | 'quiz' | null };
+
+const DayCell = ({ d, isToday, selected, hasEvents, work, onPress }: { d: GridCell; isToday: boolean; selected: boolean; hasEvents: boolean; work?: DayWork; onPress: () => void }) => {
   const { c, mode } = useTheme();
   const today = glow(c.moss, mode);
+  const kindColor = useKindColor();
 
   // Days from the next or last month: a faint number, nothing else.
   if (d.padding) {
@@ -344,7 +369,7 @@ const DayCell = ({ d, isToday, selected, hasEvents, onPress }: { d: GridCell; is
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${d.day}${isToday ? ', today' : ''}, ${typeLabel(type, cal) || 'weekend'}${hasEvents ? ', has events' : ''}`}
+      accessibilityLabel={`${d.day}${isToday ? ', today' : ''}, ${typeLabel(type, cal) || 'weekend'}${hasEvents ? ', has events' : ''}${work?.test ? `, ${work.test} due` : ''}${work?.homework ? `, ${work.homework} homework due` : ''}`}
       style={[{
         flex: 1, borderRadius: 10, overflow: 'hidden', paddingTop: 5, paddingHorizontal: 5, paddingBottom: 5,
         // Dark theme: lift school days off the page so the grid reads brighter.
@@ -366,10 +391,35 @@ const DayCell = ({ d, isToday, selected, hasEvents, onPress }: { d: GridCell; is
           {label}
         </Text>
       )}
-      {hasEvents && (
-        <View style={{ position: 'absolute', top: 7, right: 6, width: 5, height: 5, borderRadius: 3, backgroundColor: selected ? '#fff' : today }} />
+      {/* Top-right marks: event (green), homework (grey), quiz/test (gold/red). */}
+      {(hasEvents || !!work) && (
+        <View style={{ position: 'absolute', top: 6, right: 5, flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+          {hasEvents && <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: selected ? '#fff' : today }} />}
+          {!!work?.homework && <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: selected ? 'rgba(255,255,255,0.7)' : c.ink3 }} />}
+          {!!work?.test && <View style={{ width: 7, height: 7, borderRadius: 2, transform: [{ rotate: '45deg' }], backgroundColor: selected ? '#fff' : kindColor(work.test) }} />}
+        </View>
       )}
     </Pressable>
+  );
+};
+
+// What the marks on the month grid mean.
+const DotKey = () => {
+  const { c, mode } = useTheme();
+  const kindColor = useKindColor();
+  const item = (mark: React.ReactNode, label: string) => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+      {mark}
+      <Text style={{ fontSize: 12, color: c.ink3 }}>{label}</Text>
+    </View>
+  );
+  const dot = (bg: string) => <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: bg }} />;
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 14, paddingHorizontal: 16, paddingTop: 10 }} accessibilityLabel="Green dot: event. Grey dot: homework due. Diamond: quiz or test.">
+      {item(dot(glow(c.moss, mode)), 'Event')}
+      {item(dot(c.ink3), 'Homework')}
+      {item(<View style={{ width: 7, height: 7, borderRadius: 2, transform: [{ rotate: '45deg' }], backgroundColor: kindColor('test') }} />, 'Quiz or test')}
+    </View>
   );
 };
 
@@ -660,9 +710,12 @@ const DaySheet = ({ d, isToday, onEditEvent, asDay = false }: { d?: GridCell; is
                   </Pressable>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <Text numberOfLines={2} style={{ fontSize: 15, fontWeight: '600', color: h.done ? c.ink4 : c.ink, letterSpacing: -0.2, lineHeight: 20, textDecorationLine: h.done ? 'line-through' : 'none' }}>{h.title}</Text>
-                    <Text numberOfLines={1} style={[{ fontSize: 13, fontWeight: '700', color: k.color, marginTop: 1 }, tnum]}>
-                      {k.name}{h.time ? <Text style={{ fontWeight: '500', color: c.ink3 }}>{`  ${fmt12(h.time, true)}`}</Text> : null}
-                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                      {!!h.kind && <KindTag kind={h.kind} dim={h.done} />}
+                      <Text numberOfLines={1} style={[{ flexShrink: 1, fontSize: 13, fontWeight: '700', color: k.color }, tnum]}>
+                        {k.name}{h.time ? <Text style={{ fontWeight: '500', color: c.ink3 }}>{`  ${fmt12(h.time, true)}`}</Text> : null}
+                      </Text>
+                    </View>
                   </View>
                 </View>
               );
@@ -821,40 +874,75 @@ const splitEvent = (ev: string): [string, string] => {
 };
 
 // ────────────────────────────────────────────────────────────────
-// Add / edit a personal event. Title, date (YYYY-MM-DD), optional time and
-// class tag. Deliberately plain: function over looks.
+// The + sheet. Two things can be added, and the sheet says which is which:
+//   Homework / test: schoolwork with a due date. It lands on the Homework page
+//     under its class, gets reminders, and shows as a mark on the calendar.
+//     Its type (homework, quiz, test, project) is optional and guessed from
+//     the name until picked.
+//   Event: anything else on your calendar: a game, a club, an appointment.
+// Editing an event opens straight to the event form.
 // ────────────────────────────────────────────────────────────────
+type EventFold = 'date' | 'time' | null;
+type AddWhat = 'homework' | 'event';
+
 const EventEditor = ({ visible, initial, onClose }: { visible: boolean; initial?: Partial<PersonalEvent>; onClose: () => void }) => {
   const { c } = useTheme();
   const { add, update } = useEvents();
+  const hw = useHomework();
   const { profile } = useProfile();
+  const now = useNow();
+  const todayIso = toISO(now);
+  const kb = useKeyboardHeight();
+  const { height: screenH } = useWindowDimensions();
+  const editing = !!initial?.id;
+  const [what, setWhat] = useState<AddWhat>('homework');
   const [title, setTitle] = useState('');
   const [iso, setIso] = useState('');
-  const [time, setTime] = useState('');
+  const [time, setTime] = useState<string | undefined>(undefined);
   const [cls, setCls] = useState('');
+  const [kind, setKind] = useState<HomeworkKind | undefined>(undefined);
+  const [kindPicked, setKindPicked] = useState(false);
+  const [fold, setFold] = useState<EventFold>(null);
   const [err, setErr] = useState<string | null>(null);
 
+  // Reset the form only when the sheet opens. This screen re-renders every
+  // second (the clock), and `initial` used to arrive as a new object each
+  // time, which wiped whatever was being typed: the "won't let me type" bug.
+  const wasVisible = useRef(false);
   useEffect(() => {
-    if (!visible) return;
+    const opening = visible && !wasVisible.current;
+    wasVisible.current = visible;
+    if (!opening) return;
+    setWhat(editing ? 'event' : 'homework');
     setTitle(initial?.title || '');
-    setIso(initial?.iso || '');
-    setTime(initial?.time || '');
+    // New homework is due tomorrow unless a later day is selected.
+    setIso(initial?.iso && (editing || initial.iso > todayIso) ? initial.iso : editing ? todayIso : addDays(todayIso, 1));
+    setTime(initial?.time || undefined);
     setCls(initial?.className || '');
+    setKind(undefined);
+    setKindPicked(false);
+    setFold(null);
     setErr(null);
-  }, [visible, initial]);
+  }, [visible]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const classes = Array.from(new Set((profile?.courses || []).filter(k => !k.spare && k.name.trim()).map(k => k.name)));
+  const isHw = what === 'homework';
+  const shownKind = kindPicked ? kind : guessKind(title);
+  // Typed "test" into an event: offer to make it homework instead.
+  const looksLikeWork = !isHw && !editing && !!guessKind(title);
 
   const save = () => {
-    if (!title.trim()) { setErr('Give the event a name.'); return; }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso) || isNaN(fromISO(iso).getTime())) { setErr('Date should look like 2026-09-17.'); return; }
-    const t = time.trim();
-    if (t && !/^([01]?\d|2[0-3]):[0-5]\d$/.test(t)) { setErr('Time should be 24-hour, like 15:30. Leave it blank for all day.'); return; }
-    const norm = t ? t.padStart(5, '0') : undefined;
-    if (initial?.id) update(initial.id, { title: title.trim(), iso, time: norm, className: cls || undefined });
-    else add({ title: title.trim(), iso, time: norm, className: cls || undefined });
+    if (!title.trim()) { setErr(isHw ? 'What is it? Give it a name.' : 'Give the event a name.'); return; }
+    const day = iso || todayIso;
+    if (isHw) {
+      hw.add(cls, title.trim(), day, { time, ...(kindPicked ? { kind: kind ?? null } : {}) });
+    } else if (editing) update(initial!.id!, { title: title.trim(), iso: day, time, className: cls || undefined });
+    else add({ title: title.trim(), iso: day, time, className: cls || undefined });
     onClose();
   };
+
+  // Opening a picker puts the keyboard away so the picker has the room.
+  const toggle = (f: EventFold) => { Keyboard.dismiss(); setFold(cur => cur === f ? null : f); };
 
   const input = { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: c.ink, backgroundColor: c.paper2 } as const;
   const label = { fontSize: 14, fontWeight: '700' as const, color: c.ink2, marginBottom: 6, marginTop: 16 };
@@ -862,26 +950,61 @@ const EventEditor = ({ visible, initial, onClose }: { visible: boolean; initial?
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(14,34,56,0.35)' }} accessibilityLabel="Close" />
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
-        <View style={[{ backgroundColor: c.paper, borderTopLeftRadius: 26, borderTopRightRadius: 26, paddingHorizontal: 22, paddingTop: 10, paddingBottom: Platform.OS === 'ios' ? 34 : 20 }, shadow.lg]}>
+      <View style={[{ position: 'absolute', left: 0, right: 0, bottom: kb, maxHeight: sheetHeight(screenH, kb), backgroundColor: c.paper, borderTopLeftRadius: 26, borderTopRightRadius: 26, borderBottomLeftRadius: kb ? 26 : 0, borderBottomRightRadius: kb ? 26 : 0 }, shadow.lg]}>
+        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 10, paddingBottom: kb ? 16 : Platform.OS === 'ios' ? 34 : 20 }}>
           <View style={{ alignItems: 'center', paddingBottom: 6 }}><View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: c.line }} /></View>
-          <Text style={{ fontFamily: fonts.serif, fontSize: 24, color: c.ink, letterSpacing: -0.4 }}>{initial?.id ? 'Edit event' : 'New event'}</Text>
+          <Text style={{ fontFamily: fonts.serif, fontSize: 24, color: c.ink, letterSpacing: -0.4 }}>{editing ? 'Edit event' : isHw ? 'New homework' : 'New event'}</Text>
+
+          {!editing && (
+            <>
+              <View accessibilityRole="tablist" style={{ flexDirection: 'row', marginTop: 12, padding: 3, borderRadius: 12, backgroundColor: c.paper2 }}>
+                {([['homework', 'Homework / test'], ['event', 'Event']] as [AddWhat, string][]).map(([k, l]) => {
+                  const on = what === k;
+                  return (
+                    <Pressable key={k} onPress={() => { setWhat(k); setErr(null); }} accessibilityRole="tab" accessibilityState={{ selected: on }}
+                      style={[{ flex: 1, minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: on ? c.surface : 'transparent' }, on ? shadow.sm : shadow.none]}>
+                      <Text style={{ fontSize: 14, fontWeight: on ? '700' : '500', color: on ? c.ink : c.ink3 }}>{l}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+              <Text style={{ fontSize: 13, lineHeight: 18, color: c.ink3, marginTop: 8 }}>
+                {isHw
+                  ? 'Schoolwork with a due date: homework, quizzes, tests, projects. It goes on your Homework page under its class, and you get reminders.'
+                  : 'Anything else on your calendar: a game, a club meeting, an appointment. Events don’t go on your Homework page.'}
+              </Text>
+            </>
+          )}
 
           <Text style={label}>What</Text>
-          <TextInput value={title} onChangeText={setTitle} placeholder="Chem test" placeholderTextColor={c.ink4} style={input} autoFocus />
-          <View style={{ flexDirection: 'row', gap: 10 }}>
-            <View style={{ flex: 1 }}>
-              <Text style={label}>Date</Text>
-              <TextInput value={iso} onChangeText={v => setIso(v.replace(/[^0-9-]/g, '').slice(0, 10))} placeholder="2026-09-17" placeholderTextColor={c.ink4} style={[input, tnum]} keyboardType="numbers-and-punctuation" autoCapitalize="none" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={label}>Time <Text style={{ fontWeight: '400', color: c.ink4 }}>optional</Text></Text>
-              <TextInput value={time} onChangeText={v => setTime(v.replace(/[^0-9:]/g, '').slice(0, 5))} placeholder="15:30" placeholderTextColor={c.ink4} style={[input, tnum]} keyboardType="numbers-and-punctuation" />
-            </View>
+          <TextInput value={title} onChangeText={setTitle} placeholder={isHw ? 'Unit 3 quiz' : 'Basketball game'} placeholderTextColor={c.ink4} style={input} autoFocus={!editing} returnKeyType="done" onSubmitEditing={() => Keyboard.dismiss()} />
+
+          {looksLikeWork && (
+            <Pressable onPress={() => setWhat('homework')} accessibilityRole="button" style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: c.paper2, opacity: pressed ? 0.7 : 1 })}>
+              <Icon name="info" size={15} stroke={2} color={c.link} />
+              <Text style={{ flex: 1, fontSize: 13.5, color: c.ink2 }}>
+                Sounds like a {guessKind(title) === 'project' ? 'project' : guessKind(title)}. <Text style={{ fontWeight: '700', color: c.link }}>Add it as homework</Text> to get reminders.
+              </Text>
+            </Pressable>
+          )}
+
+          {isHw && (
+            <>
+              <Text style={label}>Type <Text style={{ fontWeight: '400', color: c.ink4 }}>optional</Text></Text>
+              <KindChips kind={shownKind} onKind={k => { setKind(k ?? undefined); setKindPicked(true); }} />
+            </>
+          )}
+
+          <View style={{ marginTop: isHw ? 4 : 14 }}>
+            <FoldRow label={isHw ? 'Due' : 'Date'} value={dayLabel(iso || todayIso, todayIso)} open={fold === 'date'} onPress={() => toggle('date')} />
+            {fold === 'date' && <DueFields due={iso || todayIso} todayIso={todayIso} onDue={setIso} />}
+            <FoldRow label="Time" value={time ? fmt12(time, true) : isHw ? 'Any time' : 'All day'} open={fold === 'time'} onPress={() => toggle('time')} />
+            {fold === 'time' && <TimeFields time={time} onTime={setTime} />}
           </View>
+
           {classes.length > 0 && (
             <>
-              <Text style={label}>Class <Text style={{ fontWeight: '400', color: c.ink4 }}>optional</Text></Text>
+              <Text style={label}>Class <Text style={{ fontWeight: '400', color: c.ink4 }}>{isHw ? 'or leave it Unsorted' : 'optional'}</Text></Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }} keyboardShouldPersistTaps="always">
                 {classes.map(k => {
                   const on = cls === k;
@@ -900,11 +1023,11 @@ const EventEditor = ({ visible, initial, onClose }: { visible: boolean; initial?
               <Text style={{ color: c.ink3, fontSize: 15, fontWeight: '600' }}>Cancel</Text>
             </Pressable>
             <Pressable onPress={save} style={({ pressed }) => ({ flex: 2, paddingVertical: 14, borderRadius: 14, alignItems: 'center', backgroundColor: c.action, opacity: pressed ? 0.8 : 1 })}>
-              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Save</Text>
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>{isHw ? `Add ${shownKind ? HW_KIND_LABEL[shownKind].toLowerCase() : 'homework'}` : 'Save'}</Text>
             </Pressable>
           </View>
-        </View>
-      </KeyboardAvoidingView>
+        </ScrollView>
+      </View>
     </Modal>
   );
 };

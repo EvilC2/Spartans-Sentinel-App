@@ -477,6 +477,10 @@ export const programPosts = {
   list: (key: string) =>
     supabase.from('program_posts').select('*').eq('program_key', key)
       .order('pinned', { ascending: false }).order('created_at', { ascending: false }).limit(50).then(unwrap) as Promise<ProgramPostRow[]>,
+  // Several programs at once, for the Announcements tab's "My programs".
+  listMany: (keys: string[]) =>
+    supabase.from('program_posts').select('*').in('program_key', keys)
+      .order('created_at', { ascending: false }).limit(300).then(unwrap) as Promise<ProgramPostRow[]>,
   // staff, or a manager of this program (can_post_program); the server stamps the author
   add: (p: Pick<ProgramPostRow, 'program_key' | 'title' | 'body' | 'pinned'>) =>
     supabase.from('program_posts').insert(p).select().single().then(unwrap) as Promise<ProgramPostRow>,

@@ -27,7 +27,8 @@ import { useHomework } from '../stores';
 import { useKeyboardHeight } from '../useKeyboard';
 import { toISO, fromISO, MONTH_NAMES } from '../calendar';
 import { fmt12 } from '../bell';
-import { programsFor, groupPrograms, HomeworkItem, KIND_ONE } from '../programs';
+import { programsFor, groupPrograms, HomeworkItem, KIND_ONE, HW_KINDS, HW_KIND_LABEL, type HomeworkKind } from '../programs';
+import { wash } from './ProgramIcon';
 
 export const UNSORTED = 'unsorted';
 // The tick column: a 44pt target whose 24pt circle lines up with the headings.
@@ -72,7 +73,7 @@ export const addDays = (iso: string, n: number) => { const d = fromISO(iso); ret
 const daysBetween = (a: string, b: string) => Math.round((fromISO(b).getTime() - fromISO(a).getTime()) / 86400000);
 const shortDate = (iso: string) => { const d = fromISO(iso); return `${MONTH_NAMES[d.getMonth()].slice(0, 3)} ${d.getDate()}`; };
 
-const dayLabel = (iso: string, todayIso: string) => {
+export const dayLabel = (iso: string, todayIso: string) => {
   const diff = daysBetween(todayIso, iso);
   if (diff === 0) return 'Today';
   if (diff === 1) return 'Tomorrow';
@@ -222,8 +223,8 @@ export const ClassHomework = ({ s, list, completed, sections, todayIso, openId, 
       <AddRow s={s} onAdd={title => hw.add(s.program, title, addDays(todayIso, 1))} />
 
       {completed.length > 0 && <DoneToggle count={completed.length} name={s.name} open={showDone} onPress={onToggleDone} />}
-      {showDone && completed.map(h => (
-        <Row key={h.id} h={h} {...rowProps} open={openId === h.id} older />
+      {showDone && completed.map((h, i) => (
+        <Row key={h.id} h={h} {...rowProps} open={openId === h.id} older index={i} />
       ))}
     </>
   );
@@ -583,9 +584,11 @@ const Row = ({ h, section, sections, todayIso, open, older, drag, canDrag, index
   drag?: Drag; canDrag?: boolean; index?: number; count?: number; onMove?: (delta: number) => void;
   onOpen: (id: string) => void; onClose: () => void; onMoved: () => void;
 }) => {
-  const { c } = useTheme();
+  const { c, mode } = useTheme();
   const hw = useHomework();
   const active = drag?.activeId === h.id;
+  // Every other row a hair darker: just enough to keep the eye on a line.
+  const zebra = index % 2 === 1 && !active && !open;
   const late = !h.done && h.due < todayIso;
   const dueToday = !h.done && h.due === todayIso;
   const a11yMove = moveActions(index, count, onMove);
@@ -596,6 +599,7 @@ const Row = ({ h, section, sections, todayIso, open, older, drag, canDrag, index
       onLayout={e => drag?.setHeight(h.id, e.nativeEvent.layout.height)}
       style={[
         { transform: [{ translateY: drag ? drag.translateOf(h.id) : 0 }] },
+        zebra ? { backgroundColor: mode === 'dark' ? 'rgba(255,255,255,0.022)' : 'rgba(14,34,56,0.017)' } : null,
         active ? [{ zIndex: 10, backgroundColor: c.surface, borderRadius: radii.sm }, shadow.md] : null,
       ]}
     >
@@ -637,17 +641,20 @@ const Row = ({ h, section, sections, todayIso, open, older, drag, canDrag, index
             <Pressable
               onPress={() => onOpen(h.id)}
               accessibilityRole="button"
-              accessibilityLabel={`${h.title}. ${due}${h.done ? '. Done' : ''}${h.notes ? `. ${h.notes}` : ''}`}
+              accessibilityLabel={`${h.title}. ${h.kind ? `${HW_KIND_LABEL[h.kind]}. ` : ''}${due}${h.done ? '. Done' : ''}${h.notes ? `. ${h.notes}` : ''}`}
               accessibilityHint="Edit"
               {...a11yMove}
               style={({ pressed }) => ({ flex: 1, minWidth: 0, minHeight: 47, paddingVertical: 12, paddingRight: canDrag ? 0 : 14, opacity: pressed ? 0.6 : 1 })}
             >
               <Text style={[titleType, { color: h.done ? c.ink3 : c.ink, textDecorationLine: h.done ? 'line-through' : 'none' }]}>{h.title}</Text>
-              <Text style={[metaType, tnum, {
-                marginTop: 2,
-                color: late ? c.danger : dueToday ? c.ink2 : c.ink3,
-                fontWeight: late || dueToday ? '600' : '400',
-              }]}>{due}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                {!!h.kind && <KindTag kind={h.kind} dim={h.done} />}
+                <Text style={[metaType, tnum, {
+                  flexShrink: 1,
+                  color: late ? c.danger : dueToday ? c.ink2 : c.ink3,
+                  fontWeight: late || dueToday ? '600' : '400',
+                }]}>{due}</Text>
+              </View>
               {!!h.notes && <Text numberOfLines={2} style={[metaType, { color: c.ink3, marginTop: 2 }]}>{h.notes}</Text>}
             </Pressable>
           )}
@@ -707,6 +714,8 @@ const Details = ({ h, section, sections, todayIso, index, count, onMove, onClose
         />
       </View>
 
+      <KindChips kind={h.kind} onKind={kind => hw.update(h.id, { kind })} />
+
       <FoldRow label="Due" value={dayLabel(h.due, todayIso)} open={fold === 'due'} onPress={() => toggle('due')} />
       {fold === 'due' && <DueFields due={h.due} todayIso={todayIso} onDue={due => hw.update(h.id, { due })} />}
 
@@ -762,7 +771,7 @@ const Details = ({ h, section, sections, todayIso, index, count, onMove, onClose
   );
 };
 
-const FoldRow = ({ label, value, open, onPress }: { label: string; value: string; open: boolean; onPress: () => void }) => {
+export const FoldRow = ({ label, value, open, onPress }: { label: string; value: string; open: boolean; onPress: () => void }) => {
   const { c } = useTheme();
   return (
     <Pressable
@@ -804,7 +813,7 @@ const TextAction = ({ label, a11y, color, strong, disabled, onPress }: {
 // ────────────────────────────────────────────────────────────────
 const TIME_PRESETS = ['08:00', '15:00', '18:00', '21:00', '23:59'];
 
-const DueFields = ({ due, todayIso, onDue }: { due: string; todayIso: string; onDue: (iso: string) => void }) => {
+export const DueFields = ({ due, todayIso, onDue }: { due: string; todayIso: string; onDue: (iso: string) => void }) => {
   // The Monday after this one, for "Next Mon".
   const nextMon = addDays(todayIso, ((8 - fromISO(todayIso).getDay()) % 7) || 7);
   const quick: [string, string][] = [['Today', todayIso], ['Tomorrow', addDays(todayIso, 1)], ['Next Mon', nextMon]];
@@ -818,7 +827,7 @@ const DueFields = ({ due, todayIso, onDue }: { due: string; todayIso: string; on
   );
 };
 
-const TimeFields = ({ time, onTime }: { time?: string; onTime: (t: string | undefined) => void }) => {
+export const TimeFields = ({ time, onTime }: { time?: string; onTime: (t: string | undefined) => void }) => {
   const { c } = useTheme();
   const tone = useContext(HomeworkTone);
   const [h, m] = (time || '15:00').split(':').map(Number);
@@ -902,6 +911,32 @@ const MiniCal = ({ iso, todayIso, onPick }: { iso: string; todayIso: string; onP
     </View>
   );
 };
+
+// ── Type: homework, quiz, test, project ─────────────────────────
+// Colours that say "this one matters more" without shouting: tests warm red,
+// quizzes gold, projects blue. The word is always there too.
+export const useKindColor = () => {
+  const { c, mode } = useTheme();
+  return (k: HomeworkKind) => k === 'test' ? c.danger : k === 'quiz' ? (mode === 'dark' ? '#E3B871' : c.gold) : (mode === 'dark' ? '#8FBDF0' : c.sky);
+};
+
+export const KindTag = ({ kind, dim }: { kind: HomeworkKind; dim?: boolean }) => {
+  const color = useKindColor()(kind);
+  return (
+    <View style={{ paddingHorizontal: 6, paddingVertical: 1, borderRadius: 5, backgroundColor: wash(color, 0.13), opacity: dim ? 0.6 : 1 }}>
+      <Text style={{ fontSize: 11, lineHeight: 15, fontWeight: '700', letterSpacing: 0.4, color, textTransform: 'uppercase' }}>{HW_KIND_LABEL[kind]}</Text>
+    </View>
+  );
+};
+
+// Optional: "Homework" is the default. Typing "quiz", "test" or "project" in the
+// title picks one for you; picking here overrides that for good.
+export const KindChips = ({ kind, onKind }: { kind?: HomeworkKind; onKind: (k: HomeworkKind | null) => void }) => (
+  <View accessibilityRole="radiogroup" accessibilityLabel="Type" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingBottom: 10 }}>
+    <SmallChip label="Homework" on={!kind} onPress={() => onKind(null)} />
+    {HW_KINDS.map(k => <SmallChip key={k} label={HW_KIND_LABEL[k]} on={kind === k} onPress={() => onKind(k)} />)}
+  </View>
+);
 
 // ── Bits ────────────────────────────────────────────────────────
 const SmallChip = ({ label, on, onPress, grow }: { label: string; on: boolean; onPress: () => void; grow?: boolean }) => {

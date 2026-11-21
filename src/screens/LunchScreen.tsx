@@ -9,7 +9,7 @@
 // strip), price changes, sold out, hidden items, new items.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Image, Animated, Easing, Linking, ImageSourcePropType } from 'react-native';
+import { View, Text, Pressable, ScrollView, Image, Animated, Easing, Linking, ImageSourcePropType, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../ThemeContext';
 import { fonts, shadow, tnum, G155 } from '../theme';
@@ -267,7 +267,9 @@ const FoodCard = ({ m, count, onAdd, onRemove }: { m: MenuItem; count: number; o
 const PayPill = ({ art, label }: { art: ImageSourcePropType; label: string }) => {
   const { c } = useTheme();
   return (
-    <View style={{ flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 3, borderWidth: 1.5, borderColor: '#fff', borderRadius: 999, paddingHorizontal: 2, paddingVertical: 6 }}>
+    // Filled white like the Gift card chip below: navy text on the bare gradient
+    // got lost where it turns navy, and the ring alone read as a stray outline.
+    <View style={{ flexGrow: 1, flexBasis: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, backgroundColor: '#fff', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(14,34,56,0.12)', borderRadius: 999, paddingHorizontal: 4, paddingVertical: 7, shadowColor: '#0E2238', shadowOpacity: 0.14, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 2 }}>
       <Image source={art} style={{ width: 14, height: 14 }} />
       <Text numberOfLines={1} style={{ fontSize: 12.5, fontWeight: '800', color: c.navy700, letterSpacing: -0.2 }}>{label}</Text>
     </View>

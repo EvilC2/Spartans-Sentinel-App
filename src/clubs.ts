@@ -23,7 +23,7 @@
 // build with no server shows no club list and no posts, never an error.
 // The server checks every write (RLS + can_post_program in 0021).
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { demoBuild } from './supabase';
 import { useContent, ContentMode } from './content';
@@ -256,6 +256,51 @@ const loadPosts = (mode: ContentMode, key: string, force = false): Promise<void>
   })().finally(() => { postsLoading.delete(key); });
   postsLoading.set(key, p);
   return p;
+};
+
+// Many programs in one go (Announcements → My programs): one query, then each
+// program's list lands in the same store the program pages read, so opening a
+// program after this shows its posts at once.
+const loadManyPosts = async (mode: ContentMode, keys: string[], force = false) => {
+  const s = postsS.get();
+  if (s.mode !== mode) postsS.set({ byKey: {}, mode });
+  const byKey = postsS.get().byKey;
+  const want = keys.filter(k => force || !byKey[k] || Date.now() - byKey[k].at >= FRESH);
+  if (!want.length) return;
+  if (mode !== 'live') {
+    const saved = demoBuild ? await readJSON<Record<string, ProgramPost[]>>(POSTS_DEMO_KEY, {}) : {};
+    want.forEach(k => setEntry(k, { list: saved[k] || [], at: Date.now(), note: null }));
+    return;
+  }
+  try {
+    const { programPosts } = await import('./backend');
+    const rows = (await programPosts.listMany(want)).map(fromPostRow);
+    want.forEach(k => setEntry(k, { list: rows.filter(r => r.key === k), at: Date.now(), note: null }));
+    persistPosts(mode);
+  } catch (e: any) {
+    const saved = await readJSON<Record<string, ProgramPost[]>>(POSTS_KEY, {});
+    want.forEach(k => setEntry(k, { list: byKey[k]?.list.length ? byKey[k].list : saved[k] || [], at: 0, note: needs0021(e) ? NEEDS : null }));
+  }
+};
+
+export const useProgramFeed = (names: string[]) => {
+  const { mode } = useContent();
+  const { signedIn } = useProfile();
+  const s = useStore(postsS);
+  const keys = useMemo(() => Array.from(new Set(names.map(programKey).filter(Boolean))), [names.join('|')]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    let gone = false;
+    setLoading(true);
+    loadManyPosts(mode, keys).finally(() => { if (!gone) setLoading(false); });
+    return () => { gone = true; };
+  }, [mode, keys, signedIn]);
+  const byKey = s.mode === mode ? s.byKey : {};
+  return {
+    postsOf: (name: string) => byKey[programKey(name)]?.list || [],
+    loading,
+    reload: () => loadManyPosts(mode, keys, true),
+  };
 };
 
 // This account's id, to know which posts are yours (demo: 'me').

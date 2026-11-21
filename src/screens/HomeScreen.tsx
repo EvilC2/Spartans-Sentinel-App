@@ -11,7 +11,7 @@
 // opens a time-of-day scrubber (src/PreviewTime.tsx) beneath the card so the
 // live card can be checked at any hour.
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, Image, Animated, Easing } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../ThemeContext';
@@ -23,8 +23,8 @@ import { QuickLink } from '../components/Cards';
 import { Buzz, postToSlide } from '../components/Buzz';
 import { useProfile, shortName, teacherShort, roomLabel, Course } from '../ProfileContext';
 import { useSocial, togetherLabel } from '../social';
-import { useToday, fmtWeekday, fmtMonthDay, fmtClock, greeting, TodayState } from '../useToday';
-import { fmt12, fmtCountdown, PlanPeriod } from '../bell';
+import { useToday, fmtWeekday, fmtMonthDay, fmtClock, greeting, nextSchoolDay, TodayState } from '../useToday';
+import { fmt12, fmtCountdown, gapEyebrow, PlanPeriod } from '../bell';
 import { usePreviewTime } from '../PreviewTime';
 import { useWeather, describeWeather } from '../weather';
 import { useClassSheet } from '../components/ClassCard';
@@ -326,7 +326,21 @@ const DayHeroCard = ({ t, scrubOpen, onToggleScrub, onCourse }: { t: TodayState;
   const weather = useWeather();
   const { tools: tempTools } = usePreviewTime();
 
-  const headline = plan ? `Day ${plan.dayNum}` : (cal?.label || 'No school');
+  // Once the last bell has gone, and on days off, the card looks ahead: the
+  // next school day's rotation, its blocks, and what's first.
+  const { profile } = useProfile();
+  const courses = profile?.courses || [];
+  const ahead = useMemo(
+    () => (!plan || t.phase === 'after' ? nextSchoolDay(t.now, courses) : null),
+    [t.iso, t.phase === 'after', !plan, courses],   // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const aheadPlan = ahead?.t.plan || null;
+  const first = aheadPlan?.blocks[0] || null;
+
+  const headline = aheadPlan ? `Day ${aheadPlan.dayNum}` : plan ? `Day ${plan.dayNum}` : (cal?.label || 'No school');
+  const cardLabel = aheadPlan
+    ? `${ahead!.when === 'Next' ? 'Next school day' : `${ahead!.when}'s rotation`} · ${aheadPlan.code}`
+    : `Today's rotation${plan ? ` · ${plan.code}` : ''}`;
 
   // Countdown target: end of the current period, or the first bell before school.
   const target = t.phase === 'during' ? t.current : t.phase === 'before' ? plan?.periods[0] || null : null;
@@ -342,7 +356,9 @@ const DayHeroCard = ({ t, scrubOpen, onToggleScrub, onCourse }: { t: TodayState;
   // The "now" panel shows one class: the one that is on, or the one coming up
   // during a break, lunch or before the first bell.
   const focus = inClass ? t.current : t.nextBlock;
-  const eyebrow = inClass ? 'In progress' : t.phase === 'before' ? 'First up' : `${t.current?.label || ''} · up next`;
+  // In a gap the panel shows the class that comes after it: "Next up · after
+  // lunch", never "Lunch · up next" (that read as lunch being next).
+  const eyebrow = inClass ? 'In progress' : t.phase === 'before' ? 'First up' : gapEyebrow(t.current);
   const title = !focus ? (t.current?.label || '')
     : focus.kind === 'fit' ? 'FIT'
     : focus.course?.name || `Block ${focus.slot || focus.block}`;
@@ -354,13 +370,15 @@ const DayHeroCard = ({ t, scrubOpen, onToggleScrub, onCourse }: { t: TodayState;
   const after = !inClass || !plan ? ''
     : !t.next ? 'Last block of the day'
     : `Next · ${t.next.kind === 'block' ? shortName(t.next.course?.name || '') || `Block ${t.next.slot}` : t.next.label} at ${fmt12(t.next.start)}`;
-  const footer = !plan ? '' : t.phase === 'after' ? "School's out for today" : after;
+  const footer = aheadPlan
+    ? (plan ? "School's out for today" : cal?.label ? `Today · ${cal.label}` : 'No school today')
+    : !plan ? '' : after;
   const openFocus = focus?.course ? () => onCourse(focus.course!) : undefined;
   // Friends in the block on now (or up next): "with Alex", and a spare you
   // both have reads "Spare with Alex" — it counts as a block together.
   const { friends } = useSocial();
-  const { profile } = useProfile();
-  const together = plan && t.phase !== 'after' ? togetherLabel(focus, profile?.courses || [], friends) : '';
+  const together = aheadPlan ? togetherLabel(first, courses, friends)
+    : plan && t.phase !== 'after' ? togetherLabel(focus, courses, friends) : '';
 
   return (
     <View style={{ paddingHorizontal: 20 }}>
@@ -383,7 +401,7 @@ const DayHeroCard = ({ t, scrubOpen, onToggleScrub, onCourse }: { t: TodayState;
             fontSize: 11.5, letterSpacing: 1.4, textTransform: 'uppercase',
             fontWeight: '600', color: 'rgba(255,255,255,0.7)',
           }}>
-            Today's rotation{plan ? ` · ${plan.code}` : ''}
+            {cardLabel}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} accessibilityLabel={wx ? `${wx.label}, ${Math.round(weather!.temp)} degrees` : 'Weather loading'}>
             <Icon name={wx ? wx.icon : 'cloud'} size={15} stroke={1.8} color="rgba(255,255,255,0.8)" />
@@ -395,14 +413,45 @@ const DayHeroCard = ({ t, scrubOpen, onToggleScrub, onCourse }: { t: TodayState;
 
         <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 14, marginTop: 6, marginBottom: 18 }}>
           <Text style={{
-            fontFamily: fonts.serif, fontSize: plan ? 64 : 34, lineHeight: plan ? 64 : 40,
+            fontFamily: fonts.serif, fontSize: plan || aheadPlan ? 64 : 34, lineHeight: plan || aheadPlan ? 64 : 40,
             letterSpacing: -1.5, color: '#fff', flexShrink: 1,
           }}>
             {headline}
           </Text>
         </View>
 
-        {plan && (
+        {aheadPlan && (
+          <Grid cols={aheadPlan.blocks.length} gap={8}>
+            {aheadPlan.blocks.map((b, i) => (
+              <BlockTile key={i} p={b} state="next" accent={accent} onPress={b.course ? () => onCourse(b.course!) : undefined} />
+            ))}
+          </Grid>
+        )}
+
+        {/* First class of the next school day, with its time in place of a countdown. */}
+        {aheadPlan && first && (
+          <View style={{ marginTop: 18, flexDirection: 'row', alignItems: 'flex-end', gap: 12 }}>
+            <Pressable onPress={first.course ? () => onCourse(first.course!) : undefined} disabled={!first.course} accessibilityRole={first.course ? 'button' : undefined} style={({ pressed }) => ({ flex: 1, minWidth: 0, opacity: pressed ? 0.7 : 1 })}>
+              <Text numberOfLines={1} style={{ fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase', color: c.gold, fontWeight: '700' }}>
+                First up{ahead!.days === 1 ? ' tomorrow' : ''}
+              </Text>
+              <Text numberOfLines={1} style={{ fontSize: 19, fontWeight: '600', marginTop: 5, letterSpacing: -0.4, color: '#fff' }}>
+                {first.kind === 'fit' ? 'FIT' : first.course?.name || `Block ${first.slot || first.block}`}
+              </Text>
+              {!!first.course && (
+                <Text numberOfLines={1} style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', marginTop: 2 }}>
+                  {[first.course.room ? roomLabel(first.course.room) : null, first.course.teacher ? teacherShort(first.course.teacher) : null].filter(Boolean).join(' · ')}
+                </Text>
+              )}
+            </Pressable>
+            <View style={{ alignItems: 'flex-end' }}>
+              <Text style={[{ fontSize: 30, lineHeight: 34, fontWeight: '700', letterSpacing: -0.8, color: '#fff' }, tnum]}>{fmt12(first.start)}</Text>
+              <Text style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>first bell</Text>
+            </View>
+          </View>
+        )}
+
+        {plan && !aheadPlan && (
           <Grid cols={plan.blocks.length} gap={8}>
             {plan.blocks.map((b, i) => {
               const idx = plan.periods.indexOf(b);
@@ -437,7 +486,7 @@ const DayHeroCard = ({ t, scrubOpen, onToggleScrub, onCourse }: { t: TodayState;
           </View>
         )}
 
-        {plan && (
+        {plan && !aheadPlan && (
           <View style={{ marginTop: 12, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.14)', overflow: 'hidden' }}>
             <LinearGradient
               colors={inClass ? [BAR_GOLD, c.gold] : [accent, accent]}

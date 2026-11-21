@@ -116,6 +116,16 @@ export const buildDayPlan = (day: CalDay | undefined, courses: Course[]): DayPla
   };
 };
 
+// Eyebrow over the class that comes after a gap: "Next up · after lunch".
+// The gap goes after "after" so it can't be read as the thing that's next.
+export const gapEyebrow = (gap: Period | null | undefined) => {
+  if (!gap) return 'Next up';
+  if (gap.kind === 'lunch') return 'Next up · after lunch';
+  if (gap.kind === 'break') return 'Next up · after break';
+  if (gap.kind === 'collab') return 'Next up · late start';
+  return 'Next up';
+};
+
 // ── time helpers ────────────────────────────────────────────────
 export const toMin = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number);

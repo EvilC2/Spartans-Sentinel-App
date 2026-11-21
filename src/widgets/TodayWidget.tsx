@@ -39,7 +39,7 @@ const TodayWidget = (input: TodayProps, env: WidgetEnvironment) => {
     eyebrow: 'In progress', title: 'Chemistry 11', short: 'Chem 11', sub: 'Room 213 · Smith', room: 'Rm 213',
     start: 0, end: 0, until: '11:05', footer: 'Next · FIT at 11:05',
     later: [{ time: '11:05', name: 'FIT', sub: '' }, { time: '11:50', name: 'English 12', sub: 'Rm 204' }, { time: '1:00', name: 'Lunch', sub: '' }],
-    tiles: [], together: '',
+    tiles: [], together: '', rest: [],
   };
 
   const fam = env.widgetFamily;

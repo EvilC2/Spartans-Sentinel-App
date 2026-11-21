@@ -10,9 +10,12 @@
 // Live Activity: on from LIVE_LEAD_MIN before the first bell until the last
 // class ends, on school days. Apple only lets the app start one while it is
 // open, and the app steps it to the next class while it is running (and every
-// time it is opened). Each update is marked stale at the end of its period.
-// To keep it moving with the app closed, the school server would push updates
-// through APNs — see the note at the bottom.
+// time it is opened). Each update is marked stale at the end of its period;
+// once stale, the card shows the rest of the day with a timer per row, which
+// stays right with the app closed. The "First class" reminder (notify/feed.ts)
+// gets the app opened before school so the card goes up. To keep it fully
+// current with the app closed, the server would push updates through APNs —
+// see the note at the bottom.
 //
 // Each widget is written on its own: one failing must not stop the others.
 // Failures are recorded in ./status for the Developer screen.
@@ -54,7 +57,10 @@ const attempt = (what: string, f: () => void) => {
 const virtualNow = (offset: number) => new Date(Date.now() + offset);
 const toReal = (offset: number) => (d: Date) => new Date(d.getTime() - offset);
 const realProps = (p: TodayProps, offset: number): TodayProps =>
-  !offset ? p : { ...p, start: p.start ? p.start - offset : 0, end: p.end ? p.end - offset : 0 };
+  !offset ? p : {
+    ...p, start: p.start ? p.start - offset : 0, end: p.end ? p.end - offset : 0,
+    rest: (p.rest || []).map(r => ({ ...r, start: r.start - offset, end: r.end - offset })),
+  };
 
 // Friends in a block, for the "with Alex" / "Spare with Alex" line.
 const togetherWith = (courses: Course[], friends: Friend[]): TogetherFor =>

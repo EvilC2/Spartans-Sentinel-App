@@ -15,7 +15,7 @@ import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '../ThemeContext';
 import { useProfile } from '../ProfileContext';
 import { useDevAccess } from '../devAccess';
-import { MAX_PINNED } from '../social';
+import { MAX_PINNED, livePins } from '../social';
 import { shadow, fonts } from '../theme';
 import { Icon, IconName, MessagesGlyph } from '../components/Icon';
 import { BadgeArt, RarityPill, TiltBadge, BadgeIcon } from '../components/BadgeArt';
@@ -32,6 +32,31 @@ import {
 type SortMode = 'rarity' | 'category';
 
 export const unlockedCount = () => BADGES.filter(isUnlocked).length;
+
+// ────────────────────────────────────────────────────────────────
+// Catch Up card: top of the list until Catch Up is finished. Optional, and
+// says so.
+// ────────────────────────────────────────────────────────────────
+const CatchUpCard = ({ score, onStart }: { score: number; onStart: () => void }) => (
+  <View style={{ paddingHorizontal: 20, paddingTop: 10 }}>
+    <LinearGradient colors={['#14304E', '#0E2238']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={[{ borderRadius: 20, padding: 18 }, shadow.md]}>
+      <Text style={{ fontSize: 11.5, fontWeight: '700', letterSpacing: 1.6, color: '#E8D8AE', textTransform: 'uppercase' }}>Catch Up · optional</Text>
+      <Text style={{ fontFamily: fonts.serif, fontSize: 24, lineHeight: 28, letterSpacing: -0.5, color: '#fff', marginTop: 6 }}>
+        Get the badges you'd already have
+      </Text>
+      <Text style={{ fontSize: 14, lineHeight: 20, color: 'rgba(255,255,255,0.75)', marginTop: 6 }}>
+        Spartans is new, so nobody had it from day one. A few quick questions give you the badges and XP you'd have earned since you started at Sentinel.
+      </Text>
+      <Pressable
+        onPress={onStart}
+        accessibilityRole="button"
+        style={({ pressed }) => ({ marginTop: 14, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E8D8AE', opacity: pressed ? 0.85 : 1 })}
+      >
+        <Text style={{ fontSize: 16, fontWeight: '700', color: '#0E2238' }}>{score ? `Keep going (${score}% done)` : 'Start Catch Up'}</Text>
+      </Pressable>
+    </LinearGradient>
+  </View>
+);
 
 // ────────────────────────────────────────────────────────────────
 // List sheet
@@ -74,6 +99,13 @@ export const BadgesSheet = ({ visible, onClose }: { visible: boolean; onClose: (
     setPreview(false);
   };
   const isPicked = (b: Badge) => picked.some(p => p.id === b.id);
+
+  // Catch Up waits here until it's done. It covers the tabs, not this sheet,
+  // so the sheet slides away first.
+  const { profile, signedIn, openCatchUp } = useProfile();
+  const catchUp = profile?.catchUp;
+  const showCatchUp = !!profile && signedIn && !catchUp?.doneAt;
+  const startCatchUp = () => { close(); setTimeout(openCatchUp, 420); };
 
   const groups = useMemo(() => {
     if (sort === 'rarity') {
@@ -162,6 +194,7 @@ export const BadgesSheet = ({ visible, onClose }: { visible: boolean; onClose: (
         </View>
 
         <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          {showCatchUp && <CatchUpCard score={catchUp?.score || 0} onStart={startCatchUp} />}
           {groups.map(g => (
             <View key={g.key}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 22, paddingHorizontal: 20, paddingBottom: 6 }}>
@@ -298,7 +331,9 @@ export const BadgeDetail = ({ badge, onClose, preview = false }: { badge: Badge 
   };
 
   // Pin: up to MAX_PINNED badges show under your name on Social.
-  const pins = profile?.pinnedBadges || [];
+  // Dead pins (removed or locked badges) don't hold a place, and the next
+  // change drops them from the saved list.
+  const pins = livePins(profile?.pinnedBadges);
   const isPinned = pins.includes(b.id);
   const pin = () => {
     if (isPinned) { setPinnedBadges(pins.filter(id => id !== b.id)); return; }

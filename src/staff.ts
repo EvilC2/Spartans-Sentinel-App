@@ -73,6 +73,7 @@ export const STAFF: StaffMember[] = [
   { last: 'Huh', first: 'Joseph', email: 'jhuh@wvschools.ca', role: 'Social Studies', group: 'teaching' },
   { last: 'Jamieson', first: 'Laura', email: 'ljamieson@wvschools.ca', role: 'Mathematics', group: 'teaching' },
   { last: 'Jang', first: 'Emily', email: 'ejang@wvschools.ca', role: 'Inclusive Education', group: 'teaching' },
+  { last: 'Kaye', first: 'Emilie', email: 'ekaye@wvschools.ca', role: 'French', group: 'teaching' },   // new 2026–27; email follows the school's pattern, not confirmed
   { last: 'Kennedy', first: 'Heather', email: 'hkennedy@wvschools.ca', role: 'P.E. · Athletic Director', group: 'teaching' },
   { last: 'Klippenstein', first: 'Nathan', email: 'nklippenstein@wvschools.ca', role: 'Physical Education', group: 'teaching' },
   { last: 'Krug', first: 'Kayla', email: 'kkrug@wvschools.ca', role: 'Physical & Health Education', group: 'teaching' },
