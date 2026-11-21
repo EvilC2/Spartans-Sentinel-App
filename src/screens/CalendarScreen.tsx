@@ -33,8 +33,8 @@ import { useClassSheet } from '../components/ClassCard';
 import { DayColumn, HomeworkMark, blockHomework } from '../components/DayColumn';
 import { glow } from '../components/ProgramIcon';
 import { useNav } from '../nav';
-import { DueFields, TimeFields, FoldRow, dayLabel, useKindColor, KindChips, KindTag, addDays } from '../components/HomeworkList';
-import { guessKind, HW_KIND_LABEL, type HomeworkKind } from '../programs';
+import { DueFields, TimeFields, dayLabel, useKindColor, KindChip, KindTag, addDays } from '../components/HomeworkList';
+import { guessKind, type HomeworkKind } from '../programs';
 import { useKeyboardHeight, sheetHeight } from '../useKeyboard';
 import type { ScreenProps } from '../../App';
 
@@ -604,7 +604,7 @@ const DaySheet = ({ d, isToday, onEditEvent, asDay = false }: { d?: GridCell; is
   const due = hw.items.filter(h => h.due === d.iso).sort((x, y) => Number(x.done) - Number(y.done) || (x.time || '99').localeCompare(y.time || '99'));
   const classOf = (h: typeof due[number]) => {
     const k = h.slot ? profile?.courses.find(x => x.slot === h.slot) : profile?.courses.find(x => !!h.program && x.name.trim().toLowerCase() === h.program.trim().toLowerCase());
-    return { name: h.program || k?.name || 'Unsorted', color: glow(k?.color || c.ink4, mode) };
+    return { name: h.program || k?.name || 'Quick type', color: glow(k?.color || c.ink4, mode) };
   };
   // The FIT reminder is already in the timetable, so it's not an "event".
   const school = (cal?.events || []).filter(ev => !ROUTINE.test(ev));
@@ -874,16 +874,21 @@ const splitEvent = (ev: string): [string, string] => {
 };
 
 // ────────────────────────────────────────────────────────────────
-// The + sheet. Two things can be added, and the sheet says which is which:
-//   Homework / test: schoolwork with a due date. It lands on the Homework page
-//     under its class, gets reminders, and shows as a mark on the calendar.
-//     Its type (homework, quiz, test, project) is optional and guessed from
-//     the name until picked.
-//   Event: anything else on your calendar: a game, a club, an appointment.
-// Editing an event opens straight to the event form.
+// The + sheet: a small composer that sits on the keyboard.
+//   Top:    Homework | Event, and a close button.
+//   Middle: one line to type on, and a round button that saves.
+//   Bottom: a row of pills (when, time, type, class). Tapping one opens a
+//           single strip of choices under it, so the keyboard stays up and
+//           nothing is ever hidden behind it. Only "More dates" and "Other
+//           time" put the keyboard away, to make room for the full pickers.
+// Homework lands on the Homework page under its class (or in Quick type) and
+// gets reminders; events only live on the calendar. The type is guessed from
+// the name ("chem test" → Test) until the chip is tapped.
 // ────────────────────────────────────────────────────────────────
-type EventFold = 'date' | 'time' | null;
 type AddWhat = 'homework' | 'event';
+type Strip = 'date' | 'time' | 'class' | 'dateFull' | 'timeFull' | null;
+const QUICK_TIMES = ['08:00', '12:00', '15:00', '18:00', '21:00', '23:59'];
+const DOW2 = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const EventEditor = ({ visible, initial, onClose }: { visible: boolean; initial?: Partial<PersonalEvent>; onClose: () => void }) => {
   const { c } = useTheme();
@@ -902,8 +907,8 @@ const EventEditor = ({ visible, initial, onClose }: { visible: boolean; initial?
   const [cls, setCls] = useState('');
   const [kind, setKind] = useState<HomeworkKind | undefined>(undefined);
   const [kindPicked, setKindPicked] = useState(false);
-  const [fold, setFold] = useState<EventFold>(null);
-  const [err, setErr] = useState<string | null>(null);
+  const [strip, setStrip] = useState<Strip>(null);
+  const [err, setErr] = useState(false);
 
   // Reset the form only when the sheet opens. This screen re-renders every
   // second (the clock), and `initial` used to arrive as a new object each
@@ -921,112 +926,123 @@ const EventEditor = ({ visible, initial, onClose }: { visible: boolean; initial?
     setCls(initial?.className || '');
     setKind(undefined);
     setKindPicked(false);
-    setFold(null);
-    setErr(null);
+    setStrip(null);
+    setErr(false);
   }, [visible]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const classes = Array.from(new Set((profile?.courses || []).filter(k => !k.spare && k.name.trim()).map(k => k.name)));
   const isHw = what === 'homework';
+  const day = iso || todayIso;
   const shownKind = kindPicked ? kind : guessKind(title);
-  // Typed "test" into an event: offer to make it homework instead.
-  const looksLikeWork = !isHw && !editing && !!guessKind(title);
 
   const save = () => {
-    if (!title.trim()) { setErr(isHw ? 'What is it? Give it a name.' : 'Give the event a name.'); return; }
-    const day = iso || todayIso;
-    if (isHw) {
-      hw.add(cls, title.trim(), day, { time, ...(kindPicked ? { kind: kind ?? null } : {}) });
-    } else if (editing) update(initial!.id!, { title: title.trim(), iso: day, time, className: cls || undefined });
+    if (!title.trim()) { setErr(true); return; }
+    if (isHw) hw.add(cls, title.trim(), day, { time, ...(kindPicked ? { kind: kind ?? null } : {}) });
+    else if (editing) update(initial!.id!, { title: title.trim(), iso: day, time, className: cls || undefined });
     else add({ title: title.trim(), iso: day, time, className: cls || undefined });
     onClose();
   };
 
-  // Opening a picker puts the keyboard away so the picker has the room.
-  const toggle = (f: EventFold) => { Keyboard.dismiss(); setFold(cur => cur === f ? null : f); };
+  const toggle = (k: Strip) => setStrip(cur => (cur === k || (k === 'date' && cur === 'dateFull') || (k === 'time' && cur === 'timeFull') ? null : k));
+  const full = (k: 'dateFull' | 'timeFull') => { Keyboard.dismiss(); setStrip(k); };
+  const days = Array.from({ length: 14 }, (_, i) => addDays(todayIso, i));
+  const ready = !!title.trim();
 
-  const input = { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 16, color: c.ink, backgroundColor: c.paper2 } as const;
-  const label = { fontSize: 14, fontWeight: '700' as const, color: c.ink2, marginBottom: 6, marginTop: 16 };
+  const pill = (k: 'date' | 'time' | 'class', icon: IconName, label: string, set: boolean) => {
+    const on = strip === k || strip === `${k}Full`;
+    return (
+      <Pressable key={k} onPress={() => toggle(k)} accessibilityRole="button" accessibilityState={{ expanded: on }}
+        style={({ pressed }) => ({ height: 36, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, borderRadius: 18, backgroundColor: on ? c.action : c.paper2, opacity: pressed ? 0.7 : 1 })}>
+        <Icon name={icon} size={14} stroke={2} color={on ? '#fff' : set ? c.ink : c.ink3} />
+        <Text numberOfLines={1} style={[{ maxWidth: 150, fontSize: 14, fontWeight: set ? '600' : '500', color: on ? '#fff' : set ? c.ink : c.ink3 }, tnum]}>{label}</Text>
+      </Pressable>
+    );
+  };
+  const choice = (key: string, label: string, on: boolean, onPress: () => void, sub?: string) => (
+    <Pressable key={key} onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }}
+      style={({ pressed }) => ({ minWidth: sub ? 50 : 0, height: sub ? 52 : 40, paddingHorizontal: sub ? 8 : 14, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? c.action : c.paper2, opacity: pressed ? 0.7 : 1 })}>
+      {!!sub && <Text style={{ fontSize: 11, fontWeight: '600', color: on ? 'rgba(255,255,255,0.8)' : c.ink3 }}>{sub}</Text>}
+      <Text style={[{ fontSize: sub ? 17 : 14, fontWeight: '600', color: on ? '#fff' : c.ink }, tnum]}>{label}</Text>
+    </Pressable>
+  );
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(14,34,56,0.35)' }} accessibilityLabel="Close" />
-      <View style={[{ position: 'absolute', left: 0, right: 0, bottom: kb, maxHeight: sheetHeight(screenH, kb), backgroundColor: c.paper, borderTopLeftRadius: 26, borderTopRightRadius: 26, borderBottomLeftRadius: kb ? 26 : 0, borderBottomRightRadius: kb ? 26 : 0 }, shadow.lg]}>
-        <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 22, paddingTop: 10, paddingBottom: kb ? 16 : Platform.OS === 'ios' ? 34 : 20 }}>
-          <View style={{ alignItems: 'center', paddingBottom: 6 }}><View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: c.line }} /></View>
-          <Text style={{ fontFamily: fonts.serif, fontSize: 24, color: c.ink, letterSpacing: -0.4 }}>{editing ? 'Edit event' : isHw ? 'New homework' : 'New event'}</Text>
-
-          {!editing && (
-            <>
-              <View accessibilityRole="tablist" style={{ flexDirection: 'row', marginTop: 12, padding: 3, borderRadius: 12, backgroundColor: c.paper2 }}>
-                {([['homework', 'Homework / test'], ['event', 'Event']] as [AddWhat, string][]).map(([k, l]) => {
-                  const on = what === k;
-                  return (
-                    <Pressable key={k} onPress={() => { setWhat(k); setErr(null); }} accessibilityRole="tab" accessibilityState={{ selected: on }}
-                      style={[{ flex: 1, minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: on ? c.surface : 'transparent' }, on ? shadow.sm : shadow.none]}>
-                      <Text style={{ fontSize: 14, fontWeight: on ? '700' : '500', color: on ? c.ink : c.ink3 }}>{l}</Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-              <Text style={{ fontSize: 13, lineHeight: 18, color: c.ink3, marginTop: 8 }}>
-                {isHw
-                  ? 'Schoolwork with a due date: homework, quizzes, tests, projects. It goes on your Homework page under its class, and you get reminders.'
-                  : 'Anything else on your calendar: a game, a club meeting, an appointment. Events don’t go on your Homework page.'}
-              </Text>
-            </>
+      <View style={[{ position: 'absolute', left: 0, right: 0, bottom: kb, maxHeight: sheetHeight(screenH, kb), backgroundColor: c.paper, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 12, paddingBottom: kb ? 10 : Platform.OS === 'ios' ? 30 : 16 }, shadow.lg]}>
+        {/* Homework | Event */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 }}>
+          {editing ? (
+            <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: c.ink }}>Edit event</Text>
+          ) : (
+            <View accessibilityRole="tablist" style={{ flexDirection: 'row', padding: 3, borderRadius: 12, backgroundColor: c.paper2 }}>
+              {([['homework', 'Homework'], ['event', 'Event']] as [AddWhat, string][]).map(([k, l]) => {
+                const on = what === k;
+                return (
+                  <Pressable key={k} onPress={() => { setWhat(k); if (k === 'event' && strip === 'class') setStrip(null); }} accessibilityRole="tab" accessibilityState={{ selected: on }}
+                    style={[{ height: 32, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: on ? c.surface : 'transparent' }, on ? shadow.sm : shadow.none]}>
+                    <Text style={{ fontSize: 14, fontWeight: on ? '700' : '500', color: on ? c.ink : c.ink3 }}>{l}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
           )}
+          <View style={{ flex: 1 }} />
+          <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close"
+            style={({ pressed }) => ({ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: c.paper2, opacity: pressed ? 0.6 : 1 })}>
+            <Icon name="close" size={14} stroke={2.4} color={c.ink2} />
+          </Pressable>
+        </View>
 
-          <Text style={label}>What</Text>
-          <TextInput value={title} onChangeText={setTitle} placeholder={isHw ? 'Unit 3 quiz' : 'Basketball game'} placeholderTextColor={c.ink4} style={input} autoFocus={!editing} returnKeyType="done" onSubmitEditing={() => Keyboard.dismiss()} />
+        {/* The line, and the button that saves it */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 18, paddingRight: 14, paddingTop: 8 }}>
+          <TextInput
+            value={title}
+            onChangeText={v => { setTitle(v); if (err) setErr(false); }}
+            placeholder={err ? 'Give it a name first' : isHw ? 'What’s due?' : 'What’s happening?'}
+            placeholderTextColor={err ? c.danger : c.ink4}
+            autoFocus={!editing}
+            returnKeyType="done"
+            onSubmitEditing={save}
+            accessibilityLabel={isHw ? 'Homework' : 'Event'}
+            style={[{ flex: 1, fontSize: 21, fontWeight: '500', letterSpacing: -0.3, color: c.ink, paddingVertical: 12 }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null]}
+          />
+          <Pressable onPress={save} accessibilityRole="button" accessibilityLabel={isHw ? 'Add homework' : 'Save event'}
+            style={({ pressed }) => ({ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: ready ? c.action : c.paper2, opacity: pressed ? 0.75 : 1 })}>
+            <Check size={18} color={ready ? '#fff' : c.ink4} width={3} />
+          </Pressable>
+        </View>
 
-          {looksLikeWork && (
-            <Pressable onPress={() => setWhat('homework')} accessibilityRole="button" style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, paddingVertical: 8, paddingHorizontal: 12, borderRadius: 10, backgroundColor: c.paper2, opacity: pressed ? 0.7 : 1 })}>
-              <Icon name="info" size={15} stroke={2} color={c.link} />
-              <Text style={{ flex: 1, fontSize: 13.5, color: c.ink2 }}>
-                Sounds like a {guessKind(title) === 'project' ? 'project' : guessKind(title)}. <Text style={{ fontWeight: '700', color: c.link }}>Add it as homework</Text> to get reminders.
-              </Text>
-            </Pressable>
-          )}
-
-          {isHw && (
-            <>
-              <Text style={label}>Type <Text style={{ fontWeight: '400', color: c.ink4 }}>optional</Text></Text>
-              <KindChips kind={shownKind} onKind={k => { setKind(k ?? undefined); setKindPicked(true); }} />
-            </>
-          )}
-
-          <View style={{ marginTop: isHw ? 4 : 14 }}>
-            <FoldRow label={isHw ? 'Due' : 'Date'} value={dayLabel(iso || todayIso, todayIso)} open={fold === 'date'} onPress={() => toggle('date')} />
-            {fold === 'date' && <DueFields due={iso || todayIso} todayIso={todayIso} onDue={setIso} />}
-            <FoldRow label="Time" value={time ? fmt12(time, true) : isHw ? 'Any time' : 'All day'} open={fold === 'time'} onPress={() => toggle('time')} />
-            {fold === 'time' && <TimeFields time={time} onTime={setTime} />}
-          </View>
-
-          {classes.length > 0 && (
-            <>
-              <Text style={label}>Class <Text style={{ fontWeight: '400', color: c.ink4 }}>{isHw ? 'or leave it Unsorted' : 'optional'}</Text></Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }} keyboardShouldPersistTaps="always">
-                {classes.map(k => {
-                  const on = cls === k;
-                  return (
-                    <Pressable key={k} onPress={() => setCls(on ? '' : k)} style={{ paddingVertical: 8, paddingHorizontal: 13, borderRadius: 999, backgroundColor: on ? c.action : c.paper2 }}>
-                      <Text style={{ fontSize: 13.5, fontWeight: on ? '700' : '500', color: on ? '#fff' : c.ink2 }}>{k}</Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-            </>
-          )}
-          {!!err && <Text style={{ color: c.danger, marginTop: 12, fontSize: 13, fontWeight: '500' }}>{err}</Text>}
-          <View style={{ flexDirection: 'row', gap: 10, marginTop: 18 }}>
-            <Pressable onPress={onClose} style={({ pressed }) => ({ flex: 1, paddingVertical: 14, alignItems: 'center', opacity: pressed ? 0.6 : 1 })}>
-              <Text style={{ color: c.ink3, fontSize: 15, fontWeight: '600' }}>Cancel</Text>
-            </Pressable>
-            <Pressable onPress={save} style={({ pressed }) => ({ flex: 2, paddingVertical: 14, borderRadius: 14, alignItems: 'center', backgroundColor: c.action, opacity: pressed ? 0.8 : 1 })}>
-              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>{isHw ? `Add ${shownKind ? HW_KIND_LABEL[shownKind].toLowerCase() : 'homework'}` : 'Save'}</Text>
-            </Pressable>
-          </View>
+        {/* Pills */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="always" contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingTop: 4, paddingBottom: 6, alignItems: 'center' }}>
+          {pill('date', 'calendar', dayLabel(day, todayIso), true)}
+          {pill('time', 'clock', time ? fmt12(time, true) : isHw ? 'Any time' : 'All day', !!time)}
+          {isHw && <KindChip kind={shownKind} onKind={k => { setKind(k ?? undefined); setKindPicked(true); }} />}
+          {classes.length > 0 && pill('class', 'book', cls || (isHw ? 'Quick type' : 'No class'), !!cls)}
         </ScrollView>
+
+        {/* One strip of choices for the open pill */}
+        {strip === 'date' && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="always" contentContainerStyle={{ gap: 6, paddingHorizontal: 16, paddingVertical: 6 }}>
+            {days.map((d, i) => choice(d, String(fromISO(d).getDate()), d === day, () => setIso(d), i === 0 ? 'Today' : DOW2[fromISO(d).getDay()]))}
+            {choice('more', 'More', false, () => full('dateFull'))}
+          </ScrollView>
+        )}
+        {strip === 'time' && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="always" contentContainerStyle={{ gap: 6, paddingHorizontal: 16, paddingVertical: 6 }}>
+            {choice('any', isHw ? 'Any time' : 'All day', !time, () => setTime(undefined))}
+            {QUICK_TIMES.map(t => choice(t, fmt12(t, true), time === t, () => setTime(t)))}
+            {choice('other', 'Other', !!time && !QUICK_TIMES.includes(time), () => full('timeFull'))}
+          </ScrollView>
+        )}
+        {strip === 'class' && (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="always" contentContainerStyle={{ gap: 6, paddingHorizontal: 16, paddingVertical: 6 }}>
+            {choice('none', isHw ? 'Quick type' : 'No class', !cls, () => setCls(''))}
+            {classes.map(k => choice(k, k, cls === k, () => setCls(k)))}
+          </ScrollView>
+        )}
+        {strip === 'dateFull' && <View style={{ paddingHorizontal: 16 }}><DueFields due={day} todayIso={todayIso} onDue={setIso} /></View>}
+        {strip === 'timeFull' && <View style={{ paddingHorizontal: 16, paddingTop: 6 }}><TimeFields time={time} onTime={setTime} /></View>}
       </View>
     </Modal>
   );

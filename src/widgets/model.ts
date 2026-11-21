@@ -255,7 +255,7 @@ export const homeworkProps = (now: Date, items: HomeworkItem[], courses: Course[
     items: open.slice(0, 5).map(h => {
       const k = h.slot ? courses.find(c => c.slot === h.slot) : undefined;
       const cls = h.program || k?.name || '';
-      return { title: h.title, cls: cls ? shortName(cls) : 'Unsorted', ...dueLabel(h.due, iso, now) };
+      return { title: h.title, cls: cls ? shortName(cls) : 'Quick type', ...dueLabel(h.due, iso, now) };
     }),
   };
 };

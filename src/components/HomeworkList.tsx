@@ -56,7 +56,7 @@ export const useHomeworkSections = () => {
         ? [`Block ${p.slots.join(', ')}`, teacherShort(p.teacher || '')].filter(Boolean).join(' · ')
         : [KIND_ONE[p.kind], teacherShort(p.teacher || '')].filter(Boolean).join(' · '),
     })),
-    { id: UNSORTED, name: 'Unsorted', sub: 'Anything without a class', program: '' },
+    { id: UNSORTED, name: 'Quick type', sub: 'Unsorted tasks', program: '' },
   ], [programs]);
   return { programs, sections };
 };
@@ -647,17 +647,18 @@ const Row = ({ h, section, sections, todayIso, open, older, drag, canDrag, index
               style={({ pressed }) => ({ flex: 1, minWidth: 0, minHeight: 47, paddingVertical: 12, paddingRight: canDrag ? 0 : 14, opacity: pressed ? 0.6 : 1 })}
             >
               <Text style={[titleType, { color: h.done ? c.ink3 : c.ink, textDecorationLine: h.done ? 'line-through' : 'none' }]}>{h.title}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                {!!h.kind && <KindTag kind={h.kind} dim={h.done} />}
-                <Text style={[metaType, tnum, {
-                  flexShrink: 1,
-                  color: late ? c.danger : dueToday ? c.ink2 : c.ink3,
-                  fontWeight: late || dueToday ? '600' : '400',
-                }]}>{due}</Text>
-              </View>
+              <Text style={[metaType, tnum, {
+                marginTop: 2,
+                color: late ? c.danger : dueToday ? c.ink2 : c.ink3,
+                fontWeight: late || dueToday ? '600' : '400',
+              }]}>{due}</Text>
               {!!h.notes && <Text numberOfLines={2} style={[metaType, { color: c.ink3, marginTop: 2 }]}>{h.notes}</Text>}
             </Pressable>
           )}
+          {/* Type, level with the title. Tap to change it. */}
+          <View style={{ paddingTop: 9, paddingLeft: 8, paddingRight: !open && canDrag && drag ? 0 : 10 }}>
+            <KindChip kind={h.kind} dim={h.done} onKind={kind => hw.update(h.id, { kind })} />
+          </View>
           {!open && canDrag && drag && <DragHandle id={h.id} title={h.title} drag={drag} actions={a11yMove} />}
         </View>
       </View>
@@ -713,8 +714,6 @@ const Details = ({ h, section, sections, todayIso, index, count, onMove, onClose
           style={{ fontSize: 16, lineHeight: 22, color: c.ink, padding: 0, paddingTop: 0, minHeight: 24, textAlignVertical: 'top', ...WEB_INPUT }}
         />
       </View>
-
-      <KindChips kind={h.kind} onKind={kind => hw.update(h.id, { kind })} />
 
       <FoldRow label="Due" value={dayLabel(h.due, todayIso)} open={fold === 'due'} onPress={() => toggle('due')} />
       {fold === 'due' && <DueFields due={h.due} todayIso={todayIso} onDue={due => hw.update(h.id, { due })} />}
@@ -917,7 +916,36 @@ const MiniCal = ({ iso, todayIso, onPick }: { iso: string; todayIso: string; onP
 // quizzes gold, projects blue. The word is always there too.
 export const useKindColor = () => {
   const { c, mode } = useTheme();
-  return (k: HomeworkKind) => k === 'test' ? c.danger : k === 'quiz' ? (mode === 'dark' ? '#E3B871' : c.gold) : (mode === 'dark' ? '#8FBDF0' : c.sky);
+  return (k: HomeworkKind) => k === 'test' ? c.danger : k === 'quiz' ? (mode === 'dark' ? '#E3B871' : c.gold)
+    : k === 'essay' ? (mode === 'dark' ? '#8DB57A' : c.moss) : (mode === 'dark' ? '#8FBDF0' : c.sky);
+};
+
+// The type as a round chip on the right of a row. One tap steps to the next
+// type: Homework → Quiz → Test → Project → Essay → Homework. Plain homework is
+// a quiet outline so the others stand out.
+export const KindChip = ({ kind, dim, onKind }: { kind?: HomeworkKind; dim?: boolean; onKind: (k: HomeworkKind | null) => void }) => {
+  const { c } = useTheme();
+  const colorOf = useKindColor();
+  const color = kind ? colorOf(kind) : c.ink3;
+  const next = kind ? HW_KINDS[HW_KINDS.indexOf(kind) + 1] ?? null : HW_KINDS[0];
+  const label = kind ? HW_KIND_LABEL[kind] : 'Homework';
+  return (
+    <Pressable
+      onPress={() => onKind(next)}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={`Type: ${label}`}
+      accessibilityHint={`Changes to ${next ? HW_KIND_LABEL[next] : 'Homework'}`}
+      style={({ pressed }) => ({
+        height: 28, paddingHorizontal: 11, borderRadius: 14, alignItems: 'center', justifyContent: 'center',
+        backgroundColor: kind ? wash(color, 0.14) : 'transparent',
+        borderWidth: 1, borderColor: kind ? wash(color, 0.35) : c.line,
+        opacity: pressed ? 0.6 : dim ? 0.55 : 1,
+      })}
+    >
+      <Text style={{ fontSize: 12.5, fontWeight: kind ? '700' : '500', color }}>{label}</Text>
+    </Pressable>
+  );
 };
 
 export const KindTag = ({ kind, dim }: { kind: HomeworkKind; dim?: boolean }) => {

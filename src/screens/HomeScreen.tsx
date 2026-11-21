@@ -326,20 +326,32 @@ const DayHeroCard = ({ t, scrubOpen, onToggleScrub, onCourse }: { t: TodayState;
   const weather = useWeather();
   const { tools: tempTools } = usePreviewTime();
 
-  // Once the last bell has gone, and on days off, the card looks ahead: the
-  // next school day's rotation, its blocks, and what's first.
+  // With today's classes done (or none today), the card looks ahead, but only
+  // the day before: Sunday night shows Monday's rotation, Monday evening shows
+  // Tuesday's. Any further out (Friday evening, Saturday, a break) it rests:
+  // no tiles, no rotation, one line and when school is back.
   const { profile } = useProfile();
   const courses = profile?.courses || [];
-  const ahead = useMemo(
-    () => (!plan || t.phase === 'after' ? nextSchoolDay(t.now, courses) : null),
-    [t.iso, t.phase === 'after', !plan, courses],   // eslint-disable-line react-hooks/exhaustive-deps
+  const offNow = !plan || t.phase === 'after';
+  const nextDay = useMemo(
+    () => (offNow ? nextSchoolDay(t.now, courses) : null),
+    [t.iso, offNow, courses],   // eslint-disable-line react-hooks/exhaustive-deps
   );
+  const ahead = nextDay?.days === 1 ? nextDay : null;
   const aheadPlan = ahead?.t.plan || null;
   const first = aheadPlan?.blocks[0] || null;
+  const rest = offNow && !aheadPlan;
+  const weekend = cal?.kind === 'weekend' || (!plan && !cal?.label);
+  // Friday after the bell, or the last day before a break.
+  const restHeadline = plan ? (nextDay && nextDay.days <= 3 ? "That's the week." : 'Done for now.')
+    : weekend ? 'Weekend.' : (cal?.label || 'No school');
+  const back = !nextDay ? ''
+    : nextDay.days < 7 ? `Back ${nextDay.date.toLocaleDateString('en-US', { weekday: 'long' })}`
+    : `Back ${nextDay.date.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}`;
 
-  const headline = aheadPlan ? `Day ${aheadPlan.dayNum}` : plan ? `Day ${plan.dayNum}` : (cal?.label || 'No school');
-  const cardLabel = aheadPlan
-    ? `${ahead!.when === 'Next' ? 'Next school day' : `${ahead!.when}'s rotation`} · ${aheadPlan.code}`
+  const headline = rest ? restHeadline : aheadPlan ? `Day ${aheadPlan.dayNum}` : plan ? `Day ${plan.dayNum}` : (cal?.label || 'No school');
+  const cardLabel = rest ? (plan ? "School's out" : weekend ? 'No school today' : 'Day off')
+    : aheadPlan ? `${ahead!.when}'s rotation · ${aheadPlan.code}`
     : `Today's rotation${plan ? ` · ${plan.code}` : ''}`;
 
   // Countdown target: end of the current period, or the first bell before school.
@@ -370,8 +382,8 @@ const DayHeroCard = ({ t, scrubOpen, onToggleScrub, onCourse }: { t: TodayState;
   const after = !inClass || !plan ? ''
     : !t.next ? 'Last block of the day'
     : `Next · ${t.next.kind === 'block' ? shortName(t.next.course?.name || '') || `Block ${t.next.slot}` : t.next.label} at ${fmt12(t.next.start)}`;
-  const footer = aheadPlan
-    ? (plan ? "School's out for today" : cal?.label ? `Today · ${cal.label}` : 'No school today')
+  const footer = rest ? back
+    : aheadPlan ? (plan ? "School's out for today" : cal?.label ? `Today · ${cal.label}` : 'No school today')
     : !plan ? '' : after;
   const openFocus = focus?.course ? () => onCourse(focus.course!) : undefined;
   // Friends in the block on now (or up next): "with Alex", and a spare you
@@ -411,14 +423,24 @@ const DayHeroCard = ({ t, scrubOpen, onToggleScrub, onCourse }: { t: TodayState;
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 14, marginTop: 6, marginBottom: 18 }}>
-          <Text style={{
-            fontFamily: fonts.serif, fontSize: plan || aheadPlan ? 64 : 34, lineHeight: plan || aheadPlan ? 64 : 40,
-            letterSpacing: -1.5, color: '#fff', flexShrink: 1,
-          }}>
-            {headline}
-          </Text>
-        </View>
+        {rest ? (
+          // Resting: a tick, one line, and when school is back. Nothing else.
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 16, marginBottom: 6 }}>
+            <View style={{ width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(232,216,174,0.14)', borderWidth: 1.5, borderColor: 'rgba(232,216,174,0.5)' }}>
+              <Check size={18} color={BAR_GOLD} width={3} />
+            </View>
+            <Text style={{ fontFamily: fonts.serif, fontSize: 34, lineHeight: 40, letterSpacing: -0.8, color: '#fff', flexShrink: 1 }}>{headline}</Text>
+          </View>
+        ) : (
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 14, marginTop: 6, marginBottom: 18 }}>
+            <Text style={{
+              fontFamily: fonts.serif, fontSize: plan || aheadPlan ? 64 : 34, lineHeight: plan || aheadPlan ? 64 : 40,
+              letterSpacing: -1.5, color: '#fff', flexShrink: 1,
+            }}>
+              {headline}
+            </Text>
+          </View>
+        )}
 
         {aheadPlan && (
           <Grid cols={aheadPlan.blocks.length} gap={8}>
@@ -451,7 +473,7 @@ const DayHeroCard = ({ t, scrubOpen, onToggleScrub, onCourse }: { t: TodayState;
           </View>
         )}
 
-        {plan && !aheadPlan && (
+        {plan && !aheadPlan && !rest && (
           <Grid cols={plan.blocks.length} gap={8}>
             {plan.blocks.map((b, i) => {
               const idx = plan.periods.indexOf(b);
@@ -486,7 +508,7 @@ const DayHeroCard = ({ t, scrubOpen, onToggleScrub, onCourse }: { t: TodayState;
           </View>
         )}
 
-        {plan && !aheadPlan && (
+        {plan && !aheadPlan && !rest && (
           <View style={{ marginTop: 12, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.14)', overflow: 'hidden' }}>
             <LinearGradient
               colors={inClass ? [BAR_GOLD, c.gold] : [accent, accent]}
