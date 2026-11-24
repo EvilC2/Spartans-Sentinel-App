@@ -21,6 +21,7 @@ import { XpSheet } from '../components/XpSheet';
 import { XpBar } from '../components/XpBar';
 import { useProfile, StudentProfile, Course, fullName, gradeLabel, homeroom, teacherShort, roomShort, courseAt, Slot } from '../ProfileContext';
 import { BadgesSheet, unlockedCount } from './BadgesScreen';
+import { useFocus } from '../nav';
 import { BadgeIcon, BadgeArt } from '../components/BadgeArt';
 import { Badge, isUnlocked } from '../badges';
 import { badgeOf, MAX_PINNED } from '../social';
@@ -47,6 +48,7 @@ export default function ProfileScreen({ onNavigate, topInset, onEdit }: ScreenPr
   const [badges, setBadges] = useState(false);
   const [xp, setXp] = useState(false);
   const sheet = useClassSheet();
+  useFocus('badges', () => { setBadges(true); return true; }, []);
 
   return (
     <ScrollView

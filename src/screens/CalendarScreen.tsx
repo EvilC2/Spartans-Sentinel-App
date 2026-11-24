@@ -13,13 +13,14 @@
 // and says which is which. Homework days get a grey dot, quiz/test days a diamond.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Animated, Easing, Modal, TextInput, Keyboard, Platform, useWindowDimensions, PanResponder } from 'react-native';
+import { View, Text, Pressable, ScrollView, Animated, Easing, TextInput, Keyboard, Platform, useWindowDimensions, PanResponder } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 import { useTheme } from '../ThemeContext';
 import { fonts, shadow, tnum } from '../theme';
 import { Icon, IconName, Check } from '../components/Icon';
 import { NowDot } from '../components/Chrome';
 import { AppHeader } from '../components/AppHeader';
+import { BottomSheet } from '../components/BottomSheet';
 import {
   YEAR_MONTHS, MONTH_NAMES, monthGrid, GridCell, CalDay, fromISO, CALENDAR, SCHOOL_YEAR,
 } from '../calendar';
@@ -32,7 +33,8 @@ import { usePosted } from '../content';
 import { useClassSheet } from '../components/ClassCard';
 import { DayColumn, HomeworkMark, blockHomework } from '../components/DayColumn';
 import { glow } from '../components/ProgramIcon';
-import { useNav } from '../nav';
+import { useNav, useFocus } from '../nav';
+import { Spot, useReveal, useScrollSpot } from '../components/Spot';
 import { DueFields, TimeFields, dayLabel, useKindColor, KindChip, KindTag, addDays } from '../components/HomeworkList';
 import { guessKind, type HomeworkKind } from '../programs';
 import { useKeyboardHeight, sheetHeight } from '../useKeyboard';
@@ -163,6 +165,22 @@ export default function CalendarScreen({ topInset }: ScreenProps) {
     if (nav.calMode === 'day') goToday();
     nav.clearCalMode();
   }, [nav.calMode]);   // eslint-disable-line react-hooks/exhaustive-deps
+  // From a notification: that day, with the event it was about marked.
+  const scroll = useScrollSpot();
+  const [spot, setSpot] = useState<string | null>(null);
+  useFocus('day', f => {
+    setMode('day');
+    setSelected(f.iso);
+    setMi(monthIndexFor(f.iso));
+    setSpot(f.event || null);
+    if (!f.event) scroll.ref.current?.scrollTo({ y: 0, animated: false });
+    return true;
+  }, []);
+  useEffect(() => {
+    if (!spot) return;
+    const t = setTimeout(() => setSpot(null), 6000);
+    return () => clearTimeout(t);
+  }, [spot]);
   const stepDay = (d: number) => {
     const iso = stepSchoolDay(selected, d);
     setSelected(iso);
@@ -222,7 +240,11 @@ export default function CalendarScreen({ topInset }: ScreenProps) {
     : `${Math.abs(dayRel) <= 1 ? DOW_LONG[selDate.getDay()].slice(0, 3) + ' ' : ''}${MONTH_NAMES[selDate.getMonth()].slice(0, 3)} ${selDate.getDate()}`;
 
   return (
+    <View ref={scroll.frame} collapsable={false} style={{ flex: 1 }}>
     <ScrollView
+      ref={scroll.ref}
+      onScroll={scroll.onScroll}
+      scrollEventThrottle={32}
       style={{ flex: 1, backgroundColor: c.paper }}
       contentContainerStyle={{ paddingBottom: 110 }}
       showsVerticalScrollIndicator={false}
@@ -315,7 +337,7 @@ export default function CalendarScreen({ topInset }: ScreenProps) {
 
       {mode === 'day' ? (
         <Animated.View {...pan.panHandlers} style={{ transform: [{ translateX: slide }] }}>
-          <DaySheet key={selected} d={sel} isToday={selected === todayIso} onEditEvent={e => setAdding(e)} asDay />
+          <DaySheet key={selected} d={sel} isToday={selected === todayIso} onEditEvent={e => setAdding(e)} asDay spot={spot} bring={scroll.bring} />
         </Animated.View>
       ) : (
         <DaySheet key={selected} d={sel} isToday={selected === todayIso} onEditEvent={e => setAdding(e)} />
@@ -329,6 +351,7 @@ export default function CalendarScreen({ topInset }: ScreenProps) {
         onClose={() => setAdding(null)}
       />
     </ScrollView>
+    </View>
   );
 }
 
@@ -577,7 +600,7 @@ const WeekView = ({ todayIso, anchorIso, weekOff, nonce, selected, onSelect, onV
 // ────────────────────────────────────────────────────────────────
 const DOW_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-const DaySheet = ({ d, isToday, onEditEvent, asDay = false }: { d?: GridCell; isToday: boolean; onEditEvent: (e: PersonalEvent) => void; asDay?: boolean }) => {
+const DaySheet = ({ d, isToday, onEditEvent, asDay = false, spot, bring }: { d?: GridCell; isToday: boolean; onEditEvent: (e: PersonalEvent) => void; asDay?: boolean; spot?: string | null; bring?: (n: View | null) => void }) => {
   const { c, mode } = useTheme();
   const { profile } = useProfile();
   const { eventsOn, remove } = useEvents();
@@ -731,11 +754,13 @@ const DaySheet = ({ d, isToday, onEditEvent, asDay = false }: { d?: GridCell; is
               return <EventRow key={'s' + i} tone={glow(eventTone(ev, c), mode)} title={title} detail={detail} />;
             })}
             {ours.map(e => (
-              <EventRow key={e.id} tone={glow(c.sky, mode)} time={e.time ? fmt12(e.time, true) : undefined} title={e.title} detail={e.place} tag="Club" />
+              <EventRow key={e.id} spot={spot === e.id} bring={bring} tone={glow(c.sky, mode)} time={e.time ? fmt12(e.time, true) : undefined} title={e.title} detail={e.place} tag="Club" />
             ))}
             {mine.map(e => (
               <EventRow
                 key={e.id}
+                spot={spot === e.id}
+                bring={bring}
                 tone={glow(c.gold, mode)}
                 time={e.time ? fmt12(e.time, true) : undefined}
                 title={e.title}
@@ -756,10 +781,13 @@ const DaySheet = ({ d, isToday, onEditEvent, asDay = false }: { d?: GridCell; is
 };
 
 // One event line: colour bar, bold time on top (when there is one), title, detail.
-const EventRow = ({ tone, time, title, detail, tag, faded, actions }: { tone: string; time?: string; title: string; detail?: string; tag?: string; faded?: boolean; actions?: React.ReactNode }) => {
+const EventRow = ({ tone, time, title, detail, tag, faded, actions, spot = false, bring }: { spot?: boolean; bring?: (n: View | null) => void; tone: string; time?: string; title: string; detail?: string; tag?: string; faded?: boolean; actions?: React.ReactNode }) => {
   const { c } = useTheme();
+  const ref = useRef<View>(null);
+  useReveal(spot, ref, n => bring?.(n), 420);
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, opacity: faded ? 0.55 : 1 }}>
+    <View ref={ref} collapsable={false} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, opacity: faded ? 0.55 : 1 }}>
+      <Spot on={spot} radius={12} inset={-8} />
       <View style={{ width: 4, alignSelf: 'stretch', minHeight: 20, borderRadius: 2, backgroundColor: tone }} />
       <View style={{ flex: 1, minWidth: 0 }}>
         {!!time && <Text style={[{ fontSize: 12.5, fontWeight: '800', color: tone, marginBottom: 1 }, tnum]}>{time}</Text>}
@@ -967,9 +995,7 @@ const EventEditor = ({ visible, initial, onClose }: { visible: boolean; initial?
   );
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(14,34,56,0.35)' }} accessibilityLabel="Close" />
-      <View style={[{ position: 'absolute', left: 0, right: 0, bottom: kb, maxHeight: sheetHeight(screenH, kb), backgroundColor: c.paper, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 12, paddingBottom: kb ? 10 : Platform.OS === 'ios' ? 30 : 16 }, shadow.lg]}>
+    <BottomSheet visible={visible} onClose={onClose} bottom={kb} style={[{ maxHeight: sheetHeight(screenH, kb), backgroundColor: c.paper, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 12, paddingBottom: kb ? 10 : Platform.OS === 'ios' ? 30 : 16 }, shadow.lg]}>
         {/* Homework | Event */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 }}>
           {editing ? (
@@ -1043,7 +1069,6 @@ const EventEditor = ({ visible, initial, onClose }: { visible: boolean; initial?
         )}
         {strip === 'dateFull' && <View style={{ paddingHorizontal: 16 }}><DueFields due={day} todayIso={todayIso} onDue={setIso} /></View>}
         {strip === 'timeFull' && <View style={{ paddingHorizontal: 16, paddingTop: 6 }}><TimeFields time={time} onTime={setTime} /></View>}
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 };

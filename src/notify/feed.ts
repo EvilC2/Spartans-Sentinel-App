@@ -11,22 +11,27 @@
 
 import type { IconName } from '../components/Icon';
 import type { TabId } from '../components/Chrome';
-import { HW_KIND_LABEL, isAssessment, type HomeworkItem } from '../programs';
+import type { Focus } from '../nav';
+import { HW_KIND_LABEL, isAssessment, type HomeworkItem, type HomeworkKind } from '../programs';
 import type { PersonalEvent } from '../stores';
 import type { Request } from '../social';
 import type { Popup } from '../backend';
 import { CALENDAR, fromISO, toISO } from '../calendar';
 import { fmt12, buildDayPlan } from '../bell';
-import { roomShort, type Course } from '../ProfileContext';
+import { roomShort, type Course, type Slot } from '../ProfileContext';
 import { BADGES, UNLOCKED } from '../badges';
 import { catchUpBadgeIds, earnedAt, isCatchUpBadge } from '../earned';
 import { eventDaysOn, addDays, EventDay } from './eventDays';
 
 export type Topic = 'announcements' | 'homework' | 'classes' | 'events' | 'buzz' | 'friends' | 'badges';
 
-// What tapping a notice does.
+// What tapping a notice does: `open` goes to the exact thing it's about, not
+// just the page. `tab` is the fallback, and what older pushes carry.
 export type NoticeAction =
   | { kind: 'tab'; tab: TabId }
+  | { kind: 'open'; tab: TabId; focus: Focus }
+  | { kind: 'class'; slot: Slot; iso: string }
+  | { kind: 'post'; id: string; tab: TabId }     // a push about a post, before we know its kind
   | { kind: 'banner'; key: string }
   | { kind: 'badge'; id: string };
 
@@ -42,6 +47,9 @@ export type Notice = {
   badgeId?: string;       // badge notices draw the badge
   local?: boolean;        // true = a phone reminder can be scheduled for it
   until?: number;         // ms; drops out of the list after this (stale reminders)
+  later?: { after: number; title: string };   // "In 30 minutes: …" stops being true
+  homework?: { id: string; title: string; due: string; where: string; kind?: HomeworkKind };   // the list can tick this off
+  requestId?: string;     // the list can answer this friend request
 };
 
 export const TOPIC_LOOK: Record<Topic, { icon: IconName; label: string }> = {
@@ -74,8 +82,8 @@ export type FeedInput = {
   requests: Request[];
   popups: Popup[];
   // App Club posts placed in the bell (news, trivia, polls, events…). `at` is
-  // when the post went out; `topic` and `tab` say where it belongs.
-  announcements: { id: string; title: string; body: string; at: number; topic: Topic; tab: TabId; icon?: IconName }[];
+  // when the post went out; `topic` and `action` say where it belongs.
+  announcements: { id: string; title: string; body: string; at: number; topic: Topic; action: NoticeAction; icon?: IconName }[];
   grade: number;
   now: number;                      // the app's "now" (demo / preview aware)
 };
@@ -96,12 +104,15 @@ export const STUDY_DAYS = 3;
 const addedAt = (h: HomeworkItem) => Number(h.id.split('-')[1]) || 0;
 const weekday = (iso: string) => fromISO(iso).toLocaleDateString('en-US', { weekday: 'long' });
 
+const openHomework = (id: string): NoticeAction => ({ kind: 'open', tab: 'homework', focus: { kind: 'homework', id } });
+const openDay = (iso: string, event?: string): NoticeAction => ({ kind: 'open', tab: 'calendar', focus: { kind: 'day', iso, ...(event ? { event } : {}) } });
+
 const homeworkNotices = (items: HomeworkItem[]): Notice[] => items
   .filter(h => !h.done && h.due)
   .flatMap(h => {
     const name = h.kind ? HW_KIND_LABEL[h.kind] : '';
     const where = [h.program, h.time ? `at ${fmt12(h.time, true)}` : ''].filter(Boolean).join(' · ');
-    const base = { topic: 'homework' as const, icon: 'tasks' as const, action: { kind: 'tab' as const, tab: 'homework' as const }, local: true, until: endOf(h.due) };
+    const base = { topic: 'homework' as const, icon: 'tasks' as const, homework: { id: h.id, title: h.title, due: h.due, where, kind: h.kind }, action: openHomework(h.id), local: true, until: endOf(h.due) };
     const out: Notice[] = [{
       ...base,
       id: `hw:${h.id}:${h.due}`,
@@ -136,7 +147,7 @@ const firstClassNotices = (days: string[], courses: Course[]): Notice[] => days.
     title: `First up: ${name} at ${fmt12(first.start)}`,
     body: [`Day ${plan.dayNum}`, room, 'Tap to put today on your Lock Screen'].filter(Boolean).join(' · '),
     at: at(iso, h, m) - FIRST_CLASS_LEAD * 60_000,
-    action: { kind: 'tab' as const, tab: 'home' as const },
+    action: first.course && first.slot && !first.course.spare ? { kind: 'class' as const, slot: first.slot, iso } : openDay(iso),
     local: true, until: at(iso, h, m) + 10 * 60_000,
   }];
 });
@@ -151,7 +162,7 @@ const calendarNotices = (days: string[], popups: Popup[], grade: number): Notice
       if (t.eve) out.push({
         id: `eve:${ev.key}`, topic: 'events', title: `Tomorrow: ${t.name}`, body: t.eve,
         at: at(addDays(iso, -1), EVE_HOUR), icon: 'calendar', event: ev,
-        action: { kind: 'tab', tab: 'calendar' }, local: true, until: endOf(iso),
+        action: openDay(iso), local: true, until: endOf(iso),
       });
       out.push({
         id: `day:${ev.key}`, topic: 'events', title: ev.title, body: t.morning || ev.body,
@@ -168,7 +179,7 @@ const calendarNotices = (days: string[], popups: Popup[], grade: number): Notice
       out.push({
         id: `off:${iso}`, topic: 'events', title: `No school ${fromISO(iso).toLocaleDateString('en-US', { weekday: 'long' })}`,
         body: d.label || 'Day off', at: at(addDays(iso, -1), EVE_HOUR), icon: 'calendar',
-        action: { kind: 'tab', tab: 'calendar' }, local: true, until: endOf(iso),
+        action: openDay(iso), local: true, until: endOf(iso),
       });
     }
   }
@@ -184,9 +195,10 @@ const personalNotices = (events: PersonalEvent[]): Notice[] => events
       id: `ev:${e.id}:${e.iso}:${e.time || ''}`,
       topic: 'events' as const,
       title: e.time ? `In 30 minutes: ${e.title}` : `Today: ${e.title}`,
-      body: [e.className, e.time ? `at ${e.time}` : shortDate(e.iso)].filter(Boolean).join(' · '),
+      body: [e.className, e.time ? `at ${fmt12(e.time, true)}` : shortDate(e.iso)].filter(Boolean).join(' · '),
       at: when, icon: 'calendar' as const,
-      action: { kind: 'tab' as const, tab: 'calendar' as const }, local: true, until: endOf(e.iso),
+      ...(e.time ? { later: { after: when + 30 * 60_000, title: e.title } } : {}),
+      action: openDay(e.iso, e.id), local: true, until: endOf(e.iso),
     };
   });
 
@@ -197,7 +209,8 @@ const friendNotices = (requests: Request[]): Notice[] => requests
     title: `${r.peer.firstName} ${r.peer.lastName}`.trim() + ' wants to be friends',
     body: `Grade ${r.peer.grade} · tap to answer`,
     at: Date.parse(r.created) || 0, icon: 'users' as const,
-    action: { kind: 'tab' as const, tab: 'social' as const },
+    requestId: r.id,
+    action: { kind: 'open' as const, tab: 'social' as const, focus: { kind: 'request' as const, id: r.id } },
   }));
 
 // Catch Up gives dozens of badges at once: one notice for the lot.
@@ -210,7 +223,7 @@ const catchUpNotice = (): Notice[] => {
     title: 'Catch Up complete',
     body: `${ids.length} ${ids.length === 1 ? 'badge' : 'badges'} added to your collection`,
     at: when, icon: 'badge' as const,
-    action: { kind: 'tab' as const, tab: 'me' as const },
+    action: { kind: 'open' as const, tab: 'me' as const, focus: { kind: 'badges' as const } },
   }];
 };
 
@@ -230,7 +243,7 @@ const announcementNotices = (list: FeedInput['announcements']): Notice[] =>
   list.map(a => ({
     id: `ann:${a.id}`, topic: a.topic,
     title: a.title, body: a.body, at: a.at, icon: a.icon || TOPIC_LOOK[a.topic].icon,
-    action: { kind: 'tab' as const, tab: a.tab },
+    action: a.action,
   }));
 
 // ── Public ───────────────────────────────────────────────────────
@@ -252,3 +265,26 @@ export const buildFeed = (input: FeedInput, from: number, to: number): Notice[] 
     .filter(n => n.at >= from && n.at <= to && (!n.until || n.until >= input.now) && !seen.has(n.id) && (seen.add(n.id), true))
     .sort((a, b) => b.at - a.at);
 };
+
+// ── Taps on the phone's own notifications ────────────────────────
+// Server pushes name a row ("posts:<id>", "friend_requests:<id>") and only a
+// tab to open; reminders scheduled by an older version only carry a tab too.
+// The id says exactly what it was about, so open that instead.
+export const exactAction = (action: NoticeAction | null, id?: string): NoticeAction | null => {
+  if (!id || (action && action.kind !== 'tab')) return action;
+  const hw = id.match(/^hw(?:-early)?:(.+):\d{4}-\d{2}-\d{2}$/);
+  if (hw) return openHomework(hw[1]);
+  const ev = id.match(/^ev:(.+?):(\d{4}-\d{2}-\d{2}):/);
+  if (ev) return openDay(ev[2], ev[1]);
+  const day = id.match(/^(?:off|eve:[^:]+):(\d{4}-\d{2}-\d{2})/);
+  if (day) return openDay(day[1]);
+  const row = id.match(/^(posts|friend_requests|popups):(.+)$/);
+  if (row?.[1] === 'posts') return { kind: 'post', id: row[2], tab: action?.kind === 'tab' ? action.tab : 'home' };
+  if (row?.[1] === 'friend_requests') return { kind: 'open', tab: 'social', focus: { kind: 'request', id: row[2] } };
+  if (row?.[1] === 'popups') return { kind: 'banner', key: `popup:${toISO(new Date())}:${row[2]}` };
+  return action;
+};
+
+// The same fact's id in the bell list, so reading one marks the other.
+export const noticeIdFor = (id: string) =>
+  id.replace(/^posts:/, 'ann:').replace(/^friend_requests:/, 'fr:');

@@ -1,8 +1,8 @@
 // Spartans — App Club Admin → Feedback: what students send from Help &
 // feedback, worked through like an inbox.
 //   New → In progress → Done, with a team note on each one.
-//   Counts up top (tap to filter), the mix of likes / fixes / ideas /
-//   confusing, search, and filters by kind and part of the app.
+//   One row of states with counts, search (looks through every state), and
+//   a Filter button that opens kind / who from / part of the app.
 // Members move feedback along and write notes; the Feedback manager (and
 // top ranks) can also delete. Server rules: migrations 0013 and 0017.
 // Every piece says who it came from: a student, a teacher, or an App Club
@@ -12,17 +12,18 @@
 // Demo mode has sample feedback so the inbox can be tried.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, TextInput, ScrollView, Modal, Platform } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../ThemeContext';
-import { shadow, tnum } from '../theme';
+import { tnum } from '../theme';
 import { Icon, IconName } from '../components/Icon';
 import { useContent } from '../content';
 import { ask } from '../confirm';
 import { FEEDBACK_KINDS } from '../settings';
 import type { FeedbackFrom, FeedbackKind, FeedbackRow, FeedbackStatus } from '../backend';
 import { roleLabel } from '../ranks';
-import { fieldStyle } from '../screens/Settings';
+import { Act, Card, ChipPick, ClubSheet, Empty, Field, FieldLabel, FoundLine, Hint, Pill, Search, Seg, ago } from './ui';
+import { matches } from './search';
 
 const STATUSES: { id: FeedbackStatus; label: string; icon: IconName }[] = [
   { id: 'new', label: 'New', icon: 'bell' },
@@ -121,11 +122,6 @@ export const useFeedbackInbox = () => {
   return { rows, err, load, update, remove, log, live };
 };
 
-const ago = (iso: string) => {
-  const m = Math.round((Date.now() - Date.parse(iso)) / 60000);
-  return m < 1 ? 'just now' : m < 60 ? `${m}m ago` : m < 1440 ? `${Math.round(m / 60)}h ago` : m < 10080 ? `${Math.round(m / 1440)}d ago` : new Date(iso).toLocaleDateString();
-};
-
 // ════════════════════════════════════════════════════════════════
 export const FeedbackTeam = ({ canDelete, source = 'app', inbox: given }: { canDelete: boolean; source?: 'app' | 'real'; inbox?: ReturnType<typeof useFeedbackInbox> }) => {
   const { c } = useTheme();
@@ -138,7 +134,9 @@ export const FeedbackTeam = ({ canDelete, source = 'app', inbox: given }: { canD
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<FeedbackRow | null>(null);
 
-  const tone = useKindTone();
+  const [filters, setFilters] = useState(false);
+
+  const searching = !!q.trim();
   const rows = (inbox.rows || []).filter(r => sourceOf(r) === source);
   const areas = useMemo(() => {
     const n = new Map<string, number>();
@@ -146,97 +144,66 @@ export const FeedbackTeam = ({ canDelete, source = 'app', inbox: given }: { canD
     return [...n.entries()].sort((a, b) => b[1] - a[1]).map(([a]) => a);
   }, [rows]);
   const shown = useMemo(() => rows
-    .filter(r => status === 'all' || statusOf(r) === status)
+    // Searching looks through every state, not just the one you were on.
+    .filter(r => searching || status === 'all' || statusOf(r) === status)
     .filter(r => kind === 'all' || r.kind === kind)
     .filter(r => area === 'all' || r.area === area)
     .filter(r => from === 'all' || (r.from_type || 'student') === from)
-    .filter(r => !q.trim() || `${r.message} ${r.area} ${r.note || ''}`.toLowerCase().includes(q.trim().toLowerCase())),
+    .filter(r => matches(q, r.message, r.area, r.note, r.said_by, r.heard_at, fromLabel(r))),
   [rows, status, kind, area, q, from]);
   const byStatus = (s: FeedbackStatus) => rows.filter(r => statusOf(r) === s).length;
-  const byKind = (k: FeedbackKind) => rows.filter(r => r.kind === k).length;
+  const filtersOn = [kind !== 'all', from !== 'all', area !== 'all'].filter(Boolean).length;
+  const clearFilters = () => { setKind('all'); setFrom('all'); setArea('all'); };
 
   return (
     <>
-      {!inbox.live && source === 'app' && <Hint text="Demo mode: sample feedback so you can try the inbox. Real feedback comes from the server." />}
-      {!!inbox.err && <Text style={{ fontSize: 13, color: c.crimson }}>{inbox.err}</Text>}
+      {!inbox.live && source === 'app' && <Hint text="Demo: sample feedback, so you can try the inbox." />}
+      {!!inbox.err && <Hint text={inbox.err} warn />}
 
-      {/* Where things stand */}
-      <View style={{ flexDirection: 'row', gap: 10 }}>
-        {STATUSES.map(s => {
-          const on = status === s.id;
-          return (
-            <Pressable key={s.id} onPress={() => setStatus(on ? 'all' : s.id)} accessibilityRole="button" accessibilityState={{ selected: on }}
-              style={({ pressed }) => [{ flex: 1, padding: 12, borderRadius: 18, gap: 4, backgroundColor: on ? c.navy700 : c.surface, opacity: pressed ? 0.85 : 1 }, on ? shadow.md : shadow.sm]}>
-              <Icon name={s.icon} size={16} stroke={2} color={on ? '#fff' : c.navy700} />
-              <Text style={[{ fontSize: 24, fontWeight: '700', color: on ? '#fff' : c.ink, letterSpacing: -0.5 }, tnum]}>{byStatus(s.id)}</Text>
-              <Text style={{ fontSize: 12, fontWeight: '600', color: on ? 'rgba(255,255,255,0.85)' : c.ink3 }}>{s.label}</Text>
-            </Pressable>
-          );
-        })}
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <View style={{ flex: 1 }}><Search value={q} onChange={setQ} placeholder="Search feedback" /></View>
+        <Pressable onPress={() => setFilters(v => !v)} accessibilityRole="button" accessibilityState={{ expanded: filters }} accessibilityLabel={filtersOn ? `Filter, ${filtersOn} on` : 'Filter'}
+          style={({ pressed }) => ({ minHeight: 48, paddingHorizontal: 16, borderRadius: 14, justifyContent: 'center', backgroundColor: filtersOn ? c.navy50 : c.surface, borderWidth: 1, borderColor: filters ? c.link : c.line, opacity: pressed ? 0.7 : 1 })}>
+          <Text style={[{ fontSize: 15, fontWeight: '600', color: filtersOn ? c.link : c.ink2 }, tnum]}>Filter{filtersOn ? ` ${filtersOn}` : ''}</Text>
+        </Pressable>
       </View>
 
-      {/* The mix */}
-      {rows.length > 0 && (
-        <View style={[{ padding: 14, borderRadius: 18, backgroundColor: c.surface, gap: 10 }, shadow.sm]}>
-          <View style={{ flexDirection: 'row', height: 10, borderRadius: 5, overflow: 'hidden', gap: 2 }}>
-            {FEEDBACK_KINDS.map(k => byKind(k.id) > 0 && <View key={k.id} style={{ flex: byKind(k.id), backgroundColor: tone[k.id].fg }} />)}
+      {filters && (
+        <Card>
+          <View style={{ gap: 8 }}>
+            <FieldLabel text="Kind" />
+            <ChipPick multi={false} value={kind === 'all' ? [] : [kind]} onToggle={k => setKind(kind === k ? 'all' : k)} options={FEEDBACK_KINDS.map(k => ({ id: k.id, label: k.label, icon: k.icon }))} />
           </View>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            {FEEDBACK_KINDS.map(k => {
-              const on = kind === k.id;
-              return (
-                <Pressable key={k.id} onPress={() => setKind(on ? 'all' : k.id)} accessibilityRole="button" accessibilityState={{ selected: on }}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: on ? tone[k.id].fg : tone[k.id].bg }}>
-                  <Icon name={k.icon} size={13} stroke={2} color={on ? '#fff' : tone[k.id].fg} />
-                  <Text style={[{ fontSize: 12.5, fontWeight: '700', color: on ? '#fff' : tone[k.id].fg }, tnum]}>{k.label} {byKind(k.id)}</Text>
-                </Pressable>
-              );
-            })}
+          <View style={{ gap: 8 }}>
+            <FieldLabel text="From" />
+            <ChipPick multi={false} value={from === 'all' ? [] : [from]} onToggle={f => setFrom(from === f ? 'all' : f)} options={(Object.keys(FROM) as FeedbackFrom[]).map(f => ({ id: f, label: FROM[f].label, icon: FROM[f].icon }))} />
           </View>
-        </View>
+          {areas.length > 1 && (
+            <View style={{ gap: 8 }}>
+              <FieldLabel text="Part of the app" />
+              <ChipPick multi={false} value={area === 'all' ? [] : [area]} onToggle={a => setArea(area === a ? 'all' : a)} options={areas.map(a => ({ id: a, label: a }))} />
+            </View>
+          )}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flex: 1 }}><Act label="Clear" tone="plain" fill disabled={!filtersOn} onPress={clearFilters} /></View>
+            <View style={{ flex: 1 }}><Act label={`Show ${shown.length}`} fill onPress={() => setFilters(false)} /></View>
+          </View>
+        </Card>
       )}
 
-      {/* Search + area */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, borderRadius: 14, backgroundColor: c.surface }}>
-        <Icon name="search" size={16} stroke={2} color={c.ink4} />
-        <TextInput value={q} onChangeText={setQ} placeholder="Search feedback and notes" placeholderTextColor={c.ink4} autoCorrect={false}
-          style={{ flex: 1, paddingVertical: 11, fontSize: 15.5, color: c.ink, ...(Platform.OS === 'web' ? { outlineStyle: 'none' } as object : {}) }} />
-        {!!q && <Pressable onPress={() => setQ('')} hitSlop={8} accessibilityLabel="Clear search"><Icon name="close" size={15} stroke={2} color={c.ink4} /></Pressable>}
-        <Pressable onPress={inbox.load} hitSlop={8} accessibilityLabel="Refresh"><Icon name="swap" size={15} stroke={2} color={c.ink3} /></Pressable>
-      </View>
-      <View style={{ flexDirection: 'row', gap: 6 }}>
-        {(['all', 'student', 'teacher', 'club'] as const).map(f => {
-          const on = from === f;
-          const n = f === 'all' ? rows.length : rows.filter(r => (r.from_type || 'student') === f).length;
-          return (
-            <Pressable key={f} onPress={() => setFrom(f)} accessibilityRole="button" accessibilityState={{ selected: on }}
-              style={({ pressed }) => ({ flex: 1, minHeight: 38, borderRadius: 999, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 5, backgroundColor: on ? c.navy700 : c.surface, borderWidth: on ? 0 : 1, borderColor: c.line, opacity: pressed ? 0.8 : 1 })}>
-              {f !== 'all' && <Icon name={FROM[f].icon} size={13} stroke={2.2} color={on ? '#fff' : c.ink3} />}
-              <Text numberOfLines={1} style={[{ fontSize: 12.5, fontWeight: '700', color: on ? '#fff' : c.ink2 }, tnum]}>{f === 'all' ? `All ${n}` : `${n}`}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
-      {areas.length > 1 && (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6 }}>
-          {['all', ...areas].map(a => {
-            const on = area === a;
-            return (
-              <Pressable key={a} onPress={() => setArea(a)} style={{ paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999, backgroundColor: on ? c.navy700 : c.paper2 }}>
-                <Text style={{ fontSize: 12.5, fontWeight: '600', color: on ? '#fff' : c.ink2 }}>{a === 'all' ? 'Every part of the app' : a}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
+      {searching ? <FoundLine n={shown.length} q={q} onClear={() => setQ('')} /> : (
+        <Seg value={status} onChange={setStatus} options={[
+          ...STATUSES.map(s => ({ id: s.id as FeedbackStatus | 'all', label: s.label, count: byStatus(s.id) })),
+          { id: 'all' as const, label: 'All', count: rows.length },
+        ]} />
       )}
 
       {/* The list */}
-      {inbox.rows === null && !inbox.err && <Text style={{ fontSize: 13, color: c.ink3 }}>Loading…</Text>}
+      {inbox.rows === null && !inbox.err && <Text style={{ fontSize: 14, color: c.ink3, paddingHorizontal: 4 }}>Loading…</Text>}
+      {!!inbox.err && <Act label="Try again" icon="swap" tone="soft" onPress={inbox.load} />}
       {inbox.rows !== null && shown.length === 0 && (
-        <View style={{ alignItems: 'center', gap: 6, paddingVertical: 18 }}>
-          <Icon name="check-circle" size={24} stroke={1.8} color={c.moss} />
-          <Text style={{ fontSize: 14, fontWeight: '600', color: c.ink2 }}>{status === 'new' && kind === 'all' && area === 'all' && !q ? 'All caught up' : 'Nothing matches'}</Text>
-        </View>
+        searching || filtersOn ? <Empty icon="search" title="Nothing matches" sub={filtersOn ? 'Try clearing the filters.' : 'Try another word.'} />
+          : <Empty title={status === 'new' ? 'All caught up' : 'Nothing here'} />
       )}
       <View style={{ gap: 10 }}>
         {shown.map(f => <FeedbackCard key={f.id} f={f} onPress={() => setOpen(f)} />)}
@@ -265,32 +232,16 @@ const FeedbackCard = ({ f, onPress }: { f: FeedbackRow; onPress: () => void }) =
   const k = FEEDBACK_KINDS.find(x => x.id === f.kind)!;
   const st = STATUSES.find(s => s.id === statusOf(f))!;
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${k.label} about ${f.area}. ${st.label}`}
-      style={({ pressed }) => [{ padding: 14, borderRadius: 18, backgroundColor: c.surface, gap: 8, opacity: pressed ? 0.85 : 1 }, shadow.sm]}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: tone.bg, alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name={k.icon} size={15} stroke={2} color={tone.fg} />
-        </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text numberOfLines={1} style={{ fontSize: 13.5, fontWeight: '700', color: c.ink }}>{k.label} <Text style={{ fontWeight: '500', color: c.ink3 }}>· {f.area}</Text></Text>
-          <Text numberOfLines={1} style={{ fontSize: 11.5, color: c.ink4 }}>{[fromLabel(f), f.said_by, f.heard_at, ago(f.created_at)].filter(Boolean).join(' · ')}</Text>
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, backgroundColor: statusOf(f) === 'done' ? c.mossTint : statusOf(f) === 'doing' ? c.skyTint : c.paper2 }}>
-          <Icon name={st.icon} size={11} stroke={2.2} color={statusOf(f) === 'done' ? c.moss : statusOf(f) === 'doing' ? c.sky600 : c.ink3} />
-          <Text style={{ fontSize: 11.5, fontWeight: '700', color: statusOf(f) === 'done' ? c.moss : statusOf(f) === 'doing' ? c.sky600 : c.ink3 }}>{st.label}</Text>
-        </View>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${k.label} about ${f.area}. ${st.label}. ${f.message || 'No message'}`}
+      style={({ pressed }) => ({ padding: 16, borderRadius: 18, backgroundColor: pressed ? c.paper2 : c.surface, gap: 8, borderWidth: 1, borderColor: c.line2 })}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Icon name={k.icon} size={16} stroke={2.1} color={tone.fg} />
+        <Text numberOfLines={1} style={{ flex: 1, fontSize: 14, fontWeight: '600', color: c.ink2 }}>{k.label} <Text style={{ fontWeight: '400', color: c.ink3 }}>· {f.area}</Text></Text>
+        <Pill text={st.label} tone={statusOf(f) === 'done' ? 'moss' : statusOf(f) === 'doing' ? 'sky' : 'ink'} />
       </View>
-      {f.message ? (
-        <Text numberOfLines={3} style={{ fontSize: 14, color: c.ink2, lineHeight: 19 }}>{f.message}</Text>
-      ) : (
-        <Text style={{ fontSize: 13.5, color: c.ink4, fontStyle: 'italic' }}>No message</Text>
-      )}
-      {!!f.note && (
-        <View style={{ flexDirection: 'row', gap: 6, alignItems: 'flex-start' }}>
-          <Icon name="edit" size={12} stroke={2} color={c.ink4} style={{ marginTop: 2 }} />
-          <Text numberOfLines={1} style={{ flex: 1, fontSize: 12.5, color: c.ink3 }}>{f.note}</Text>
-        </View>
-      )}
+      <Text numberOfLines={3} style={{ fontSize: 15.5, color: f.message ? c.ink : c.ink3, lineHeight: 21 }}>{f.message || 'No message'}</Text>
+      <Text numberOfLines={1} style={[{ fontSize: 13, color: c.ink3 }, tnum]}>{[fromLabel(f), f.said_by, f.heard_at, ago(f.created_at)].filter(Boolean).join(' · ')}</Text>
+      {!!f.note && <Text numberOfLines={2} style={{ fontSize: 13.5, color: c.ink2, lineHeight: 18, paddingTop: 8, borderTopWidth: 1, borderTopColor: c.line2 }}><Text style={{ fontWeight: '600' }}>Note: </Text>{f.note}</Text>}
     </Pressable>
   );
 };
@@ -303,14 +254,12 @@ const FeedbackSheet = ({ f, canDelete, onClose, onUpdate, onDelete }: {
   onDelete: (f: FeedbackRow) => Promise<void>;
 }) => {
   const { c } = useTheme();
-  const tones = useKindTone();
   const [note, setNote] = useState('');
   const [err, setErr] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   useEffect(() => { setNote(f?.note || ''); setErr(null); setSaved(false); }, [f?.id]);
   if (!f) return null;
   const k = FEEDBACK_KINDS.find(x => x.id === f.kind)!;
-  const tone = tones[f.kind];
 
   const run = async (fn: () => Promise<void>) => {
     setErr(null);
@@ -323,82 +272,27 @@ const FeedbackSheet = ({ f, canDelete, onClose, onUpdate, onDelete }: {
   };
 
   return (
-    <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: c.paper }}>
-        <View style={{ backgroundColor: tone.bg, paddingTop: 10, paddingBottom: 18, paddingHorizontal: 20 }}>
-          <View style={{ alignItems: 'center', paddingBottom: 10 }}>
-            <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: c.line }} />
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: tone.fg, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon name={k.icon} size={21} stroke={2} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 20, fontWeight: '700', color: c.ink, letterSpacing: -0.4 }}>{k.label}</Text>
-              <Text style={{ fontSize: 13, color: c.ink3 }}>{f.area} · {ago(f.created_at)}</Text>
-            </View>
-            <Pressable onPress={onClose} hitSlop={8} accessibilityLabel="Close"
-              style={({ pressed }) => ({ width: 32, height: 32, borderRadius: 16, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
-              <Icon name="close" size={15} stroke={2} color={c.ink2} />
-            </Pressable>
-          </View>
-        </View>
+    <ClubSheet visible onClose={onClose} title={k.label} sub={`${f.area} · ${ago(f.created_at)}`}>
+      <Text selectable style={{ fontSize: 17, color: f.message ? c.ink : c.ink3, lineHeight: 25 }}>{f.message || 'They just tapped "I like this".'}</Text>
+      <Text style={[{ fontSize: 13, color: c.ink3, lineHeight: 18 }, tnum]}>
+        {[fromLabel(f), f.said_by, f.heard_at ? `heard: ${f.heard_at}` : null, f.logged_by_name ? `logged by ${f.logged_by_name}` : null, new Date(f.created_at).toLocaleString(), f.platform, f.app_version ? `v${f.app_version}` : null].filter(Boolean).join(' · ')}
+      </Text>
 
-        <ScrollView contentContainerStyle={{ padding: 20, gap: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" automaticallyAdjustKeyboardInsets>
-          <Text selectable style={{ fontSize: 17, color: f.message ? c.ink : c.ink4, lineHeight: 24, fontStyle: f.message ? 'normal' : 'italic' }}>{f.message || 'They just tapped "I like this".'}</Text>
-          <Text style={[{ fontSize: 12, color: c.ink4 }, tnum]}>
-            {[fromLabel(f), f.said_by, f.heard_at ? `heard: ${f.heard_at}` : null, f.logged_by_name ? `logged by ${f.logged_by_name}` : null, new Date(f.created_at).toLocaleString(), f.platform, f.app_version ? `v${f.app_version}` : null].filter(Boolean).join(' · ')}
-          </Text>
-
-          <View style={{ gap: 8 }}>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: c.ink3, letterSpacing: 0.8, textTransform: 'uppercase' }}>Status</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {STATUSES.map(s => {
-                const on = statusOf(f) === s.id;
-                return (
-                  <Pressable key={s.id} onPress={() => !on && run(() => onUpdate(f, { status: s.id }))} accessibilityRole="radio" accessibilityState={{ selected: on }}
-                    style={({ pressed }) => [{ flex: 1, alignItems: 'center', gap: 5, paddingVertical: 11, borderRadius: 16, backgroundColor: on ? c.navy700 : c.surface, opacity: pressed ? 0.8 : 1 }, on ? shadow.md : shadow.sm]}>
-                    <Icon name={s.icon} size={17} stroke={2} color={on ? '#fff' : c.navy700} />
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: on ? '#fff' : c.ink }}>{s.label}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-
-          <View style={{ gap: 8 }}>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: c.ink3, letterSpacing: 0.8, textTransform: 'uppercase' }}>Team note</Text>
-            <TextInput value={note} onChangeText={setNote} placeholder="Who's on it, what you found, what you changed…" placeholderTextColor={c.ink4}
-              multiline style={[fieldStyle(c), { minHeight: 90, textAlignVertical: 'top', borderWidth: 0 }]} />
-            <Pressable onPress={saveNote} disabled={note.trim() === (f.note || '')} accessibilityRole="button"
-              style={({ pressed }) => ({ alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: c.navy700, opacity: note.trim() === (f.note || '') ? 0.4 : pressed ? 0.7 : 1 })}>
-              <Icon name="check" size={13} stroke={2.4} color="#fff" />
-              <Text style={{ fontSize: 13.5, fontWeight: '700', color: '#fff' }}>{saved ? 'Saved' : 'Save note'}</Text>
-            </Pressable>
-            <Text style={{ fontSize: 12, color: c.ink4 }}>Only the feedback team sees notes.</Text>
-          </View>
-
-          {!!err && <Text style={{ fontSize: 13.5, color: c.crimson }}>{err}</Text>}
-
-          {canDelete && (
-            <Pressable onPress={del} accessibilityRole="button"
-              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, backgroundColor: c.crimsonTint, opacity: pressed ? 0.7 : 1 })}>
-              <Icon name="trash" size={14} stroke={2} color={c.crimson} />
-              <Text style={{ fontSize: 13.5, fontWeight: '600', color: c.crimson }}>Delete</Text>
-            </Pressable>
-          )}
-        </ScrollView>
+      <View style={{ gap: 8 }}>
+        <FieldLabel text="Status" />
+        <ChipPick multi={false} value={[statusOf(f)]} options={STATUSES} onToggle={s => { if (s !== statusOf(f)) run(() => onUpdate(f, { status: s })); }} />
       </View>
-    </Modal>
-  );
-};
 
-const Hint = ({ text }: { text: string }) => {
-  const { c } = useTheme();
-  return (
-    <View style={{ flexDirection: 'row', gap: 8, padding: 12, borderRadius: 14, backgroundColor: c.skyTint }}>
-      <Icon name="sparkle" size={16} stroke={1.9} color={c.sky600} />
-      <Text style={{ flex: 1, fontSize: 12.5, color: c.ink2, lineHeight: 17 }}>{text}</Text>
-    </View>
+      <View style={{ gap: 8 }}>
+        <Field label="Team note" value={note} onChangeText={setNote} placeholder="Who's on it, what you found, what you changed" multiline />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Text style={{ flex: 1, fontSize: 13, color: c.ink3 }}>Only the feedback team sees notes.</Text>
+          <Act label={saved ? 'Saved' : 'Save note'} icon={saved ? 'check' : undefined} small onPress={saveNote} disabled={note.trim() === (f.note || '')} />
+        </View>
+      </View>
+
+      {!!err && <Hint text={err} warn />}
+      {canDelete && <Act label="Delete" icon="trash" tone="danger" onPress={del} />}
+    </ClubSheet>
   );
 };

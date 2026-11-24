@@ -14,12 +14,13 @@
 // The built-in catalog stays underneath (and is all there is offline).
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Modal, TextInput, Platform, useWindowDimensions, LayoutAnimation, UIManager } from 'react-native';
+import { View, Text, Pressable, ScrollView, TextInput, Platform, useWindowDimensions, LayoutAnimation, UIManager } from 'react-native';
 import { useTheme } from '../ThemeContext';
 import { useKeyboardHeight, sheetHeight } from '../useKeyboard';
 import { fonts, shadow, tnum } from '../theme';
 import { Icon } from '../components/Icon';
 import { AppHeader } from '../components/AppHeader';
+import { BottomSheet, SheetScroll } from '../components/BottomSheet';
 import { ProgramIcon, wash, glow, onGlow } from '../components/ProgramIcon';
 import { ProgramBody } from '../components/ProgramBody';
 import { ScrollerCtx, useHomeworkScroller } from '../components/HomeworkList';
@@ -267,10 +268,7 @@ const AddProgramSheet = ({ visible, onClose, existing }: { visible: boolean; onC
   const close = () => { setQ(''); setKind(null); setError(null); onClose(); };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
-      <Pressable onPress={close} style={{ flex: 1, backgroundColor: 'rgba(14,34,56,0.35)' }} accessibilityLabel="Close" />
-      <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: kb }}>
-        <View style={[{ height: sheetHeight(height, kb, 0.86), backgroundColor: c.paper, borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden' }, shadow.lg]}>
+    <BottomSheet visible={visible} onClose={close} bottom={kb} style={[{ height: sheetHeight(height, kb, 0.86), backgroundColor: c.paper, borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden' }, shadow.lg]}>
           <View style={{ alignItems: 'center', paddingTop: 10 }}>
             <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: c.line }} />
           </View>
@@ -321,7 +319,7 @@ const AddProgramSheet = ({ visible, onClose, existing }: { visible: boolean; onC
           {!!added && <Text style={{ marginTop: 10, textAlign: 'center', fontSize: 14, fontWeight: '700', color: glow(c.moss, mode) }}>Added {added}</Text>}
           {!!error && <Text style={{ marginTop: 4, marginHorizontal: 20, textAlign: 'center', fontSize: 13, color: c.ink3 }}>{error}</Text>}
 
-          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+          <SheetScroll keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
             {canAddNew && (
               <View style={[{ backgroundColor: c.surface, borderRadius: 18, padding: 16, marginBottom: 14 }, shadow.sm]}>
                 <Text style={{ fontSize: 13, fontWeight: '500', color: c.ink3 }}>Not in the list</Text>
@@ -366,10 +364,8 @@ const AddProgramSheet = ({ visible, onClose, existing }: { visible: boolean; onC
                 {results.map((r, i) => <CatalogRow key={r.name} r={r} isLast={i === results.length - 1} onAdd={() => add(r.name, online ? 'online' : r.kind)} />)}
               </View>
             )}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
+          </SheetScroll>
+    </BottomSheet>
   );
 };
 

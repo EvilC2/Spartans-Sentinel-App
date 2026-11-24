@@ -183,18 +183,20 @@ export const matchesProgram = (text: string, pr: Program) => {
 // `kind` is optional: plain homework has none. It is guessed from the title
 // ("Unit 3 quiz" → quiz) until the student picks one (`kindPicked`), and after
 // that the title no longer changes it.
-export type HomeworkKind = 'quiz' | 'test' | 'project' | 'essay';
+export type HomeworkKind = 'quiz' | 'test' | 'project' | 'presentation' | 'essay';
 export type HomeworkItem = { id: string; slot?: Slot; program?: string; title: string; due: string; time?: string; notes?: string; priority: 'high' | 'med' | 'low'; done: boolean; doneOn?: string; own?: boolean; kind?: HomeworkKind; kindPicked?: boolean };
 
-export const HW_KINDS: HomeworkKind[] = ['quiz', 'test', 'project', 'essay'];
-export const HW_KIND_LABEL: Record<HomeworkKind, string> = { quiz: 'Quiz', test: 'Test', project: 'Project', essay: 'Essay' };
+export const HW_KINDS: HomeworkKind[] = ['quiz', 'test', 'project', 'presentation', 'essay'];
+export const HW_KIND_LABEL: Record<HomeworkKind, string> = { quiz: 'Quiz', test: 'Test', project: 'Project', presentation: 'Presentation', essay: 'Essay' };
 
 // "Chem test", "Unit 4 Quiz", "French oral exam", "Science fair project".
-// A test wins over a quiz ("quiz on the practice test" is still a test).
+// A test wins over a quiz ("quiz on the practice test" is still a test), and a
+// presentation over the project or essay it is about.
 export const guessKind = (title: string): HomeworkKind | undefined => {
   const t = title.toLowerCase();
   if (/\b(tests?|exams?|midterms?|finals?)\b/.test(t)) return 'test';
   if (/\b(quiz|quizzes|pop quiz)\b/.test(t)) return 'quiz';
+  if (/\b(presentations?|presenting|slideshows?)\b/.test(t)) return 'presentation';
   if (/\bessays?\b/.test(t)) return 'essay';
   if (/\bprojects?\b/.test(t)) return 'project';
   return undefined;

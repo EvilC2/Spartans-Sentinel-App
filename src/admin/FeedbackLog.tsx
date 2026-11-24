@@ -5,19 +5,17 @@
 // feedback, marked "in person", so the team works through both the same way.
 
 import React, { useState } from 'react';
-import { View, Text } from 'react-native';
-import { useTheme } from '../ThemeContext';
+import { View } from 'react-native';
 import { useProfile, fullName } from '../ProfileContext';
 import type { FeedbackFrom, FeedbackKind, Role } from '../backend';
 import { FEEDBACK_AREAS, FEEDBACK_KINDS } from '../settings';
 import { TEAMS, TEAM_ORDER, TeamId, TOP, roleLabel, isLead } from '../ranks';
 import { FeedbackTeam, FROM, useFeedbackInbox } from './FeedbackTeam';
-import { Act, Card, CardHead, ChipPick, Field, Hint, SectionTitle, Seg } from './ui';
+import { Act, Card, ChipPick, Field, FieldLabel, Hint, Result, SectionTitle, Seg } from './ui';
 
 const WHERE = ['In class', 'Hallway', 'Lunch', 'Club meeting', 'Student council', 'Email', 'Other'];
 
 export const FeedbackLog = ({ canDelete }: { canDelete: boolean }) => {
-  const { c } = useTheme();
   const { profile } = useProfile();
   const inbox = useFeedbackInbox();
   const [from, setFrom] = useState<FeedbackFrom>('student');
@@ -53,9 +51,7 @@ export const FeedbackLog = ({ canDelete }: { canDelete: boolean }) => {
   return (
     <View style={{ gap: 14 }}>
       <Card>
-        <CardHead icon="edit" tone="crimson" title="Log what you heard" sub="Someone told you about the app in person? Write it down here." />
-
-        <Step text="Who said it?" />
+        <FieldLabel text="Who said it?" />
         <Seg value={from} onChange={v => { setFrom(v); setRole(null); }} options={(['student', 'teacher', 'club'] as FeedbackFrom[]).map(f => ({ id: f, label: f === 'club' ? 'App Club member' : FROM[f].label }))} />
         {from === 'club' && (
           <View style={{ gap: 10 }}>
@@ -66,18 +62,18 @@ export const FeedbackLog = ({ canDelete }: { canDelete: boolean }) => {
         )}
         <Field value={name} onChangeText={setName} placeholder={from === 'teacher' ? 'Their name (optional), e.g. Mr. Grant' : 'Their name or grade (optional)'} />
 
-        <Step text="Where did you hear it?" />
+        <FieldLabel text="Where did you hear it?" />
         <ChipPick multi={false} value={where ? [where] : []} onToggle={w => setWhere(where === w ? null : w)} options={WHERE.map(w => ({ id: w, label: w }))} />
 
-        <Step text="What part of the app?" />
+        <FieldLabel text="What part of the app?" />
         <ChipPick multi={false} value={area ? [area] : []} onToggle={a => setArea(area === a ? null : a)} options={FEEDBACK_AREAS.map(a => ({ id: a, label: a }))} />
 
-        <Step text="What kind?" />
+        <FieldLabel text="What kind?" />
         <ChipPick multi={false} value={kind ? [kind] : []} onToggle={k => setKind(kind === k ? null : k)} options={FEEDBACK_KINDS.map(k => ({ id: k.id, label: k.label, icon: k.icon }))} />
 
         <Field value={msg} onChangeText={setMsg} multiline placeholder={kind ? FEEDBACK_KINDS.find(k => k.id === kind)!.hint : 'What did they say?'} />
-        <Act label={busy ? 'Logging…' : 'Log it'} icon="check" fill onPress={submit} disabled={!ready || busy} />
-        {done && <Text style={{ fontSize: 14, fontWeight: '600', color: done.ok ? c.moss : c.danger }}>{done.text}</Text>}
+        <Act label="Log it" fill onPress={submit} busy={busy} disabled={!ready} />
+        <Result msg={done} />
       </Card>
 
       {!inbox.live && <Hint text="Demo mode: logged feedback stays on this phone." />}
@@ -85,9 +81,4 @@ export const FeedbackLog = ({ canDelete }: { canDelete: boolean }) => {
       <FeedbackTeam canDelete={canDelete} source="real" inbox={inbox} />
     </View>
   );
-};
-
-const Step = ({ text }: { text: string }) => {
-  const { c } = useTheme();
-  return <Text style={{ fontSize: 12, fontWeight: '700', letterSpacing: 0.6, textTransform: 'uppercase', color: c.ink3, marginTop: 4 }}>{text}</Text>;
 };

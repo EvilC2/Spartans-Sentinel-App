@@ -5,8 +5,8 @@
 //   2. Banners    on the first open of a big day (event-day banner), shows
 //                 the banner once; closing it unlocks the paired badge.
 //   3. Phone      asks permission, keeps local reminders scheduled, saves the
-//                 push token (with topics) for server pushes, and routes a
-//                 tapped notification to the right screen.
+//                 push token (with topics) for server pushes, and takes a
+//                 tapped notification to the exact thing it's about.
 //
 // Renders its own overlays (NotificationCenter, EventBanner, BadgeUnlock)
 // so any screen can open them through useNotify().
@@ -18,6 +18,7 @@ import { useProfile } from '../ProfileContext';
 import { useHomework, useEvents, usePersisted } from '../stores';
 import { useSocial } from '../social';
 import { useNav } from '../nav';
+import { useClassSheet } from '../components/ClassCard';
 import { usePreviewTime } from '../PreviewTime';
 import { resolveNow } from '../useToday';
 import { toISO } from '../calendar';
@@ -28,13 +29,14 @@ import { useNotifyPrefs } from '../settings';
 import { backendConfigured } from '../supabase';
 import { useContent, Post, KINDS, titleOf } from '../content';
 import type { Popup } from '../backend';
-import { buildFeed, Notice, NoticeAction } from './feed';
+import { buildFeed, exactAction, noticeIdFor, Notice, NoticeAction } from './feed';
 import { NotifyCtx, Ctx } from './context';
 import { eventDaysOn, EventDay } from './eventDays';
 import {
   PermissionState, askPermission, getPermission, getPushToken, onNotificationReceived,
   onNotificationTap, scheduleReminders, setAppBadge, setupNotifications,
 } from './push';
+import type { TabId } from '../components/Chrome';
 import { NotificationCenter } from '../components/NotificationCenter';
 import { EventBanner } from '../components/EventBanner';
 import { BadgeUnlock } from '../components/BadgeUnlock';
@@ -51,6 +53,7 @@ export const NotifyProvider = ({ children }: { children: React.ReactNode }) => {
   const { events } = useEvents();
   const social = useSocial();
   const nav = useNav();
+  const classSheet = useClassSheet();
   const { offsetMs } = usePreviewTime();
   const { prefs } = useNotifyPrefs();
   const earnedVersion = useEarnedVersion();
@@ -66,6 +69,8 @@ export const NotifyProvider = ({ children }: { children: React.ReactNode }) => {
   // Banners: the old popups table plus App Club Admin pop-up posts.
   const popups = useMemo(() => [...content.popups, ...serverPopups], [content.popups, serverPopups]);
   const [earnedReady, setEarnedReady] = useState(false);
+  const [tapped, setTapped] = useState<NoticeAction | null>(null);
+  const [pendingPost, setPendingPost] = useState<{ id: string; tab: TabId; at: number } | null>(null);
 
   // ── Clock: the app's "now" (demo date / preview aware), minute ticks ──
   const [now, setNow] = useState(() => resolveNow(new Date(), offsetMs).getTime());
@@ -150,9 +155,16 @@ export const NotifyProvider = ({ children }: { children: React.ReactNode }) => {
     notices.forEach(n => { read[n.id] = 1; });
     return { ...v, read };
   }), [notices]);
-  const dismiss = useCallback((id: string) => setInbox(v => ({
-    ...v, read: { ...v.read, [id]: 1 }, gone: { ...v.gone, [id]: 1 },
-  })), []);
+  const dismiss = useCallback((ids: string[]) => setInbox(v => {
+    const read = { ...v.read }, gone = { ...v.gone };
+    ids.forEach(id => { read[id] = 1; gone[id] = 1; });
+    return { ...v, read, gone };
+  }), []);
+  const restore = useCallback((ids: string[]) => setInbox(v => {
+    const gone = { ...v.gone };
+    ids.forEach(id => { delete gone[id]; });
+    return { ...v, gone };
+  }), []);
 
   // Keep the stored maps from growing forever: drop ids no longer in the window.
   useEffect(() => {
@@ -211,16 +223,40 @@ export const NotifyProvider = ({ children }: { children: React.ReactNode }) => {
   // ── Acting on a notice (tap in the list, or on the phone's notification) ──
   const act = useCallback((a?: NoticeAction | null) => {
     if (!a) return;
+    if (a.kind !== 'class') classSheet.close();
     if (a.kind === 'tab') { setCenterOpen(false); nav.go(a.tab); }
+    else if (a.kind === 'open') {
+      // The page changes under the closing list; the item opens once it's gone,
+      // because some of them open a sheet of their own.
+      if (centerOpen) nav.go(a.tab);
+      afterCenter(() => nav.open(a.tab, a.focus));
+    } else if (a.kind === 'class') {
+      const course = profile?.courses.find(k => k.slot === a.slot);
+      afterCenter(() => { if (course) classSheet.openCourse(course); else nav.open('calendar', { kind: 'day', iso: a.iso }); });
+    } else if (a.kind === 'post') {
+      setPendingPost({ ...a, at: Date.now() });
+    }
     else if (a.kind === 'badge') {
       const b = BADGES.find(x => x.id === a.id);
       if (b) afterCenter(() => setUnlock(b));
     } else if (a.kind === 'banner') {
       const iso = a.key.split(':')[1];
-      const day = eventDaysOn(iso, popups, grade).find(d => d.key === a.key) || today[0];
+      const day = eventDaysOn(iso, popups, grade).find(d => d.key === a.key || (!!d.popupId && a.key.endsWith(`:${d.popupId}`)));
       if (day) showBanner(day);
+      else if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) act({ kind: 'open', tab: 'calendar', focus: { kind: 'day', iso } });
     }
-  }, [nav.go, popups, grade, today, showBanner, afterCenter]);
+  }, [nav, popups, grade, showBanner, afterCenter, centerOpen, classSheet, profile?.courses]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // A push about a post: its kind decides where it lives, and on a cold start
+  // the posts may not be here yet. Wait for it, then open it.
+  useEffect(() => {
+    if (!pendingPost || !ready) return;
+    const p = content.posts.find(x => x.id === pendingPost.id);
+    const left = pendingPost.at + 8_000 - Date.now();
+    if (p) { setPendingPost(null); act(postAction(p)); return; }
+    const t = setTimeout(() => { setPendingPost(null); act({ kind: 'tab', tab: pendingPost.tab }); }, Math.max(0, left));
+    return () => clearTimeout(t);
+  }, [pendingPost, ready, content.posts]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const open = useCallback((n: Notice) => { markRead(n.id); act(n.action); }, [markRead, act]);
 
@@ -228,9 +264,19 @@ export const NotifyProvider = ({ children }: { children: React.ReactNode }) => {
   const actRef = useRef(act);
   actRef.current = act;
   useEffect(() => onNotificationTap((a, id) => {
-    if (id) markRead(id);
-    actRef.current(a);
+    if (id) markRead(noticeIdFor(id));
+    setTapped(exactAction(a, id));
   }), []);
+  // A tap that launched the app waits for the profile, and for any event-day
+  // banner (and its badge) to be closed: iOS shows one sheet at a time.
+  const blocked = !!banner || !!unlock || today.some(d => !seen[d.key]);
+  const settle = useRef(60);
+  useEffect(() => {
+    if (blocked || !ready) { settle.current = 600; return; }
+    if (!tapped) return;
+    const t = setTimeout(() => { settle.current = 60; setTapped(null); actRef.current(tapped); }, settle.current);
+    return () => clearTimeout(t);
+  }, [tapped, ready, blocked]);
 
   // ── Phone: reminders, badge count, push token ──
   const requestPermission = useCallback(async () => { setPermission(await askPermission()); }, []);
@@ -262,10 +308,10 @@ export const NotifyProvider = ({ children }: { children: React.ReactNode }) => {
   }, [permission, signedIn, prefs]);
 
   const value = useMemo<Ctx>(() => ({
-    notices, unread, isRead, markRead, markAllRead, dismiss, open,
+    notices, unread, isRead, markRead, markAllRead, dismiss, restore, open,
     centerOpen, openCenter: () => setCenterOpen(true), closeCenter: () => setCenterOpen(false),
     permission, requestPermission, today, showBanner, now,
-  }), [notices, unread, isRead, markRead, markAllRead, dismiss, open, centerOpen, permission, requestPermission, today, showBanner, now]);
+  }), [notices, unread, isRead, markRead, markAllRead, dismiss, restore, open, centerOpen, permission, requestPermission, today, showBanner, now]);
 
   return (
     <NotifyCtx.Provider value={value}>
@@ -278,6 +324,15 @@ export const NotifyProvider = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
+// Where a post opens: news in the reader, an event on its day, a menu change on
+// its item, everything else on its slide in The Buzz.
+const postAction = (p: Post): NoticeAction =>
+  p.kind === 'news' ? { kind: 'open', tab: 'announcements', focus: { kind: 'news', id: p.id } }
+  : p.kind === 'event' ? { kind: 'open', tab: 'calendar', focus: { kind: 'day', iso: p.data.date, event: p.id } }
+  : p.kind === 'menu' ? { kind: 'open', tab: 'lunch', focus: { kind: 'menu', id: p.id } }
+  : p.kind === 'popup' ? { kind: 'banner', key: `${p.data.template}:${toISO(new Date())}:${p.id}` }
+  : { kind: 'open', tab: 'home', focus: { kind: 'buzz', id: p.id } };
+
 // An App Club post in the bell list.
 const bellItem = (p: Post) => {
   const body = p.kind === 'news' ? p.data.body
@@ -287,6 +342,5 @@ const bellItem = (p: Post) => {
     : p.kind === 'menu' ? p.data.blurb
     : p.kind === 'fact' ? p.data.body : '';
   const topic = p.kind === 'news' ? 'announcements' as const : p.kind === 'event' ? 'events' as const : 'buzz' as const;
-  const tab = p.kind === 'news' ? 'announcements' as const : p.kind === 'event' ? 'dayview' as const : p.kind === 'menu' ? 'lunch' as const : 'home' as const;
-  return { id: p.id, title: titleOf(p), body: body.slice(0, 200), at: Date.parse(p.startsAt || p.createdAt), topic, tab, icon: KINDS[p.kind].icon };
+  return { id: p.id, title: titleOf(p), body: body.slice(0, 200), at: Date.parse(p.startsAt || p.createdAt), topic, action: postAction(p), icon: KINDS[p.kind].icon };
 };

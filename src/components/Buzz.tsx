@@ -54,6 +54,10 @@ export const Buzz = ({ slides, onOpen, aspect = 1, preview = false, focus }: { s
   const { seen } = useContent();
   const [w, setW] = useState(0);
   const h = Math.round(w * aspect);
+  // The frame's 1pt border sits inside its width, so the list pages by 2pt less
+  // than the frame. Slides must be exactly that wide: any wider and every swipe
+  // leaves the next one a little further off to the side.
+  const sw = Math.max(0, w - 2);
   const [i, setI] = useState(0);
   const list = useRef<FlatList<BuzzSlide>>(null);
   const pausedUntil = useRef(0);
@@ -68,7 +72,7 @@ export const Buzz = ({ slides, onOpen, aspect = 1, preview = false, focus }: { s
     const id = setInterval(() => {
       if (Date.now() < pausedUntil.current) return;
       const next = (idx.current + 1) % slides.length;
-      list.current?.scrollToOffset({ offset: next * w, animated: true });
+      list.current?.scrollToOffset({ offset: next * sw, animated: true });
     }, AUTO_MS);
     return () => clearInterval(id);
   }, [w, slides.length]);
@@ -80,12 +84,12 @@ export const Buzz = ({ slides, onOpen, aspect = 1, preview = false, focus }: { s
     pausedUntil.current = Date.now() + PAUSE_MS;
     idx.current = n;
     setI(n);
-    list.current?.scrollToOffset({ offset: n * w, animated: true });
+    list.current?.scrollToOffset({ offset: n * sw, animated: true });
   }, [focus?.id, focus?.at, w]);
 
   const onScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (!w) return;
-    const n = Math.round(e.nativeEvent.contentOffset.x / w);
+    const n = Math.round(e.nativeEvent.contentOffset.x / sw);
     idx.current = n;
     setI(n);
   };
@@ -117,9 +121,9 @@ export const Buzz = ({ slides, onOpen, aspect = 1, preview = false, focus }: { s
             showsHorizontalScrollIndicator={false}
             onScrollBeginDrag={pause}
             onMomentumScrollEnd={onScrollEnd}
-            getItemLayout={(_, n) => ({ length: w, offset: w * n, index: n })}
+            getItemLayout={(_, n) => ({ length: sw, offset: sw * n, index: n })}
             renderItem={({ item }) => (
-              <View style={{ width: w, height: h }}>
+              <View style={{ width: sw, height: h - 2 }}>
                 <Slide s={item} onOpen={onOpen} onTouch={pause} />
               </View>
             )}

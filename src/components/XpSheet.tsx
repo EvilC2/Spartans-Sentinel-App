@@ -62,7 +62,7 @@ export const XpSheet = ({ visible, onClose }: { visible: boolean; onClose: () =>
   const go = (t: TabId) => { onClose(); nav.go(t); };
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: c.paper }}>
         <ScrollView stickyHeaderIndices={[1]} contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
           <Hero lv={lv} st={st} visible={visible} onClose={onClose} />

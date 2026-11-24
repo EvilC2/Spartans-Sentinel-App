@@ -2,7 +2,7 @@
 // Top to bottom:
 //   1. Personal touches, each with its own look: Appearance (live theme
 //      previews), Notifications (sky tile), Linked apps (navy tile), App Club
-//      Admin (gold card).
+//      (the club's coin on navy).
 //   2. The real settings list: Edit profile · Edit classes · Account & privacy.
 //   3. Sign out.
 //   4. Help & feedback, last.
@@ -15,7 +15,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme, ThemePref } from '../ThemeContext';
 import { colors, fonts, shadow, tnum, G135 } from '../theme';
 import { Icon, IconName } from '../components/Icon';
-import { SectionHeader } from '../components/Chrome';
+import { ClubCoin, SectionHeader } from '../components/Chrome';
 import { useProfile, fullName } from '../ProfileContext';
 import { backendConfigured } from '../supabase';
 import { MIN_PASSWORD } from '../auth';
@@ -24,7 +24,7 @@ import {
   APP_VERSION, NOTIFY_TOPICS, useNotifyPrefs, FEEDBACK_AREAS, FEEDBACK_KINDS, useFeedback, feedbackFrom,
 } from '../settings';
 import type { FeedbackKind, FeedbackRow, Role } from '../backend';
-import { clubRoles, isTop, mainRole, rankLabel, roleLabel } from '../ranks';
+import { rankLabel, roleLabel } from '../ranks';
 import { useNotify } from '../notify/context';
 import { useNav } from '../nav';
 import { EVENT_TEMPLATES, ADMIN_TEMPLATES, previewDay, templateById } from '../notify/eventDays';
@@ -233,26 +233,19 @@ const LinkedTile = ({ onPress }: { onPress: () => void }) => {
   );
 };
 
-// App Club: gold.
+// App Club: the club's coin on navy, same strip as the role card inside.
 const AdminCard = ({ roles, onPress }: { roles: string[]; onPress: () => void }) => {
-  const top = isTop(roles as Role[]) ? mainRole(roles as Role[]) : null;
+  const { mode } = useTheme();
+  const line = roles.length ? rankLabel(roles as Role[]) : 'Join, or enter your invite code';
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="App Club" style={({ pressed }) => [{ borderRadius: 20, overflow: 'hidden', opacity: pressed ? 0.88 : 1 }, shadow.md]}>
-      <LinearGradient colors={['#E4C27E', '#B68842', '#8A6424']} {...G135} style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-        <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.25)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.45)', alignItems: 'center', justifyContent: 'center' }}>
-          <Icon name="shield" size={22} stroke={2} color="#fff" />
-        </View>
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={{ fontSize: 10.5, fontWeight: '800', letterSpacing: 1.6, textTransform: 'uppercase', color: 'rgba(58,38,8,0.75)' }}>
-            {top ? roleLabel(top) : clubRoles(roles as Role[]).length ? 'Member' : roles.length ? roleLabel('teacher') : 'School App Club'}
-          </Text>
-          <Text style={{ fontFamily: fonts.serif, fontSize: 21, color: '#fff', marginTop: 1 }}>App Club</Text>
-          <Text numberOfLines={1} style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.9)', marginTop: 1 }}>
-            {roles.length ? rankLabel(roles as Role[]) : 'Join, or enter your invite code'}
-          </Text>
-        </View>
-        <Icon name="chev-r" size={18} stroke={2.2} color="#fff" />
-      </LinearGradient>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`App Club. ${line}`}
+      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 20, backgroundColor: pressed ? '#0E2238' : '#14304E', borderWidth: 1, borderColor: mode === 'dark' ? 'rgba(255,255,255,0.1)' : '#14304E' })}>
+      <ClubCoin size={46} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text style={{ fontFamily: fonts.serif, fontSize: 22, lineHeight: 27, letterSpacing: -0.4, color: '#fff' }}>App Club</Text>
+        <Text numberOfLines={1} style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.78)', marginTop: 1 }}>{line}</Text>
+      </View>
+      <Icon name="chev-r" size={17} stroke={2.2} color="rgba(255,255,255,0.7)" />
     </Pressable>
   );
 };
@@ -339,7 +332,7 @@ export const Toggle = ({ on, onChange, label, disabled }: { on: boolean; onChang
 export const Sheet = ({ visible, onClose, title, children }: { visible: boolean; onClose: () => void; title: string; children: React.ReactNode }) => {
   const { c } = useTheme();
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: c.paper }}>
         <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 28, paddingBottom: 60, gap: 12 }} keyboardShouldPersistTaps="handled">
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>

@@ -1,6 +1,6 @@
 // Spartans — App Club → Executive pieces.
-//   RightNow       one line per thing going on, for President and Sponsor
-//   NeedsYourSay   open decisions with Approve / Decline
+//   TopHome        the President's and Teacher Sponsor's App Club: a decision if
+//                  one is waiting, every team with what's going on there, the club
 //   Decisions      the whole decisions board
 //   SchoolContacts principal and vice-principals, the office
 //   Marketing     what to tell people about the app, the brand colours and
@@ -10,7 +10,7 @@
 //   StucoPage     poll results to bring to student council, and the board
 //                 of what student council asked the club for.
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, Image, Linking } from 'react-native';
 import { useTheme } from '../ThemeContext';
 import { tnum } from '../theme';
@@ -21,65 +21,83 @@ import { STAFF, SCHOOL } from '../staff';
 import { BRAND } from '../components/Chrome';
 import type { Role } from '../backend';
 import { ART, TEAMS, TEAM_ORDER, TeamId, TOP, teamOf, roleLabel } from '../ranks';
-import { Act, Card, CardHead, Group, Hint, Pill, Row, SectionTitle } from './ui';
+import { Act, Card, CardHead, Group, Hint, PersonRow, Pill, Row, SectionTitle } from './ui';
 import { BoardView } from './Board';
-import { useBoard } from './boards';
+import { Item, useBoard } from './boards';
 import { usePeople, Person } from './Members';
 import { useFeedbackInbox } from './FeedbackTeam';
 
-// ── Right now ───────────────────────────────────────────────────
-// What's going on in the club, one line each, for the President and the
-// Teacher Sponsor. Each line opens where it happens.
-export const RightNow = ({ onTeam, onDecisions, onPeople }: { onTeam: (t: TeamId) => void; onDecisions: () => void; onPeople: () => void }) => {
+// ── President / Teacher Sponsor home ────────────────────────────
+// Three short parts. Each team is listed once, and its line says what's going
+// on there; a red number is something waiting for someone.
+export const TopHome = ({ sponsor, onTeam, onDecisions, onMembers, clubs }: {
+  sponsor: boolean; onTeam: (t: TeamId) => void; onDecisions: () => void; onMembers: () => void; clubs?: React.ReactNode;
+}) => {
   const store = useContent();
   const people = usePeople();
   const { designs } = useBadgeDesigns();
   const inbox = useFeedbackInbox();
   const decisions = useBoard('decisions');
   const live = store.posts.filter(p => phaseOf(p, store.now) === 'live').length;
+  const soon = store.posts.filter(p => phaseOf(p, store.now) === 'scheduled').length;
   const fresh = (inbox.rows || []).filter(r => (r.status || 'new') === 'new').length;
   const waiting = designs.filter(d => d.status === 'pending').length;
-  const open = (decisions.items || []).filter(i => i.status === 'open').length;
+  const open = (decisions.items || []).filter(i => i.status === 'open');
   const members = (people.people || []).filter(p => p.roles.length).length;
-  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-  return (
-    <Group title="Right now">
-      <Row art={TEAMS.maintenance.art} label={plural(live, 'post live', 'posts live')} sub="Trivia, polls, news and the caf menu" onPress={() => onTeam('maintenance')} />
-      <Row art={TEAMS.feedback.art} label={plural(fresh, 'new piece of feedback', 'new pieces of feedback')} sub="From the app and in person" onPress={() => onTeam('feedback')} />
-      <Row art={TEAMS.badges.art} label={plural(waiting, 'badge waiting', 'badges waiting')} sub="New designs to approve" onPress={() => onTeam('badges')} />
-      <Row art={ART.star} label={plural(open, 'decision open', 'decisions open')} sub="Waiting for a final say" onPress={onDecisions} />
-      {people.people !== null && <Row art={ART.key} label={plural(members, 'person in the club', 'people in the club')} sub="Across five teams" onPress={onPeople} />}
+
+  const lines: Record<TeamId, { sub: string; count?: number }> = {
+    developer: { sub: TEAMS.developer.sub },
+    maintenance: { sub: `${live} post${live === 1 ? '' : 's'} live${soon ? `, ${soon} scheduled` : ''}` },
+    badges: waiting ? { sub: 'Designs to approve', count: waiting } : { sub: TEAMS.badges.sub },
+    feedback: fresh ? { sub: 'New feedback to read', count: fresh } : { sub: inbox.rows ? 'All caught up' : TEAMS.feedback.sub },
+    executive: open.length ? { sub: 'Waiting for a final say', count: open.length } : { sub: 'Decisions, marketing, check-ins' },
+  };
+  const teams = (
+    <Group title="Teams">
+      {TEAM_ORDER.map(t => <Row key={t} art={TEAMS[t].art} label={TEAMS[t].label} sub={lines[t].sub} count={lines[t].count} onPress={() => onTeam(t)} />)}
     </Group>
+  );
+  const decision = open.length > 0 && <NextDecision board={decisions} open={open} onAll={onDecisions} />;
+  return (
+    <>
+      {!sponsor && decision}
+      {teams}
+      {sponsor && decision}
+      <Group title="Club">
+        <Row art={ART.key} label="Members" sub={people.people ? `${members} ${members === 1 ? 'person' : 'people'}, their roles and invites` : 'Roles and invites'} onPress={onMembers} />
+        {clubs}
+      </Group>
+    </>
   );
 };
 
-// Open decisions with Approve / Decline right there. The President and the
-// Teacher Sponsor decide; everyone else with access just reads.
-export const NeedsYourSay = ({ canDecide, onAll }: { canDecide: boolean; onAll: () => void }) => {
+// The oldest open decision, with Approve / Decline right there.
+const NextDecision = ({ board, open, onAll }: { board: ReturnType<typeof useBoard>; open: Item[]; onAll: () => void }) => {
   const { c } = useTheme();
-  const b = useBoard('decisions');
-  const open = (b.items || []).filter(i => i.status === 'open');
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const it = [...open].sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
+  const decide = async (status: 'yes' | 'no') => {
+    setBusy(status); setErr(null);
+    try { await board.save({ ...it, status }); }
+    catch (e: any) { setErr(String(e?.message || 'Could not save that.')); }
+    finally { setBusy(null); }
+  };
   return (
     <View style={{ gap: 8 }}>
-      <SectionTitle title="Needs a final say" trailing="All decisions" onTrailing={onAll} />
-      {b.items !== null && open.length === 0 && (
-        <Card><Text style={{ fontSize: 14, color: c.ink3 }}>Nothing waiting. New questions show up here.</Text></Card>
-      )}
-      {open.slice(0, 3).map(it => (
-        <Card key={it.id}>
-          <View style={{ gap: 4 }}>
-            <Text style={{ fontSize: 16, fontWeight: '700', color: c.ink, letterSpacing: -0.2 }}>{it.title}</Text>
-            {!!it.body && <Text style={{ fontSize: 14, color: c.ink2, lineHeight: 20 }}>{it.body}</Text>}
-            {!!it.tag && <Text style={{ fontSize: 12.5, color: c.ink3 }}>About: {it.tag}</Text>}
-          </View>
-          {canDecide && (
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Act label="Approve" icon="check" fill onPress={() => b.save({ ...it, status: 'yes' })} />
-              <Act label="Decline" icon="close" tone="plain" fill onPress={() => b.save({ ...it, status: 'no' })} />
-            </View>
-          )}
-        </Card>
-      ))}
+      <SectionTitle title="Needs your say" trailing={open.length > 1 ? `All ${open.length}` : 'All decisions'} onTrailing={onAll} />
+      <Card>
+        <View style={{ gap: 4 }}>
+          <Text style={{ fontSize: 16.5, fontWeight: '700', color: c.ink, letterSpacing: -0.3 }}>{it.title}</Text>
+          {!!it.body && <Text numberOfLines={4} style={{ fontSize: 14.5, color: c.ink2, lineHeight: 20 }}>{it.body}</Text>}
+          {!!it.tag && <Text style={{ fontSize: 13, color: c.ink3, marginTop: 2 }}>About: {it.tag}</Text>}
+        </View>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flex: 1 }}><Act label="Decline" tone="plain" fill busy={busy === 'no'} disabled={!!busy} onPress={() => decide('no')} /></View>
+          <View style={{ flex: 1 }}><Act label="Approve" fill busy={busy === 'yes'} disabled={!!busy} onPress={() => decide('yes')} /></View>
+        </View>
+        {!!err && <Hint warn text={err} />}
+      </Card>
     </View>
   );
 };
@@ -164,7 +182,7 @@ export const HrPage = ({ canEdit }: { canEdit: boolean }) => {
   return (
     <View style={{ gap: 20 }}>
       {!!people.err && <Hint warn text={people.err} />}
-      <Group title="Check-ins">
+      <Group title="Where everyone is">
         {statuses.map(st => <Row key={st.id} label={st.label} detail={String(count(st.id))} />)}
         <Row label="Not checked yet" detail={String(unchecked)} />
       </Group>
@@ -175,7 +193,7 @@ export const HrPage = ({ canEdit }: { canEdit: boolean }) => {
           <Group key={t} title={TEAMS[t].label}>
             {list.map(p => {
               const st = statuses.find(x => x.id === statusOf(p));
-              return <Row key={p.id} label={p.name} sub={p.roles.filter(r => teamOf(r) === t).map((r: Role) => roleLabel(r)).join(', ')}
+              return <PersonRow key={p.id} person={p.name} sub={p.roles.filter(r => teamOf(r) === t).map((r: Role) => roleLabel(r)).join(', ')}
                 trailing={<Pill text={st ? st.label : 'Not checked'} tone={st ? st.tone : 'ink'} />} />;
             })}
           </Group>

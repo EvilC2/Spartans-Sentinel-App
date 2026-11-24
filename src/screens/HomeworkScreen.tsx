@@ -16,7 +16,7 @@
 // The class rows live in src/components/HomeworkList.tsx, shared with a
 // program's Homework tab. State lives in HomeworkProvider (src/stores.tsx).
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated, Keyboard, LayoutAnimation, PanResponder, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput,
   View, useWindowDimensions,
@@ -30,6 +30,8 @@ import {
   ClassHomework, KindChip, ScrollerCtx, Section, UNSORTED, addDays, splitDone, useHomeworkScroller, useHomeworkSections,
 } from '../components/HomeworkList';
 import { useHomework, classKey } from '../stores';
+import { useFocus } from '../nav';
+import { Spot } from '../components/Spot';
 import { useNow } from '../useToday';
 import { toISO } from '../calendar';
 import { HomeworkItem, Program } from '../programs';
@@ -74,6 +76,23 @@ export default function HomeworkScreen({ topInset }: ScreenProps) {
     return out;
   }, [hw.items, sections, programs]);
   const quick = bySection[UNSORTED]?.list || [];
+
+  // ── Opened from a notification: that task, unfolded and marked ──
+  const [spotId, setSpotId] = useState<string | null>(null);
+  useFocus('homework', f => {
+    const sid = Object.keys(bySection).find(id => [...bySection[id].list, ...bySection[id].completed].some(h => h.id === f.id));
+    if (!sid) return false;
+    setMoving(null);
+    if (bySection[sid].completed.some(h => h.id === f.id)) setShowDone(m => ({ ...m, [sid]: true }));
+    if (sid !== UNSORTED) setOpenId(f.id);
+    setSpotId(f.id);
+    return true;
+  }, [bySection]);
+  useEffect(() => {
+    if (!spotId) return;
+    const t = setTimeout(() => setSpotId(null), 3500);
+    return () => clearTimeout(t);
+  }, [spotId]);
 
   // ── Filing a quick task into a class ──
   const [moving, setMoving] = useState<Moving | null>(null);
@@ -128,6 +147,7 @@ export default function HomeworkScreen({ topInset }: ScreenProps) {
           todayIso={todayIso}
           maxList={Math.round(screenH / 3) - 112}
           moving={moving}
+          spotId={spotId}
           canFile={classes.length > 0}
           onAdd={title => hw.add('', title, addDays(todayIso, 1))}
           onPick={h => { Keyboard.dismiss(); ease(); setMoving(m => (m?.id === h.id ? null : { id: h.id, title: h.title, drag: false })); }}
@@ -163,6 +183,7 @@ export default function HomeworkScreen({ topInset }: ScreenProps) {
                 todayIso={todayIso}
                 openId={openId}
                 setOpenId={setOpenId}
+                spotId={spotId}
                 showDone={!!showDone[s.id]}
                 onToggleDone={() => setShowDone(m => ({ ...m, [s.id]: !m[s.id] }))}
               />
@@ -199,13 +220,20 @@ type DragApi = React.MutableRefObject<{
   end: (taskId: string, commit: boolean) => void;
 }>;
 
-const QuickType = ({ items, todayIso, maxList, moving, canFile, onAdd, onPick, drag }: {
-  items: HomeworkItem[]; todayIso: string; maxList: number; moving: Moving | null; canFile: boolean;
+const QuickType = ({ items, todayIso, maxList, moving, spotId, canFile, onAdd, onPick, drag }: {
+  items: HomeworkItem[]; todayIso: string; maxList: number; moving: Moving | null; spotId: string | null; canFile: boolean;
   onAdd: (title: string) => void; onPick: (h: HomeworkItem) => void; drag: DragApi;
 }) => {
   const { c, mode } = useTheme();
   const input = useRef<TextInput>(null);
   const [draft, setDraft] = useState('');
+  const list = useRef<ScrollView>(null);
+  const spotAt = items.findIndex(h => h.id === spotId);
+  useEffect(() => {
+    if (spotAt < 0) return;
+    const t = setTimeout(() => list.current?.scrollTo({ y: Math.max(0, spotAt * 48 - 48), animated: true }), 300);
+    return () => clearTimeout(t);
+  }, [spotAt]);
   const add = () => {
     const t = draft.trim();
     if (!t) return;
@@ -249,13 +277,14 @@ const QuickType = ({ items, todayIso, maxList, moving, canFile, onAdd, onPick, d
 
       {items.length > 0 && (
         <ScrollView
+          ref={list}
           style={{ maxHeight: Math.max(96, maxList), borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.line }}
           keyboardShouldPersistTaps="handled"
           scrollEnabled={!moving?.drag}
           showsVerticalScrollIndicator={items.length > 3}
         >
           {items.map((h, i) => (
-            <QuickRow key={h.id} h={h} first={i === 0} todayIso={todayIso} active={moving?.id === h.id} canFile={canFile} onPick={() => onPick(h)} drag={drag} />
+            <QuickRow key={h.id} h={h} first={i === 0} todayIso={todayIso} active={moving?.id === h.id} spot={spotId === h.id} canFile={canFile} onPick={() => onPick(h)} drag={drag} />
           ))}
         </ScrollView>
       )}
@@ -265,8 +294,8 @@ const QuickType = ({ items, todayIso, maxList, moving, canFile, onAdd, onPick, d
 
 // One unsorted task: tick, text (tap to edit; emptied = deleted), type chip,
 // and the handle that carries it to a class (drag it, or tap it).
-const QuickRow = ({ h, first, todayIso, active, canFile, onPick, drag }: {
-  h: HomeworkItem; first: boolean; todayIso: string; active: boolean; canFile: boolean; onPick: () => void; drag: DragApi;
+const QuickRow = ({ h, first, todayIso, active, spot, canFile, onPick, drag }: {
+  h: HomeworkItem; first: boolean; todayIso: string; active: boolean; spot: boolean; canFile: boolean; onPick: () => void; drag: DragApi;
 }) => {
   const { c } = useTheme();
   const hw = useHomework();
@@ -305,6 +334,7 @@ const QuickRow = ({ h, first, todayIso, active, canFile, onPick, drag }: {
 
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: 6, paddingRight: 4, minHeight: 48, borderTopWidth: first ? 0 : StyleSheet.hairlineWidth, borderTopColor: c.line, backgroundColor: active ? wash(c.action, 0.08) : 'transparent' }}>
+      <Spot on={spot} />
       <Pressable
         onPress={() => { ease(); hw.toggle(h.id, todayIso); }}
         accessibilityRole="checkbox"
@@ -410,9 +440,9 @@ const Tile = ({ s, count, on, onRect, onPress }: { s: Section; count: number; on
 // ────────────────────────────────────────────────────────────────
 // One class: heading, then its tasks and the line to write on.
 // ────────────────────────────────────────────────────────────────
-const ClassBlock = ({ s, first, list, completed, sections, todayIso, openId, setOpenId, showDone, onToggleDone }: {
+const ClassBlock = ({ s, first, list, completed, sections, todayIso, openId, setOpenId, showDone, onToggleDone, spotId }: {
   s: Section; first: boolean; list: HomeworkItem[]; completed: HomeworkItem[]; sections: Section[]; todayIso: string;
-  openId: string | null; setOpenId: (id: string | null) => void; showDone: boolean; onToggleDone: () => void;
+  openId: string | null; setOpenId: (id: string | null) => void; showDone: boolean; onToggleDone: () => void; spotId: string | null;
 }) => {
   const { c, mode } = useTheme();
   return (
@@ -431,7 +461,7 @@ const ClassBlock = ({ s, first, list, completed, sections, todayIso, openId, set
         </View>
       </View>
 
-      <ClassHomework s={s} list={list} completed={completed} sections={sections} todayIso={todayIso} openId={openId} setOpenId={setOpenId} showDone={showDone} onToggleDone={onToggleDone} />
+      <ClassHomework s={s} list={list} completed={completed} sections={sections} todayIso={todayIso} openId={openId} setOpenId={setOpenId} showDone={showDone} onToggleDone={onToggleDone} spotId={spotId} />
     </View>
   );
 };

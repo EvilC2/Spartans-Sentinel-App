@@ -12,7 +12,8 @@ export type Ctx = {
   isRead: (n: Notice) => boolean;
   markRead: (id: string) => void;
   markAllRead: () => void;
-  dismiss: (id: string) => void;
+  dismiss: (ids: string[]) => void;     // take these off the list
+  restore: (ids: string[]) => void;     // undo that
   open: (n: Notice) => void;            // tap on a row
   centerOpen: boolean;
   openCenter: () => void;

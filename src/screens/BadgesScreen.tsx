@@ -122,7 +122,7 @@ export const BadgesSheet = ({ visible, onClose }: { visible: boolean; onClose: (
 
   return (
     <>
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={close}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={close}>
       <View style={{ flex: 1, backgroundColor: c.paper }}>
         <Grabber />
         {/* Header */}
@@ -350,7 +350,7 @@ export const BadgeDetail = ({ badge, onClose, preview = false }: { badge: Badge 
   ];
 
   return (
-    <Modal visible={!!badge} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal visible={!!badge} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: c.paper }}>
         <LinearGradient
           colors={[glow, glow + (mode === 'dark' ? '66' : 'AA'), c.paper]}

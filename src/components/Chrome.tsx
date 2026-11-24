@@ -133,22 +133,23 @@ export const Avatar = ({ initials = '?', uri, onPress }: { initials?: string; ur
   );
 };
 
-// App Club bubble: the gold of the App Club Admin card, so it reads as the
-// club's door rather than another plain button.
-export const ClubBtn = ({ onPress }: { onPress?: () => void }) => (
-  <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="App Club"
-    style={({ pressed }) => [{ opacity: pressed ? 0.7 : 1 }]}>
-    <LinearGradient
-      colors={['#E4C27E', '#B68842', '#8A6424']}
-      start={G135.start}
-      end={G135.end}
-      style={[{
-        width: 38, height: 38, borderRadius: 19,
-        alignItems: 'center', justifyContent: 'center',
-      }, shadow.sm]}
-    >
-      <Icon name="shield" size={18} stroke={2} color="#fff" />
+// The club's mark: a struck gold coin with the Spartan on it. The header button
+// and the App Club card in Settings both use it.
+export const ClubCoin = ({ size = 38 }: { size?: number }) => (
+  <LinearGradient colors={['#F0D699', '#D2A654', '#A97B2E']} start={G135.start} end={G135.end}
+    style={{ width: size, height: size, borderRadius: size / 2, padding: Math.round(size * 0.07) }}>
+    <LinearGradient colors={['#B98A3B', '#D9B061']} start={G135.start} end={G135.end}
+      style={{ flex: 1, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center' }}>
+      <Image source={BRAND.navy} resizeMode="contain" accessibilityIgnoresInvertColors
+        style={{ width: size * 0.64, height: size * 0.64, tintColor: '#14243A' }} />
     </LinearGradient>
+  </LinearGradient>
+);
+
+export const ClubBtn = ({ onPress }: { onPress?: () => void }) => (
+  <Pressable onPress={onPress} hitSlop={4} accessibilityRole="button" accessibilityLabel="App Club"
+    style={({ pressed }) => [{ borderRadius: 19, transform: [{ scale: pressed ? 0.94 : 1 }] }, shadow.sm]}>
+    <ClubCoin />
   </Pressable>
 );
 

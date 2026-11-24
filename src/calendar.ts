@@ -11,7 +11,8 @@
 //       Week A: Mon 1-12F34 · Tue 2-1234 · Wed 1-2314 · Thu 2-23F14 · Fri 1-3124
 //       Week B: Mon 2-31F24 · Tue 1-1234 · Wed 2-1234 · Thu 1-23F14 · Fri 2-2314
 //     Projected days carry `projected: true`. Sync days and Collaboration Days
-//     beyond October are not yet published and are not included.
+//     beyond October are not yet published and are not included, except
+//     Collaboration Day Nov 26, added by hand (keep it when regenerating).
 //
 // code: "<day>-<slots>"  e.g. "2-23F14" = Day 2, slot order Block 2, Block 3,
 //       FIT, Block 1, Block 4. Codes are omitted on days with no classes.
@@ -124,7 +125,7 @@ export const CALENDAR: Record<string, CalDay> = {
   '2026-11-23': { kind: "fit", code: "1-12F34", events: ["FIT 11:05–11:50"], projected: true },
   '2026-11-24': { kind: "school", code: "2-1234", projected: true },
   '2026-11-25': { kind: "school", code: "1-2314", projected: true },
-  '2026-11-26': { kind: "fit", code: "2-23F14", events: ["FIT 11:05–11:50"], projected: true },
+  '2026-11-26': { kind: "collab", code: "2-2314", events: ["Collaboration Day · students start 9:25"], projected: true },
   '2026-11-27': { kind: "prod", label: "Pro-D Day", events: ["Professional Development Day · no classes"] },
   '2026-11-28': { kind: "weekend" },
   '2026-11-29': { kind: "weekend" },

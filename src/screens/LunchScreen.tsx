@@ -20,6 +20,8 @@ import {
   MenuItem, MenuCategory, Tag, priceLabel, inCategory, hasTag, applyMenuPosts,
 } from '../menu';
 import { usePosted, useContent } from '../content';
+import { useFocus } from '../nav';
+import { Spot, useReveal, useScrollSpot } from '../components/Spot';
 import type { ScreenProps } from '../../App';
 
 type Filter = Tag | 'cheap';
@@ -37,6 +39,23 @@ export default function LunchScreen({ topInset }: ScreenProps) {
   const today = menu.filter(m => m.featured);
   useEffect(() => { seen(posted.map(p => p.id)); }, [posted, seen]);
 
+  // From a notification or The Buzz: that item, with any filter out of the way.
+  const scroll = useScrollSpot();
+  const [spot, setSpot] = useState<string | null>(null);
+  useFocus('menu', f => {
+    const m = menu.find(x => x.postId === f.id);
+    if (!m) return false;
+    setCat('all');
+    setFilters([]);
+    setSpot(m.id);
+    return true;
+  }, [menu]);
+  useEffect(() => {
+    if (!spot) return;
+    const t = setTimeout(() => setSpot(null), 4000);
+    return () => clearTimeout(t);
+  }, [spot]);
+
   const items = useMemo(
     () => menu.filter(m => inCategory(m, cat) && filters.every(f => hasTag(m, f))),
     [menu, cat, filters],
@@ -50,8 +69,8 @@ export default function LunchScreen({ topInset }: ScreenProps) {
   const remove = (id: string) => setTray(t => { const n = (t[id] || 0) - 1; const { [id]: _, ...rest } = t; return n > 0 ? { ...rest, [id]: n } : rest; });
 
   return (
-    <View style={{ flex: 1, backgroundColor: c.paper }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: trayCount ? 190 : 120 }} showsVerticalScrollIndicator={false}>
+    <View ref={scroll.frame} collapsable={false} style={{ flex: 1, backgroundColor: c.paper }}>
+      <ScrollView ref={scroll.ref} onScroll={scroll.onScroll} scrollEventThrottle={32} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: trayCount ? 190 : 120 }} showsVerticalScrollIndicator={false}>
         <AppHeader topInset={topInset} title="Cafeteria" back />
 
         {/* ── Gemini Foods + we take: cash, change, debit, credit, gift card ── */}
@@ -151,7 +170,7 @@ export default function LunchScreen({ topInset }: ScreenProps) {
           )}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' }}>
             {items.map(m => (
-              <FoodCard key={m.id} m={m} count={tray[m.id] || 0} onAdd={() => add(m.id)} onRemove={() => remove(m.id)} />
+              <FoodCard key={m.id} m={m} spot={spot === m.id} bring={scroll.bring} count={tray[m.id] || 0} onAdd={() => add(m.id)} onRemove={() => remove(m.id)} />
             ))}
           </View>
         </View>
@@ -191,8 +210,10 @@ const PILL: Partial<Record<Tag, { label: string; tint: (c: any) => string; ink: 
 };
 const PILL_ORDER: Tag[] = ['popular', 'gf', 'veg', 'healthy'];
 
-const FoodCard = ({ m, count, onAdd, onRemove }: { m: MenuItem; count: number; onAdd: () => void; onRemove: () => void }) => {
+const FoodCard = ({ m, spot, bring, count, onAdd, onRemove }: { m: MenuItem; spot: boolean; bring: (n: View | null) => void; count: number; onAdd: () => void; onRemove: () => void }) => {
   const { c } = useTheme();
+  const card = useRef<View>(null);
+  useReveal(spot, card, bring);
   const scale = useRef(new Animated.Value(1)).current;
   const bump = () => {
     scale.setValue(1);
@@ -205,6 +226,7 @@ const FoodCard = ({ m, count, onAdd, onRemove }: { m: MenuItem; count: number; o
   const priced = m.price !== undefined;
   return (
     <Pressable
+      ref={card}
       onPress={() => { bump(); onAdd(); }}
       disabled={m.soldOut}
       accessibilityRole="button"
@@ -215,6 +237,7 @@ const FoodCard = ({ m, count, onAdd, onRemove }: { m: MenuItem; count: number; o
         transform: [{ scale: pressed ? 0.97 : 1 }], opacity: m.soldOut ? 0.55 : 1,
       }, shadow.sm]}
     >
+      <Spot on={spot} radius={20} />
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <View style={{ width: 64, height: 64, borderRadius: 18, backgroundColor: c.paper2, alignItems: 'center', justifyContent: 'center' }}>
           <Animated.Image source={m.icon} style={{ width: 50, height: 50, transform: [{ scale }] }} />

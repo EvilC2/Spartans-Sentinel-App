@@ -10,11 +10,12 @@
 
 import React, { createContext, useContext, useMemo, useState } from 'react';
 import {
-  View, Text, Pressable, Modal, ScrollView, useWindowDimensions, Platform,
+  View, Text, Pressable, useWindowDimensions,
 } from 'react-native';
 import { useTheme } from '../ThemeContext';
 import { fonts, shadow, tnum } from '../theme';
 import { Icon } from './Icon';
+import { BottomSheet, SheetScroll } from './BottomSheet';
 import { useProfile, Slot, SLOT_COLORS, teacherShort, roomShort, Course } from '../ProfileContext';
 import { CALENDAR, toISO } from '../calendar';
 import { buildDayPlan } from '../bell';
@@ -95,13 +96,10 @@ const ClassSheet = ({ item: ref, onClose }: { item: ClassRef | null; onClose: ()
   const room = pr.kind === 'class' && pr.room ? roomShort(pr.room) : '';
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(14,34,56,0.35)' }} accessibilityLabel="Close" />
-      <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
-        <View style={[{
-          height: Math.round(height * 0.86), backgroundColor: c.paper,
-          borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden',
-        }, shadow.lg]}>
+    <BottomSheet onClose={onClose} style={[{
+      height: Math.round(height * 0.86), backgroundColor: c.paper,
+      borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden',
+    }, shadow.lg]}>
           <View style={{ flex: 1, backgroundColor: wash(col, mode === 'dark' ? 0.24 : 0.11) }}>
           <View style={{ alignItems: 'center', paddingTop: 8 }}>
             <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: wash(col, 0.4) }} />
@@ -127,19 +125,17 @@ const ClassSheet = ({ item: ref, onClose }: { item: ClassRef | null; onClose: ()
 
           <ScrollerCtx.Provider value={scroller}>
             <View {...rootProps} style={{ flex: 1 }}>
-              <ScrollView
+              <SheetScroll
                 {...scrollProps}
                 style={{ flex: 1, backgroundColor: mode === 'dark' ? '#1C2531' : c.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20 }}
                 contentContainerStyle={{ paddingBottom: 40 + kb }}
                 showsVerticalScrollIndicator={false}
               >
                 <ProgramBody pr={pr} onNavigate={t => { onClose(); nav.go(t); }} />
-              </ScrollView>
+              </SheetScroll>
             </View>
           </ScrollerCtx.Provider>
           </View>
-        </View>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 };

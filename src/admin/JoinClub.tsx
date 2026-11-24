@@ -29,7 +29,7 @@ import { useNav } from '../nav';
 import { useProfile } from '../ProfileContext';
 import { useContent } from '../content';
 import { TEAMS, TEAM_ORDER, roleLabel } from '../ranks';
-import { Act, Card, Field } from './ui';
+import { Act, Card, Field, Result } from './ui';
 
 const PHOTO = {
   aerial: require('../../assets/join/aerial.jpg'),
@@ -58,7 +58,7 @@ const useRedeem = () => {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const redeem = async () => {
     if (busy || !code.trim()) return;
-    if (mode === 'demo') { setMsg({ ok: false, text: 'Codes need the server. In demo mode, use View at the top to try any role.' }); return; }
+    if (mode === 'demo') { setMsg({ ok: false, text: 'Codes need the server. In demo mode, use the eye at the top to try any role.' }); return; }
     if (!online) { setMsg({ ok: false, text: 'Offline. Codes need a connection.' }); return; }
     setBusy(true); setMsg(null);
     try { const role = await redeemInvite(code); setMsg({ ok: true, text: `You're in: ${roleLabel(role)}.` }); setCode(''); }
@@ -322,22 +322,23 @@ const ClassroomGlyph = () => (
 
 // Invite codes for people already in the club: a quiet link at the bottom
 // of App Club that opens into a small box.
-export const Redeem = ({ prominent }: { prominent: boolean }) => {
+export const Redeem = () => {
   const { c } = useTheme();
   const r = useRedeem();
-  const [open, setOpen] = useState(prominent);
+  const [open, setOpen] = useState(false);
   if (!open) {
     return (
-      <Pressable onPress={() => setOpen(true)} style={{ alignSelf: 'center', paddingVertical: 12, paddingHorizontal: 16 }} accessibilityRole="button">
-        <Text style={{ fontSize: 14, fontWeight: '600', color: c.ink3 }}>Have an invite code?</Text>
+      <Pressable onPress={() => setOpen(true)} accessibilityRole="button"
+        style={({ pressed }) => ({ alignSelf: 'center', minHeight: 44, justifyContent: 'center', paddingHorizontal: 16, opacity: pressed ? 0.6 : 1 })}>
+        <Text style={{ fontSize: 14.5, fontWeight: '600', color: c.link }}>Have an invite code?</Text>
       </Pressable>
     );
   }
   return (
     <Card>
-      <Field label="Invite code" value={r.code} onChangeText={r.setCode} placeholder="INVITE CODE" autoCapitalize="characters" autoCorrect={false} onSubmitEditing={r.redeem} />
-      <Act label={r.busy ? 'Checking…' : 'Add this role'} icon="check" tone="gold" fill onPress={r.redeem} disabled={r.busy || !r.code.trim()} />
-      {r.msg && <Text style={{ fontSize: 14, fontWeight: '600', color: r.msg.ok ? c.moss : c.danger }}>{r.msg.text}</Text>}
+      <Field label="Invite code" value={r.code} onChangeText={r.setCode} placeholder="From your manager" autoFocus autoCapitalize="characters" autoCorrect={false} returnKeyType="go" onSubmitEditing={r.redeem} />
+      <Act label="Add this role" fill onPress={r.redeem} busy={r.busy} disabled={!r.code.trim()} />
+      <Result msg={r.msg} />
     </Card>
   );
 };

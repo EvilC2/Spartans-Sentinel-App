@@ -4,23 +4,25 @@
 //             Preview to see it exactly as it looks on Home, and move slides
 //             up or down; the preview follows. Other places fold away. Then
 //             what's coming up and what's ending soon.
-//   Posts     every post you may edit: search, filter, + New.
+//   Posts     every post you may edit: + New, search (looks through all of
+//             them, whatever the filter), filter by state.
 // Members only see "Move" arrows and the New kinds for the jobs they have
 // (src/ranks.ts); the server enforces the same.
 
 import React, { useMemo, useState } from 'react';
-import { View, Text, Pressable, TextInput } from 'react-native';
+import { View, Text, Pressable } from 'react-native';
 import { useTheme } from '../ThemeContext';
-import { shadow, tnum } from '../theme';
+import { tnum } from '../theme';
 import { Icon } from '../components/Icon';
 import { Buzz, postToSlide } from '../components/Buzz';
 import {
   useContent, Post, PostKind, Place, Phase, KINDS, PLACES, PLACE_ORDER, PHASES,
   phaseOf, titleOf, subOf,
 } from '../content';
-import { fmtWhen, Chips, Btn } from './PostEditor';
-import { Act, Empty, Hint, Search, Seg } from './ui';
-import { ListCard, BannerGallery, fieldStyle } from '../screens/Settings';
+import { fmtWhen } from './PostEditor';
+import { Act, Empty, FoundLine, Group, Hint, Row, Search, SectionTitle, Seg } from './ui';
+import { byTitle, matches } from './search';
+import { BannerGallery } from '../screens/Settings';
 import { TEAMS } from '../ranks';
 
 // ════════════════════════════════════════════════════════════════
@@ -41,33 +43,33 @@ export const OnScreen = ({ onOpen }: { onOpen: (p: Post) => void }) => {
       <BuzzCard onOpen={onOpen} />
 
       <View style={{ gap: 8 }}>
-        <Heading icon="grid" text="Everywhere else" />
-        <ListCard>
+        <SectionTitle title="Everywhere else" />
+        <PostCard>
           {PLACE_ORDER.filter(pl => pl !== 'buzz').map((pl, i, all) => {
             const list = store.inPlace(pl);
             const isOpen = openPlace === pl;
             return (
               <View key={pl} style={{ borderBottomWidth: i === all.length - 1 ? 0 : 1, borderBottomColor: c.line2 }}>
                 <Pressable onPress={() => setOpenPlace(isOpen ? null : pl)} accessibilityRole="button" accessibilityState={{ expanded: isOpen }}
-                  style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, backgroundColor: pressed ? c.paper2 : 'transparent' })}>
-                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: c.navy50, alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon name={PLACES[pl].icon} size={16} stroke={1.9} color={c.navy700} />
+                  style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 60, paddingVertical: 10, paddingHorizontal: 14, backgroundColor: pressed ? c.paper2 : 'transparent' })}>
+                  <View style={{ width: 32, alignItems: 'center' }}>
+                    <Icon name={PLACES[pl].icon} size={20} stroke={1.9} color={c.ink2} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 14.5, fontWeight: '600', color: c.ink }}>{PLACES[pl].label}</Text>
-                    <Text style={{ fontSize: 12, color: c.ink3 }}>{PLACES[pl].sub}</Text>
+                    <Text style={{ fontSize: 16, fontWeight: '600', color: c.ink, letterSpacing: -0.2 }}>{PLACES[pl].label}</Text>
+                    <Text style={{ fontSize: 13, color: c.ink3, marginTop: 1 }}>{PLACES[pl].sub}</Text>
                   </View>
-                  <CountPill n={list.length} />
-                  <Icon name={isOpen ? 'chev-d' : 'chev-r'} size={15} stroke={1.8} color={c.ink4} />
+                  <Text style={[{ fontSize: 14, color: c.ink3 }, tnum]}>{list.length}</Text>
+                  <View style={{ transform: [{ rotate: isOpen ? '180deg' : '0deg' }] }}><Icon name="chev-d" size={16} stroke={2.2} color={c.ink4} /></View>
                 </Pressable>
                 {isOpen && (
                   <View style={{ paddingBottom: 6 }}>
                     {list.length === 0
-                      ? <Text style={{ fontSize: 13, color: c.ink4, paddingHorizontal: 14, paddingBottom: 8 }}>Nothing here right now.</Text>
+                      ? <Text style={{ fontSize: 14, color: c.ink3, paddingLeft: 60, paddingRight: 14, paddingBottom: 10 }}>Nothing here right now.</Text>
                       : list.map(p => <PostRow key={p.id} p={p} last onPress={() => onOpen(p)} inset />)}
                     {pl === 'banner' && (
-                      <Pressable onPress={() => setStyles(s => !s)} style={{ paddingHorizontal: 14, paddingVertical: 8 }}>
-                        <Text style={{ fontSize: 13, fontWeight: '600', color: c.navy700 }}>{styles ? 'Hide banner styles' : 'See every banner style'}</Text>
+                      <Pressable onPress={() => setStyles(s => !s)} accessibilityRole="button" style={{ paddingLeft: 60, paddingRight: 14, minHeight: 44, justifyContent: 'center' }}>
+                        <Text style={{ fontSize: 14, fontWeight: '600', color: c.link }}>{styles ? 'Hide banner styles' : 'See every banner style'}</Text>
                       </Pressable>
                     )}
                   </View>
@@ -75,21 +77,21 @@ export const OnScreen = ({ onOpen }: { onOpen: (p: Post) => void }) => {
               </View>
             );
           })}
-        </ListCard>
+        </PostCard>
         {styles && <BannerGallery />}
       </View>
 
       <View style={{ gap: 8 }}>
-        <Heading icon="clock" text="Coming up" trailing={`${scheduled.length} scheduled`} />
-        {scheduled.length === 0 ? <Text style={{ fontSize: 13, color: c.ink4 }}>Nothing scheduled.</Text> : (
-          <ListCard>{scheduled.map((p, i) => <PostRow key={p.id} p={p} last={i === scheduled.length - 1} onPress={() => onOpen(p)} />)}</ListCard>
+        <SectionTitle title="Coming up" />
+        {scheduled.length === 0 ? <Text style={{ fontSize: 14, color: c.ink3, paddingHorizontal: 4 }}>Nothing scheduled.</Text> : (
+          <PostCard>{scheduled.map((p, i) => <PostRow key={p.id} p={p} last={i === scheduled.length - 1} onPress={() => onOpen(p)} />)}</PostCard>
         )}
       </View>
 
       {endingSoon.length > 0 && (
         <View style={{ gap: 8 }}>
-          <Heading icon="flash" text="Ending in the next 2 days" />
-          <ListCard>{endingSoon.map((p, i) => <PostRow key={p.id} p={p} last={i === endingSoon.length - 1} onPress={() => onOpen(p)} />)}</ListCard>
+          <SectionTitle title="Ending in the next 2 days" />
+          <PostCard>{endingSoon.map((p, i) => <PostRow key={p.id} p={p} last={i === endingSoon.length - 1} onPress={() => onOpen(p)} />)}</PostCard>
         </View>
       )}
     </>
@@ -113,31 +115,18 @@ const BuzzCard = ({ onOpen }: { onOpen: (p: Post) => void }) => {
 
   return (
     <View style={{ gap: 10 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Icon name="sparkle" size={16} stroke={1.9} color={c.navy700} />
-        <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: c.ink }}>The Buzz</Text>
-        <Pressable onPress={() => setPreview(v => !v)} accessibilityRole="switch" accessibilityState={{ checked: preview }} accessibilityLabel="Preview The Buzz"
-          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 11, paddingVertical: 6, borderRadius: 999, backgroundColor: preview ? c.navy700 : c.paper2, opacity: pressed ? 0.7 : 1 })}>
-          <Icon name="play" size={12} stroke={2.2} color={preview ? '#fff' : c.ink2} />
-          <Text style={{ fontSize: 12.5, fontWeight: '700', color: preview ? '#fff' : c.ink2 }}>Preview</Text>
-        </Pressable>
-      </View>
+      <SectionTitle title="The Buzz" trailing={preview ? 'Hide preview' : 'Show preview'} onTrailing={() => setPreview(v => !v)} />
 
-      {preview && (
-        <View style={[{ borderRadius: 26, padding: 12, paddingTop: 10, backgroundColor: c.paper2, gap: 8 }]}>
-          <Text style={{ fontSize: 11, fontWeight: '700', letterSpacing: 1.1, textTransform: 'uppercase', color: c.ink3 }}>On Home, right now</Text>
-          <Buzz slides={slides} preview aspect={1.22} focus={focus} />
-        </View>
-      )}
+      {preview && <Buzz slides={slides} preview aspect={1.22} focus={focus} />}
 
       {list.length === 0 ? (
-        <Text style={{ fontSize: 13, color: c.ink4 }}>Nothing in The Buzz right now. Make a trivia question, poll or news post under Posts.</Text>
+        <Empty icon="sparkle" title="Nothing in The Buzz" sub="Make a trivia question, poll or news post and it shows here." />
       ) : (
         <>
-          <Text style={{ fontSize: 12, color: c.ink3 }}>
+          <Text style={{ fontSize: 13.5, color: c.ink3, lineHeight: 19, paddingHorizontal: 4 }}>
             {preview ? 'Tap a slide to see it above. ' : ''}Students swipe through in this order; pinned news always leads.
           </Text>
-          <ListCard>
+          <PostCard>
             {list.map((p, i) => {
               const movable = !p.pinned && store.canEdit(p.kind);
               return (
@@ -150,7 +139,7 @@ const BuzzCard = ({ onOpen }: { onOpen: (p: Post) => void }) => {
                   } : undefined} />
               );
             })}
-          </ListCard>
+          </PostCard>
         </>
       )}
     </View>
@@ -171,12 +160,15 @@ export const Posts = ({ onOpen, editable, onNew, kinds: only }: { onOpen: (p: Po
   const mine = only ? store.posts.filter(p => only.includes(p.kind)) : store.posts;
   const canMake = only ? editable.filter(k => only.includes(k)) : editable;
   const kinds = (Object.keys(KINDS) as PostKind[]).filter(k => mine.some(p => p.kind === k));
-  const list = useMemo(() => mine
-    .filter(p => kind === 'all' || p.kind === kind)
-    .filter(p => phase === 'all' || phaseOf(p, store.now) === phase)
-    .filter(p => !q.trim() || `${titleOf(p)} ${subOf(p)}`.toLowerCase().includes(q.trim().toLowerCase()))
+  const searching = !!q.trim();
+  const filtered = useMemo(() => mine
+    // Searching looks through everything, not just the filter you were on.
+    .filter(p => searching || kind === 'all' || p.kind === kind)
+    .filter(p => searching || phase === 'all' || phaseOf(p, store.now) === phase)
+    .filter(p => matches(q, titleOf(p), subOf(p), KINDS[p.kind].label))
     .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)),
   [mine, kind, phase, q, store.now]);
+  const list = byTitle(q, filtered, p => titleOf(p) || '');
   const count = (ph: Phase) => mine.filter(p => (kind === 'all' || p.kind === kind) && phaseOf(p, store.now) === ph).length;
   const make = () => canMake.length === 1 ? onNew(canMake[0]) : setPicking(true);
 
@@ -184,22 +176,9 @@ export const Posts = ({ onOpen, editable, onNew, kinds: only }: { onOpen: (p: Po
     <>
       {canMake.length > 0 ? (
         picking ? (
-          <View style={{ gap: 10 }}>
-            <Text style={{ fontSize: 15, fontWeight: '700', color: c.ink }}>What are you making?</Text>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {canMake.map(k => (
-                <Pressable key={k} onPress={() => { setPicking(false); onNew(k); }} accessibilityRole="button"
-                  style={({ pressed }) => [{ width: '47%', flexGrow: 1, padding: 12, borderRadius: 18, backgroundColor: c.surface, gap: 6, opacity: pressed ? 0.7 : 1 }, shadow.sm]}>
-                  <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: c.navy50, alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon name={KINDS[k].icon} size={17} stroke={1.9} color={c.navy700} />
-                  </View>
-                  <Text style={{ fontSize: 14.5, fontWeight: '700', color: c.ink }}>{KINDS[k].label}</Text>
-                  <Text numberOfLines={2} style={{ fontSize: 12, color: c.ink3 }}>{KINDS[k].places.map(x => PLACES[x].label).join(', ')}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <Act label="Cancel" tone="plain" fill onPress={() => setPicking(false)} />
-          </View>
+          <Group title="What are you making?" trailing="Cancel" onTrailing={() => setPicking(false)}>
+            {canMake.map(k => <Row key={k} icon={KINDS[k].icon as any} label={KINDS[k].label} sub={`Shows in ${KINDS[k].places.map(x => PLACES[x].label).join(', ')}`} onPress={() => { setPicking(false); onNew(k); }} />)}
+          </Group>
         ) : (
           <Act label={canMake.length === 1 ? `New ${KINDS[canMake[0]].noun}` : 'New post'} icon="plus" fill onPress={make} />
         )
@@ -208,18 +187,24 @@ export const Posts = ({ onOpen, editable, onNew, kinds: only }: { onOpen: (p: Po
       )}
 
       <Search value={q} onChange={setQ} placeholder="Search posts" />
-      {kinds.length > 1 && (
-        <Seg value={kind} onChange={v => setKind(v)} options={[{ id: 'all' as const, label: 'Every kind' }, ...kinds.map(k => ({ id: k, label: KINDS[k].label }))]} />
+      {searching ? <FoundLine n={list.length} q={q} onClear={() => setQ('')} /> : (
+        <>
+          {kinds.length > 1 && (
+            <Seg value={kind} onChange={v => setKind(v)} options={[{ id: 'all' as const, label: 'Every kind' }, ...kinds.map(k => ({ id: k, label: KINDS[k].label }))]} />
+          )}
+          <Seg value={phase} onChange={v => setPhase(v)} options={[
+            { id: 'all' as const, label: 'All' },
+            ...([['live', 'Live'], ['scheduled', 'Scheduled'], ['draft', 'Drafts'], ['ended', 'Ended']] as [Phase, string][])
+              .filter(([id]) => count(id) > 0 || phase === id).map(([id, label]) => ({ id, label, count: count(id) })),
+          ]} />
+        </>
       )}
-      <Seg value={phase} onChange={v => setPhase(v)} options={[
-        { id: 'all' as const, label: 'All' }, { id: 'live' as const, label: 'Live', count: count('live') }, { id: 'scheduled' as const, label: 'Scheduled', count: count('scheduled') },
-        { id: 'draft' as const, label: 'Drafts', count: count('draft') }, { id: 'ended' as const, label: 'Ended', count: count('ended') },
-      ]} />
 
       {list.length === 0 ? (
-        <Empty title="No posts here" sub={canMake.length ? 'Make the first one with the button above.' : undefined} />
+        searching ? <Empty icon="search" title="Nothing matches" sub="Try a word from the post." />
+          : <Empty title={mine.length ? 'Nothing here' : 'No posts yet'} sub={!mine.length && canMake.length ? 'Make the first one with the button above.' : undefined} />
       ) : (
-        <ListCard>{list.map((p, i) => <PostRow key={p.id} p={p} last={i === list.length - 1} onPress={() => onOpen(p)} showPhase />)}</ListCard>
+        <PostCard>{list.map((p, i) => <PostRow key={p.id} p={p} last={i === list.length - 1} onPress={() => onOpen(p)} showPhase />)}</PostCard>
       )}
     </>
   );
@@ -228,24 +213,9 @@ export const Posts = ({ onOpen, editable, onNew, kinds: only }: { onOpen: (p: Po
 // ════════════════════════════════════════════════════════════════
 // Shared rows
 // ════════════════════════════════════════════════════════════════
-const Heading = ({ icon, text, trailing }: { icon: any; text: string; trailing?: string }) => {
+const PostCard = ({ children }: { children: React.ReactNode }) => {
   const { c } = useTheme();
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-      <Icon name={icon} size={16} stroke={1.9} color={c.navy700} />
-      <Text style={{ flex: 1, fontSize: 15, fontWeight: '700', color: c.ink }}>{text}</Text>
-      {!!trailing && <Text style={[{ fontSize: 12.5, color: c.ink3 }, tnum]}>{trailing}</Text>}
-    </View>
-  );
-};
-
-const CountPill = ({ n }: { n: number }) => {
-  const { c } = useTheme();
-  return (
-    <View style={{ minWidth: 24, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: n ? c.navy50 : c.paper2, alignItems: 'center' }}>
-      <Text style={[{ fontSize: 12, fontWeight: '700', color: n ? c.navy700 : c.ink4 }, tnum]}>{n}</Text>
-    </View>
-  );
+  return <View style={{ backgroundColor: c.surface, borderRadius: 18, overflow: 'hidden', borderWidth: 1, borderColor: c.line2 }}>{children}</View>;
 };
 
 export const PostRow = ({ p, last, onPress, onInfo, order, showPhase, number, inset }: {
@@ -267,26 +237,26 @@ export const PostRow = ({ p, last, onPress, onInfo, order, showPhase, number, in
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', borderBottomWidth: last ? 0 : 1, borderBottomColor: c.line2 }}>
       <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${KINDS[p.kind].label}: ${titleOf(p)}. ${PHASES[phase].label}`}
-        style={({ pressed }) => ({ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 11, paddingLeft: inset ? 58 : 14, paddingRight: order || onInfo ? 6 : 14, backgroundColor: pressed ? c.paper2 : 'transparent' })}>
-        {number !== undefined && <Text style={[{ width: 16, fontSize: 13, fontWeight: '700', color: c.ink4, textAlign: 'center' }, tnum]}>{number}</Text>}
+        style={({ pressed }) => ({ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 60, paddingVertical: 10, paddingLeft: inset ? 60 : 14, paddingRight: order || onInfo ? 6 : 14, backgroundColor: pressed ? c.paper2 : 'transparent' })}>
+        {number !== undefined && <Text style={[{ width: 16, fontSize: 14, fontWeight: '600', color: c.ink3, textAlign: 'center' }, tnum]}>{number}</Text>}
         {!inset && (
-          <View style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: c.navy50, alignItems: 'center', justifyContent: 'center' }}>
-            <Icon name={KINDS[p.kind].icon} size={16} stroke={1.9} color={c.navy700} />
+          <View style={{ width: 32, alignItems: 'center' }}>
+            <Icon name={KINDS[p.kind].icon} size={20} stroke={1.9} color={c.ink2} />
           </View>
         )}
         <View style={{ flex: 1, minWidth: 0 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             {p.pinned && <Icon name="pin" size={12} stroke={2} color={c.gold} />}
-            <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 14.5, fontWeight: '600', color: c.ink, letterSpacing: -0.2 }}>{titleOf(p) || 'Untitled'}</Text>
+            <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 15.5, fontWeight: '600', color: c.ink, letterSpacing: -0.2 }}>{titleOf(p) || 'Untitled'}</Text>
           </View>
-          <Text numberOfLines={1} style={[{ fontSize: 12, color: c.ink3, marginTop: 1 }, tnum]}>
+          <Text numberOfLines={1} style={[{ fontSize: 13, color: c.ink3, marginTop: 1 }, tnum]}>
             {[showPhase ? PHASES[phase].label : null, KINDS[p.kind].label, numbers || null, when].filter(Boolean).join(' · ')}
           </Text>
         </View>
         {showPhase && <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: tone }} />}
       </Pressable>
       {onInfo && (
-        <Pressable onPress={onInfo} hitSlop={6} accessibilityLabel="Results and edit"
+        <Pressable onPress={onInfo} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Results and edit: ${titleOf(p) || 'Untitled'}`}
           style={({ pressed }) => ({ width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? c.navy50 : 'transparent', marginRight: order ? 0 : 8 })}>
           <Icon name="edit" size={15} stroke={1.9} color={c.ink3} />
         </Pressable>
@@ -304,8 +274,8 @@ export const PostRow = ({ p, last, onPress, onInfo, order, showPhase, number, in
 const Arrow = ({ dir, onPress }: { dir: 'up' | 'down'; onPress?: () => void }) => {
   const { c } = useTheme();
   return (
-    <Pressable onPress={onPress} disabled={!onPress} hitSlop={4} accessibilityLabel={dir === 'up' ? 'Move earlier' : 'Move later'}
-      style={({ pressed }) => ({ width: 32, height: 24, borderRadius: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? c.navy50 : c.paper2, opacity: onPress ? 1 : 0.3, transform: [{ rotate: dir === 'up' ? '180deg' : '0deg' }] })}>
+    <Pressable onPress={onPress} disabled={!onPress} hitSlop={{ left: 8, right: 8 }} accessibilityRole="button" accessibilityLabel={dir === 'up' ? 'Move earlier' : 'Move later'}
+      style={({ pressed }) => ({ width: 36, height: 26, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: pressed ? c.navy50 : c.paper2, opacity: onPress ? 1 : 0.3, transform: [{ rotate: dir === 'up' ? '180deg' : '0deg' }] })}>
       <Icon name="chev-d" size={14} stroke={2.2} color={c.ink2} />
     </Pressable>
   );

@@ -7,8 +7,8 @@ notifications, and the big event-day banners.
 
 | Part | What the student sees | Code |
 | --- | --- | --- |
-| **Notification menu** | Bell on every screen with a red count. Opens a list grouped Today / Yesterday / This week / Earlier, filter chips, unread rows tinted with a dot, "Mark all read", long-press to remove. | `src/components/NotificationCenter.tsx` |
-| **Phone notifications** | Real lock-screen alerts, app icon badge count. Tapping one opens the right screen. | `src/notify/push.ts` |
+| **Notification menu** | Bell on every screen with a red count. **To do** on top (friend requests to accept or decline, homework coming due to tick off, right in the list), then **New**, then what you have read by day. Topic chips, swipe left to remove, Undo for everything. | `src/components/NotificationCenter.tsx` |
+| **Phone notifications** | Real lock-screen alerts, app icon badge count. Tapping one opens the exact thing it is about. | `src/notify/push.ts` |
 | **Event banners** | A big themed card the first time you open the app on a special day. Closing it can unlock a badge. | `src/components/EventBanner.tsx`, `src/notify/eventDays.ts` |
 
 `src/notify/NotifyProvider.tsx` ties them together. `src/notify/feed.ts` builds
@@ -34,6 +34,25 @@ screen always say the same thing.
 Phone reminders are scheduled on the device, so they work with no signal and
 no server. They are rebuilt whenever homework, events or settings change
 (iOS allows 64 at a time; we keep the next 60).
+
+## What a tap opens
+
+Same from the bell and the lock screen (`exactAction` and `act`):
+
+| About | Opens |
+| --- | --- |
+| Homework, quiz, test | that task on Homework, unfolded and marked |
+| First class | that class's card |
+| Your event, a day off, a Collab or Pro-D day, a club event | that day in Calendar, the event marked |
+| Announcement | that post, in the reader |
+| Trivia, poll, fact | that slide in The Buzz |
+| Friend request | that request on Social (the friend, if already accepted) |
+| Badge | that badge |
+| Banner | that banner |
+
+Screens receive it with `useFocus` (`src/nav.tsx`), which waits for data that is
+still loading. Server pushes need no change: the row id they already carry
+(`posts:<id>`, `friend_requests:<id>`) says what to open.
 
 ## Event banners
 

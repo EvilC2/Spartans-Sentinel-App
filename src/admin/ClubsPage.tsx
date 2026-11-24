@@ -26,7 +26,8 @@ import {
   useClubs, useProgramManagers,
 } from '../clubs';
 import { usePeople } from './Members';
-import { Act, Card, ChipPick, ClubSheet, Empty, Field, Group, Hint, Row, Search, Seg } from './ui';
+import { Act, Card, ChipPick, ClubSheet, Empty, Field, FieldLabel, FoundLine, Group, Hint, PeopleFinder, PersonRow, Row, Search, Seg } from './ui';
+import { usePeopleSearch } from './search';
 
 type Tab = 'clubs' | 'managers' | 'teachers';
 
@@ -80,8 +81,13 @@ const ClubList = () => {
           <Act label={busy ? 'Adding…' : "Start from the app's built-in list"} icon="tasks" tone="soft" fill disabled={busy} onPress={startFromBuiltIn} />
         </>
       ) : shown.length === 0 ? (
-        <Empty title="No club matches" />
+        <>
+          <FoundLine n={0} q={q} onClear={() => setQ('')} />
+          <Empty icon="search" title="No club matches" sub="Try part of its name, or its sponsor." />
+        </>
       ) : (
+        <>
+        {!!q.trim() && <FoundLine n={shown.length} q={q} onClear={() => setQ('')} />}
         <Group footer="Students see these first in Programs → Add programs. Hidden ones stay here for staff only.">
           {shown.map(x => (
             <Row key={x.id} art={subjectImage(x.name, x.kind)} label={x.name}
@@ -89,6 +95,7 @@ const ClubList = () => {
               detail={x.active ? undefined : 'Hidden'} onPress={() => setEditing(x)} />
           ))}
         </Group>
+        </>
       )}
       <ClubEditor club={editing} onClose={() => setEditing(null)} onSave={k.save} onDelete={k.remove} />
     </>
@@ -124,12 +131,12 @@ const ClubEditor = ({ club, onClose, onSave, onDelete }: {
       footer={
         <View style={{ flexDirection: 'row', gap: 10 }}>
           {!!d.id && <Act label="Delete" icon="trash" tone="danger" onPress={del} disabled={busy} />}
-          <Act label={busy ? 'Saving…' : d.id ? 'Save' : 'Add club'} icon="check" fill onPress={save} disabled={busy || d.name.trim().length < 2} />
+          <Act label={d.id ? 'Save' : 'Add club'} fill onPress={save} busy={busy} disabled={d.name.trim().length < 2} />
         </View>
       }>
       <Field label="Name" value={d.name} onChangeText={v => set({ name: v })} placeholder="Robotics Club" maxLength={80} autoCapitalize="words" />
       <View style={{ gap: 6 }}>
-        <Text style={{ fontSize: 13.5, fontWeight: '600', color: c.ink2 }}>Kind</Text>
+        <FieldLabel text="Kind" />
         <ChipPick multi={false} value={[d.kind]} onToggle={k => set({ kind: k })}
           options={CLUB_KINDS.map(k => ({ id: k, label: KIND_ONE[k] }))} />
       </View>
@@ -139,7 +146,7 @@ const ClubEditor = ({ club, onClose, onSave, onDelete }: {
       <Field label="Sponsor teacher" value={d.sponsor} onChangeText={v => set({ sponsor: v })} placeholder="The teacher who runs it" maxLength={120} autoCapitalize="words" />
       <Field label="Google Classroom code" value={d.gc} onChangeText={v => set({ gc: v.trim() })} placeholder="abc1234" maxLength={20} autoCapitalize="none" autoCorrect={false} />
       <View style={{ gap: 6 }}>
-        <Text style={{ fontSize: 13.5, fontWeight: '600', color: c.ink2 }}>Students</Text>
+        <FieldLabel text="Students" />
         <Seg value={d.active ? 'on' : 'off'} onChange={v => set({ active: v === 'on' })}
           options={[{ id: 'on', label: 'Shown' }, { id: 'off', label: 'Hidden' }]} />
       </View>
@@ -151,6 +158,7 @@ const ClubEditor = ({ club, onClose, onSave, onDelete }: {
 
 // ── Who runs what ───────────────────────────────────────────────
 const Managers = () => {
+  const { c } = useTheme();
   const m = useProgramManagers();
   const { all } = useClubs();
   const [q, setQ] = useState('');
@@ -167,15 +175,19 @@ const Managers = () => {
     return [...out.entries()].map(([key, g]) => ({ key, ...g })).sort((a, b) => a.name.localeCompare(b.name));
   }, [m.list]);
 
-  // Programs to pick from: the club list, then the built-in catalog, then exactly what was typed.
+  // Programs to pick from: the club list, then the built-in catalog. Exactly
+  // what was typed is offered on its own line, for a program in neither.
   const picks = useMemo(() => {
     const s = q.trim();
     if (s.length < 2) return [];
     const seen = new Set<string>();
-    const names = [...matchClubs(s, all).map(x => x.name), ...matchPrograms(s).map(e => e.name), s]
-      .filter(n => { const k = programKey(n); if (seen.has(k)) return false; seen.add(k); return true; });
-    return names.slice(0, 8);
+    return [...matchClubs(s, all).map(x => x.name), ...matchPrograms(s).map(e => e.name)]
+      .filter(n => { const k = programKey(n); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 8);
   }, [q, all]);
+
+  const typed = q.trim();
+  const custom = typed.length >= 2 && !picks.some(n => programKey(n) === programKey(typed)) ? typed : null;
+  const searching = !!typed;
 
   const countFor = (name: string) => groups.find(g => g.key === programKey(name))?.people.length || 0;
 
@@ -183,16 +195,18 @@ const Managers = () => {
     <>
       <Hint text="Managers post announcements on their program's page in Programs. Staff can post to any program." />
       {!!m.note && <Hint text={m.note} warn />}
-      <Search value={q} onChange={setQ} placeholder="Find a club, team or class" />
-      {picks.length > 0 && (
-        <Group title="Pick a program">
+      <Search value={q} onChange={setQ} placeholder="Search clubs, teams and classes" />
+      {searching && typed.length < 2 && <Text style={{ fontSize: 13.5, color: c.ink3, paddingHorizontal: 4 }}>Keep typing…</Text>}
+      {searching && (picks.length > 0 || custom) && (
+        <Group>
           {picks.map(n => {
             const k = countFor(n);
-            return <Row key={n} art={subjectImage(n, classifyName(n))} label={n} sub={k ? `${k} running it` : 'Nobody yet'} onPress={() => { setProgram(n); setQ(''); }} />;
+            return <Row key={n} art={subjectImage(n, classifyName(n))} label={n} sub={k ? `${k} running it` : 'Nobody runs it yet'} onPress={() => { setProgram(n); setQ(''); }} />;
           })}
+          {custom && <Row key="custom" icon="plus" label={`Use “${custom}”`} sub="Not on the list? Use the name students typed." onPress={() => { setProgram(custom); setQ(''); }} />}
         </Group>
       )}
-      {m.list === null ? null : groups.length ? (
+      {m.list === null || searching ? null : groups.length ? (
         <Group title="Programs with managers">
           {groups.map(g => (
             <Row key={g.key} art={subjectImage(g.name, classifyName(g.name))} label={g.name}
@@ -210,16 +224,10 @@ const Managers = () => {
 const ManagerSheet = ({ program, onClose, m }: { program: string | null; onClose: () => void; m: ReturnType<typeof useProgramManagers> }) => {
   const key = program ? programKey(program) : '';
   const people = (m.list || []).filter(x => x.key === key);
-  const [q, setQ] = useState('');
-  const [found, setFound] = useState<FoundPerson[]>([]);
+  const who = usePeopleSearch<FoundPerson>(m.find);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { setQ(''); setFound([]); setErr(null); }, [program]);
-  useEffect(() => {
-    if (q.trim().length < 2) { setFound([]); return; }
-    const t = setTimeout(() => { m.find(q).then(setFound).catch((e: any) => setErr(String(e?.message || 'Could not search.'))); }, 250);
-    return () => clearTimeout(t);
-  }, [q]);
+  useEffect(() => { who.clear(); setErr(null); }, [program]);   // eslint-disable-line react-hooks/exhaustive-deps
 
   const run = async (f: () => Promise<void>) => {
     setBusy(true); setErr(null);
@@ -231,24 +239,18 @@ const ManagerSheet = ({ program, onClose, m }: { program: string | null; onClose
 
   return (
     <ClubSheet visible={!!program} onClose={onClose} title={program || ''} sub="Who runs it">
-      <Group title="Managers">
-        {people.length ? people.map(p => (
-          <Row key={p.userId} icon="me" label={p.name} sub={p.email}
-            trailing={<Act small tone="danger" label="Remove" disabled={busy} onPress={() => remove(p)} />} />
-        )) : <Row icon="users" label="No managers yet" sub="Find someone below" />}
-      </Group>
-      <Search value={q} onChange={setQ} placeholder="Name, school email or student number" />
-      {found.length > 0 && (
-        <Group title="Add a manager">
-          {found.map(f => {
-            const has = people.some(p => p.userId === f.id);
-            return (
-              <Row key={f.id} icon="me" label={f.name} sub={[f.email, f.grade ? `Grade ${f.grade}` : null].filter(Boolean).join(' · ')}
-                trailing={<Act small tone={has ? 'plain' : 'soft'} label={has ? 'Added' : 'Add'} disabled={busy || has} onPress={() => run(() => m.add(program!, f))} />} />
-            );
-          })}
+      <PeopleFinder s={who} action={p => {
+        const has = people.some(x => x.userId === p.id);
+        return <Act small tone={has ? 'plain' : 'soft'} label={has ? 'Added' : 'Add'} disabled={busy || has} onPress={() => run(async () => { await m.add(program!, p); who.clear(); })} />;
+      }} />
+      {people.length > 0 ? (
+        <Group title="Managers">
+          {people.map(p => (
+            <PersonRow key={p.userId} person={p.name} sub={p.email}
+              trailing={<Act small tone="danger" label="Remove" disabled={busy} onPress={() => remove(p)} />} />
+          ))}
         </Group>
-      )}
+      ) : <Empty icon="users" title="Nobody runs it yet" sub="Find someone above to make them a manager." />}
       {!!err && <Hint text={err} warn />}
       <Hint text="They see “Post an announcement” on this program's page once it's in their Programs." />
     </ClubSheet>
@@ -260,16 +262,10 @@ const Teachers = () => {
   const { c } = useTheme();
   const t = usePeople();
   const teachers = (t.people || []).filter(p => p.roles.includes('teacher'));
-  const [q, setQ] = useState('');
-  const [found, setFound] = useState<{ id: string; name: string; email: string; grade?: number }[]>([]);
+  const who = usePeopleSearch(t.find);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [code, setCode] = useState<string | null>(null);
-  useEffect(() => {
-    if (q.trim().length < 2) { setFound([]); return; }
-    const h = setTimeout(() => { t.find(q).then(setFound).catch((e: any) => setErr(String(e?.message || 'Could not search.'))); }, 250);
-    return () => clearTimeout(h);
-  }, [q]);
 
   const run = async (f: () => Promise<void>) => {
     setBusy(true); setErr(null);
@@ -285,25 +281,20 @@ const Teachers = () => {
     <>
       <Hint icon="grad" text="Teachers keep the club list, pick who runs each program, and can post to any program. They don't get App Club jobs." />
       {!!t.err && <Hint text={t.err} warn />}
-      <Group title="Teachers">
-        {teachers.length ? teachers.map(p => (
-          <Row key={p.id} icon="grad" label={p.name} sub={p.email}
-            trailing={p.me ? undefined : <Act small tone="danger" label="Remove" disabled={busy}
-              onPress={async () => { if (await ask(`Remove ${p.name} as a teacher?`, 'They keep their account and any other roles.', 'Remove', true)) run(() => t.set(p, 'teacher', false)); }} />} />
-        )) : <Row icon="grad" label="No teachers yet" sub="Find one below, or make an invite code" />}
-      </Group>
-      <Search value={q} onChange={setQ} placeholder="Find a teacher by name or email" />
-      {found.length > 0 && (
-        <Group title="Make a teacher">
-          {found.map(f => {
-            const has = teachers.some(p => p.id === f.id);
-            return (
-              <Row key={f.id} icon="me" label={f.name} sub={f.email}
-                trailing={<Act small tone={has ? 'plain' : 'soft'} label={has ? 'Teacher' : 'Add'} disabled={busy || has} onPress={() => run(() => t.add(f, ['teacher']))} />} />
-            );
-          })}
+      <PeopleFinder s={who} placeholder="Find a teacher by name or email" none="Nobody found. If they don't have Spartans yet, make an invite code below."
+        action={p => {
+          const has = teachers.some(x => x.id === p.id);
+          return <Act small tone={has ? 'plain' : 'soft'} label={has ? 'Teacher' : 'Add'} disabled={busy || has} onPress={() => run(async () => { await t.add(p, ['teacher']); who.clear(); })} />;
+        }} />
+      {teachers.length > 0 ? (
+        <Group title="Teachers">
+          {teachers.map(p => (
+            <PersonRow key={p.id} person={p.name} sub={p.email}
+              trailing={p.me ? undefined : <Act small tone="danger" label="Remove" disabled={busy}
+                onPress={async () => { if (await ask(`Remove ${p.name} as a teacher?`, 'They keep their account and any other roles.', 'Remove', true)) run(() => t.set(p, 'teacher', false)); }} />} />
+          ))}
         </Group>
-      )}
+      ) : <Empty icon="grad" title="No teachers yet" sub="Find one above, or make an invite code." />}
       <Group title="Not on Spartans yet?">
         <Row icon="mail" label="Make an invite code" sub="One use, for 14 days. They enter it in App Club." onPress={invite} />
       </Group>

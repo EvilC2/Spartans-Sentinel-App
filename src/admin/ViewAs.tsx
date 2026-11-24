@@ -1,91 +1,94 @@
-// Spartans — App Club "View" (TEMPORARY, for testing). The button in the
-// header's top right opens a list of every view: someone who isn't in the
-// club (the join page), President, Teacher Sponsor, a teacher (staff, no
-// team), and every role on every team. Picking one makes App Club act as that role; picking your own role
-// goes back to you. While you're viewing as someone else the button lights
-// up gold, and nothing else on the page changes. Offered to the app's owner
-// only (`canViewAs`, src/devAccess.ts); the server still checks your real roles.
+// Spartans — App Club "View as" (TEMPORARY, for testing). Lets the app's owner
+// see App Club the way any role does:
+//   ViewAsButton  the eye in the header. Gold while you're viewing as someone.
+//   ViewAsBar     under the header while you are: who, and the way back.
+//   ViewAsSheet   pick a view. Four club-wide views, then one line per team;
+//                 a team opens to its roles.
+// Picking one makes App Club act as that role; picking yours goes back to you.
+// Offered to the owner only (`canViewAs`, src/devAccess.ts); the server still
+// checks your real roles.
 
-import React from 'react';
-import { View, Text, Pressable, Image } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Pressable } from 'react-native';
 import { useTheme } from '../ThemeContext';
-import { shadow, G135 } from '../theme';
+import { shadow } from '../theme';
 import { Icon } from '../components/Icon';
 import { useContent } from '../content';
 import type { Role } from '../backend';
-import { TEAMS, TEAM_ORDER, TOP, ART, isLead, mainRole, roleArt, roleLabel } from '../ranks';
-import { ClubSheet, Group, Hint } from './ui';
+import { TEAMS, TEAM_ORDER, TeamId, TOP, isLead, mainRole, roleLabel, teamOf } from '../ranks';
+import { Choice, ClubSheet, Fold, Group } from './ui';
+
+const viewLabel = (v: Role[]) => (v.length ? roleLabel(mainRole(v) || v[0]) : 'someone not in the club');
 
 export const ViewAsButton = ({ onPress }: { onPress: () => void }) => {
   const { c } = useTheme();
   const { viewAs } = useContent();
   const on = viewAs !== null;
-  const label = on ? `Viewing as ${viewAs!.length ? roleLabel(mainRole(viewAs!) || viewAs![0]) : 'not in the club'}` : 'View as another role';
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: on }}
-      style={({ pressed }) => [{ opacity: pressed ? 0.75 : 1 }]}>
-      {on ? (
-        <LinearGradient colors={['#E4C27E', '#B68842', '#8A6424']} {...G135}
-          style={[{ height: 38, borderRadius: 19, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 6 }, shadow.sm]}>
-          <Icon name="eye" size={16} stroke={2.3} color="#fff" />
-          <Text style={{ fontSize: 13, fontWeight: '800', color: '#fff' }}>View</Text>
-        </LinearGradient>
-      ) : (
-        <View style={[{ height: 38, borderRadius: 19, paddingHorizontal: 13, flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line }, shadow.sm]}>
-          <Icon name="eye" size={16} stroke={2} color={c.ink2} />
-          <Text style={{ fontSize: 13, fontWeight: '700', color: c.ink2 }}>View</Text>
-        </View>
-      )}
+    <Pressable onPress={onPress} hitSlop={4} accessibilityRole="button" accessibilityState={{ selected: on }}
+      accessibilityLabel={on ? `Viewing as ${viewLabel(viewAs!)}. Change view` : 'View as another role'}
+      style={({ pressed }) => [{
+        width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center',
+        backgroundColor: on ? '#DDB566' : c.surface, borderWidth: 1, borderColor: on ? '#C9A04E' : c.line, opacity: pressed ? 0.7 : 1,
+      }, shadow.sm]}>
+      <Icon name="eye" size={18} stroke={on ? 2.1 : 1.8} color={on ? '#14243A' : c.ink2} />
     </Pressable>
   );
 };
 
+export const ViewAsBar = () => {
+  const { c, mode } = useTheme();
+  const { viewAs, setViewAs, canViewAs } = useContent();
+  if (!canViewAs || viewAs === null) return null;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, paddingLeft: 14, paddingRight: 4, borderRadius: 14, backgroundColor: c.goldTint }}>
+      <Icon name="eye" size={16} stroke={2} color={mode === 'dark' ? '#E4C27E' : '#6B4C17'} />
+      <Text numberOfLines={1} style={{ flex: 1, fontSize: 14, color: c.ink2 }}>Viewing as <Text style={{ fontWeight: '700', color: c.ink }}>{viewLabel(viewAs)}</Text></Text>
+      <Pressable onPress={() => setViewAs(null)} accessibilityRole="button" accessibilityLabel="Back to your own view"
+        style={({ pressed }) => ({ minHeight: 44, paddingHorizontal: 12, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
+        <Text style={{ fontSize: 14, fontWeight: '700', color: c.link }}>Exit</Text>
+      </Pressable>
+    </View>
+  );
+};
+
 export const ViewAsSheet = ({ visible, onClose }: { visible: boolean; onClose: () => void }) => {
-  const { c } = useTheme();
   const { viewAs, setViewAs, realRoles, mode } = useContent();
   const mine = mainRole(realRoles);
   // What's showing now: the view you picked, or your own main role.
   const current: Role | 'none' | null = viewAs === null ? mine : viewAs.length ? mainRole(viewAs) || viewAs[0] : 'none';
+  const currentTeam = current && current !== 'none' && !TOP.includes(current) ? teamOf(current) : null;
+  const [open, setOpen] = useState<TeamId | null>(null);
+  useEffect(() => { if (visible) setOpen(currentTeam); }, [visible]);   // eslint-disable-line react-hooks/exhaustive-deps
   const pick = (r: Role | 'none') => {
     setViewAs(r === 'none' ? [] : r === mine ? null : [r]);
     onClose();
   };
+  const you = (r: Role) => (r === mine ? ' (you)' : '');
 
-  const Opt = ({ r, label, sub, art }: { r: Role | 'none'; label: string; sub?: string; art: any }) => {
-    const on = current === r;
-    return (
-      <Pressable onPress={() => pick(r)} accessibilityRole="radio" accessibilityState={{ selected: on }}
-        style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 58, paddingVertical: 9, paddingHorizontal: 14, backgroundColor: pressed ? c.paper2 : 'transparent' })}>
-        <Image source={art} style={{ width: 30, height: 30 }} resizeMode="contain" />
-        <View style={{ flex: 1, minWidth: 0 }}>
-          <Text style={{ fontSize: 16, fontWeight: on ? '800' : '600', color: c.ink }}>{label}{r === mine ? ' (you)' : ''}</Text>
-          {!!sub && <Text numberOfLines={1} style={{ fontSize: 13, color: c.ink3, marginTop: 1 }}>{sub}</Text>}
-        </View>
-        {on && <Icon name="check" size={18} stroke={2.6} color={c.gold} />}
-      </Pressable>
-    );
-  };
+  const club: { r: Role | 'none'; label: string }[] = [
+    ...TOP.filter(r => r !== 'owner').map(r => ({ r, label: roleLabel(r) + you(r) })),
+    { r: 'teacher' as Role, label: `${roleLabel('teacher')}, not in the club` },
+    { r: 'none', label: 'Student, not in the club' },
+  ];
 
   return (
-    <ClubSheet visible={visible} onClose={onClose} title="View as" sub="See App Club the way each role does">
-      <Hint text={`Temporary, for testing. ${mode === 'demo' ? 'In demo mode everything stays on this phone.' : 'The server still uses your real roles.'}`} />
+    <ClubSheet visible={visible} onClose={onClose} title="View as" sub="See App Club the way another role does">
       <Group>
-        <Opt r="none" label="Not in the club" sub="The join page" art={ART.globe} />
-        {TOP.filter(r => r !== 'owner').map(r => <Opt key={r} r={r} label={roleLabel(r)} sub={TEAMS.executive.jobs.find(j => j.role === r)?.sub} art={roleArt(r)} />)}
-        <Opt r="teacher" label={roleLabel('teacher')} sub="Clubs & programs, posts to any program" art={roleArt('teacher')} />
+        {club.map(o => <Choice key={o.r} label={o.label} on={current === o.r} onPress={() => pick(o.r)} inset={16} />)}
       </Group>
-      {TEAM_ORDER.map(t => {
-        const team = TEAMS[t];
-        const roles: Role[] = [...(team.lead ? [team.lead] : []), ...team.jobs.map(j => j.role).filter(r => !TOP.includes(r))];
-        return (
-          <Group key={t} title={team.label}>
-            {roles.map(r => (
-              <Opt key={r} r={r} label={isLead(r) ? 'Manager' : roleLabel(r)} sub={isLead(r) ? `Runs ${team.label}` : team.jobs.find(j => j.role === r)?.sub} art={roleArt(r)} />
-            ))}
-          </Group>
-        );
-      })}
+      <Group title="Teams" footer={mode === 'demo' ? 'For testing. Nothing you do here leaves this phone.' : 'For testing. The server still uses your real roles.'}>
+        {TEAM_ORDER.map(t => {
+          const team = TEAMS[t];
+          const roles: Role[] = [...(team.lead ? [team.lead] : []), ...team.jobs.map(j => j.role).filter(r => !TOP.includes(r))];
+          return (
+            <Fold key={t} art={team.art} label={team.label} open={open === t} onToggle={() => setOpen(o => (o === t ? null : t))}
+              sub={currentTeam === t ? roleLabel(current as Role) : `${roles.length} roles`}>
+              {roles.map(r => <Choice key={r} label={(isLead(r) ? 'Manager' : roleLabel(r)) + you(r)} on={current === r} onPress={() => pick(r)} />)}
+            </Fold>
+          );
+        })}
+      </Group>
     </ClubSheet>
   );
 };

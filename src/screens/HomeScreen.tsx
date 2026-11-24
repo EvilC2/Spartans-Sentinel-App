@@ -29,7 +29,7 @@ import { usePreviewTime } from '../PreviewTime';
 import { useWeather, describeWeather } from '../weather';
 import { useClassSheet } from '../components/ClassCard';
 import { usePins } from '../stores';
-import { useNav } from '../nav';
+import { useNav, useFocus } from '../nav';
 import { findTarget } from '../map/data';
 import { MAP_ART } from '../map/art';
 import { PAGES, Page } from '../pages';
@@ -61,6 +61,18 @@ export default function HomeScreen({ onNavigate, topInset }: ScreenProps) {
   const sheet = useClassSheet();
   const nav = useNav();
 
+  // From a notification: that slide in The Buzz, scrolled to and held.
+  const slides = useMemo(() => inPlace('buzz').map(postToSlide), [inPlace]);
+  const scroll = useRef<ScrollView>(null);
+  const buzzY = useRef(0);
+  const [buzzFocus, setBuzzFocus] = useState<{ id: string; at: number } | null>(null);
+  useFocus('buzz', f => {
+    if (!slides.some(s => s.id === f.id)) return false;
+    setBuzzFocus({ id: f.id, at: Date.now() });
+    setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, buzzY.current - 70), animated: true }), 300);
+    return true;
+  }, [slides]);
+
   const openPage = (p: Page) => {
     if (p.go) onNavigate(p.go);
     else if (p.action === 'badges') setBadges(true);
@@ -71,6 +83,7 @@ export default function HomeScreen({ onNavigate, topInset }: ScreenProps) {
 
   return (
     <ScrollView
+      ref={scroll}
       style={{ flex: 1, backgroundColor: c.paper }}
       contentContainerStyle={{ paddingBottom: 110 }}
       showsVerticalScrollIndicator={false}
@@ -106,12 +119,19 @@ export default function HomeScreen({ onNavigate, topInset }: ScreenProps) {
       {scrub && tempTools && <TimeScrubber now={t.now} />}
 
       {/* ── The Buzz — banner news, trivia, polls ─────────────── */}
+      <View onLayout={e => { buzzY.current = e.nativeEvent.layout.y; }}>
       <SectionHeader title="The Buzz" trailing="Announcements" onTrailing={() => onNavigate('announcements')} />
       <Buzz
-        slides={inPlace('buzz').map(postToSlide)}
-        onOpen={s => onNavigate(s.kind === 'menu' ? 'lunch' : s.kind === 'event' ? 'dayview' : 'announcements')}
+        slides={slides}
+        focus={buzzFocus}
+        onOpen={s => {
+          if (s.kind === 'menu') nav.open('lunch', { kind: 'menu', id: s.id });
+          else if (s.kind === 'event') nav.open('calendar', { kind: 'day', iso: s.date, event: s.id });
+          else nav.open('announcements', { kind: 'news', id: s.id });
+        }}
         aspect={1.22}
       />
+      </View>
 
       {/* ── Map tile ──────────────────────────────────────────── */}
       <View style={{ paddingHorizontal: 20, paddingTop: 14 }}>

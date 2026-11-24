@@ -16,11 +16,12 @@
 // The Buzz window (trivia, polls) lives on Home only; it is not a tab.
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Image, Modal, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, Text, Pressable, ScrollView, Image, StyleSheet, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../ThemeContext';
 import { fonts, shadow, tnum, Palette, G165 } from '../theme';
 import { Icon, Check } from '../components/Icon';
+import { BottomSheet, SheetScroll } from '../components/BottomSheet';
 import { TabId } from '../components/Chrome';
 import { AppHeader } from '../components/AppHeader';
 import { ProgramIcon, glow } from '../components/ProgramIcon';
@@ -29,6 +30,7 @@ import { useProfile } from '../ProfileContext';
 import { programsFor, Program } from '../programs';
 import { useContent, PostOf } from '../content';
 import { useProgramFeed, ProgramPost } from '../clubs';
+import { useFocus } from '../nav';
 
 type Props = { onNavigate: (t: TabId) => void; topInset: number };
 
@@ -70,6 +72,14 @@ export default function AnnouncementsScreen({ onNavigate, topInset }: Props) {
     opened(n.id);
     setReading({ eyebrow: n.category, tone: catColor(n.category, c), title: n.title, body: n.body, image: n.image, author: n.author, role: n.role, admin: n.admin, when: n.timeFull });
   };
+  // From a notification: straight into that post.
+  useFocus('news', f => {
+    const n = news.find(x => x.id === f.id);
+    if (!n) return false;
+    setShow(ALL);
+    readNews(n);
+    return true;
+  }, [news]);
   const readPost = (pr: Program, p: ProgramPost) =>
     setReading({ eyebrow: pr.name, tone: glow(pr.color, mode), title: p.title, body: p.body, author: p.authorName || 'Program lead', when: timeOf(Date.parse(p.createdAt)).full });
 
@@ -257,11 +267,9 @@ const Reader = ({ post, onClose }: { post: Reading | null; onClose: () => void }
   useEffect(() => { if (post) setLast(post); }, [post]);
   const p = post || last;
   return (
-    <Modal visible={!!post} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(14,34,56,0.4)' }} accessibilityLabel="Close" />
-      <View style={[{ position: 'absolute', left: 0, right: 0, bottom: 0, height: Math.round(height * 0.9), backgroundColor: c.paper, borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: 'hidden' }, shadow.lg]}>
+    <BottomSheet visible={!!post} onClose={onClose} dim={0.4} style={[{ height: Math.round(height * 0.9), backgroundColor: c.paper, borderTopLeftRadius: 28, borderTopRightRadius: 28, overflow: 'hidden' }, shadow.lg]}>
         {!!p && (
-          <ScrollView contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+          <SheetScroll contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
             {p.image
               ? <Image source={{ uri: p.image }} style={{ width: '100%', height: 240 }} resizeMode="cover" accessibilityIgnoresInvertColors />
               : <View style={{ height: 56 }} />}
@@ -278,14 +286,17 @@ const Reader = ({ post, onClose }: { post: Reading | null; onClose: () => void }
               </View>
               <Text selectable style={{ fontSize: 17.5, lineHeight: 28, color: c.ink2, marginTop: 20 }}>{p.body || 'No more details.'}</Text>
             </View>
-          </ScrollView>
+          </SheetScroll>
         )}
+        {/* Grabber: says the sheet can be pulled down. */}
+        <View pointerEvents="none" style={{ position: 'absolute', top: 9, left: 0, right: 0, alignItems: 'center' }}>
+          <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: p?.image ? 'rgba(255,255,255,0.75)' : c.line }} />
+        </View>
         <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Close"
           style={({ pressed }) => ({ position: 'absolute', top: 14, right: 16, width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: p?.image ? 'rgba(14,34,56,0.55)' : c.paper2, opacity: pressed ? 0.7 : 1 })}>
           <Icon name="close" size={16} stroke={2.4} color={p?.image ? '#fff' : c.ink2} />
         </Pressable>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 };
 

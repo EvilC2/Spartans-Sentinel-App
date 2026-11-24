@@ -2,8 +2,9 @@
 //   Members({ scope: team })  a team's Members page, for its Manager.
 //   Members({ scope: 'all' }) People & invites, for the Owner, President and
 //                             Teacher Sponsor: everyone, every team.
-// People show grouped by team; tap someone to switch their roles on or off
-// (grouped by team too). "Invite" picks a role from the teams list first,
+// People show grouped by team (search turns that into one list, best match
+// first); tap someone to switch their roles on or off, a team at a time, with
+// the teams they're on already open. "Invite" picks a role from the teams list first,
 // then either finds someone already on Spartans or makes a one-use code for
 // someone who isn't yet.
 // Rules (src/ranks.ts, enforced again by the server in 0013 / 0017):
@@ -12,21 +13,21 @@
 //   The server keeps at least one Owner. Teacher Sponsor is for teachers.
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, Pressable, Image } from 'react-native';
+import { View, Text } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '../ThemeContext';
 import { tnum } from '../theme';
-import { Icon } from '../components/Icon';
 import { useProfile, fullName } from '../ProfileContext';
 import { ask } from '../confirm';
 import { useContent } from '../content';
 import type { Role } from '../backend';
 import {
-  TEAMS, TEAM_ORDER, TOP, TeamId, ALL_ROLES, canAssign, clubRoles, isTop, isLead, jobOf, roleLabel, roleArt, teamOf,
+  TEAMS, TEAM_ORDER, TOP, TeamId, ALL_ROLES, canAssign, clubRoles, isLead, jobOf, roleLabel, roleArt, teamOf,
 } from '../ranks';
 import { Toggle } from '../screens/Settings';
-import { Act, Card, CardHead, ClubSheet, Field, Hint, Pill, Search, Seg, toneOf } from './ui';
+import { Act, Card, Choice, ClubSheet, Empty, Fold, FoundLine, Group, Hint, PeopleFinder, PersonRow, Result, Search, Seg, Step } from './ui';
+import { byTitle, matches, usePeopleSearch } from './search';
 
 export type Person = { id: string; name: string; email: string; grade?: number; roles: Role[]; since?: string; by?: string | null; me?: boolean; teacher?: boolean };
 type Found = { id: string; name: string; email: string; grade?: number; teacher?: boolean };
@@ -100,7 +101,7 @@ export const usePeople = () => {
 
   const set = async (p: Person, role: Role, on: boolean) => {
     if (!live) {
-      if (p.me) throw new Error('Use "View as" (top right) to try other roles in demo mode.');
+      if (p.me) throw new Error('Use the eye (top right) to try other roles in demo mode.');
       saveDemo((people || []).map(x => x.id === p.id ? { ...x, roles: on ? [...new Set([...x.roles, role])] : x.roles.filter(r => r !== role) } : x)
         .filter(x => x.me || x.roles.length));
       return;
@@ -123,8 +124,7 @@ export const usePeople = () => {
 
   const find = async (q: string): Promise<Found[]> => {
     if (!live) {
-      const s = q.trim().toLowerCase();
-      return [...DEMO_DIRECTORY, ...(people || []).filter(p => !p.me)].filter(f => (f.name + f.email).toLowerCase().includes(s));
+      return byTitle(q, [...DEMO_DIRECTORY, ...(people || []).filter(p => !p.me)].filter(f => matches(q, f.name, f.email)), f => f.name);
     }
     const { team } = await import('../backend');
     return (await team.find(q)).map(r => ({ id: r.id, name: `${r.first_name} ${r.last_name}`.trim(), email: r.email, grade: r.grade, teacher: isTeacherEmail(r.email) }));
@@ -133,7 +133,6 @@ export const usePeople = () => {
   return { people, err, load, set, add, find, live, myRoles };
 };
 
-const initialsOf = (name: string) => name.replace(/^(Mr|Ms|Mrs|Mx|Dr)\.?\s+/i, '').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 const inTeam = (p: Person, t: TeamId) => p.roles.some(r => teamOf(r) === t);
 const topOf = (p: Person) => (['president', 'sponsor', 'owner'] as Role[]).find(r => p.roles.includes(r));
 const topLabel = (p: Person) => {
@@ -152,6 +151,10 @@ const summaryIn = (p: Person, t: TeamId) => {
   return rs.map(roleLabel).join(', ');
 };
 
+// Everything someone does, in one line.
+const summaryAll = (p: Person) => topOf(p) ? topLabel(p)
+  : TEAM_ORDER.filter(tm => inTeam(p, tm)).map(tm => (tm === 'executive' ? summaryIn(p, tm) : `${TEAMS[tm].label}: ${summaryIn(p, tm)}`)).join(' · ');
+
 // ════════════════════════════════════════════════════════════════
 export const Members = ({ scope }: { scope: TeamId | 'all' }) => {
   const { c } = useTheme();
@@ -160,90 +163,72 @@ export const Members = ({ scope }: { scope: TeamId | 'all' }) => {
   const [open, setOpen] = useState<Person | null>(null);
   const [inviting, setInviting] = useState(false);
   const [group, setGroup] = useState<'teams' | 'az'>('teams');
-  const teams = scope === 'all' ? TEAM_ORDER : [scope];
-  const s = q.trim().toLowerCase();
-  const people = (t.people || []).filter(p => !s || `${p.name} ${p.email} ${p.roles.map(roleLabel).join(' ')}`.toLowerCase().includes(s));
-  const tops = people.filter(p => !!topOf(p));
+  const searching = !!q.trim();
+  const everyone = (t.people || []).filter(p => scope === 'all' ? clubRoles(p.roles).length > 0 : inTeam(p, scope));
+  const found = byTitle(q, everyone.filter(p => matches(q, p.name, p.email, summaryAll(p))), p => p.name);
+  const tops = everyone.filter(p => !!topOf(p));
   const lead = scope === 'all' ? null : TEAMS[scope].lead;
-  const managers = lead ? (t.people || []).filter(p => p.roles.includes(lead)) : [];
+  const managers = lead ? everyone.filter(p => p.roles.includes(lead)) : [];
   const canInvite = ALL_ROLES.some(r => (scope === 'all' || r.team === scope) && canAssign(t.myRoles, r.role));
-  const total = (t.people || []).filter(p => scope === 'all' ? p.roles.length : inTeam(p, scope)).length;
+  const az = [...everyone].sort((a, b) => a.name.localeCompare(b.name));
 
   // Keep the open sheet in step with changes.
   useEffect(() => { if (open && t.people) setOpen(t.people.find(p => p.id === open.id) || null); }, [t.people]);
 
+  const person = (line: (p: Person) => string) => (p: Person) => (
+    <PersonRow key={p.id} person={p.name + (p.me ? ' (you)' : '')} gold={!!topOf(p)} sub={[p.teacher && !topOf(p) ? 'Teacher' : null, line(p)].filter(Boolean).join(' · ') || 'No roles'} onPress={() => setOpen(p)} />
+  );
+
   return (
     <View style={{ gap: 14 }}>
       {!!t.err && <Hint text={t.err} warn />}
-      {!t.live && <Hint text="Demo: sample club members. Changes stay on this phone." />}
+      {canInvite && <Act label="Invite someone" icon="plus" fill onPress={() => setInviting(true)} />}
+      <Search value={q} onChange={setQ} placeholder={scope === 'all' ? 'Search names and roles' : `Search ${TEAMS[scope].label}`} />
 
-      <Card>
-        <CardHead icon="users" tone={scope === 'all' ? 'gold' : TEAMS[scope].tone} title={scope === 'all' ? `${total} in the club` : `${total} on ${TEAMS[scope].label}`}
-          sub={scope === 'all' ? 'Tap anyone to change what they do.' : managers.length ? `Managed by ${managers.map(m => m.me ? 'you' : m.name.split(' ')[0]).join(' and ')}.` : 'No manager yet.'} />
-        {canInvite && <Act label="Invite someone" icon="plus" fill onPress={() => setInviting(true)} />}
-      </Card>
+      {t.people === null && !t.err && <Text style={{ fontSize: 14, color: c.ink3, paddingHorizontal: 4 }}>Loading…</Text>}
 
-      <Search value={q} onChange={setQ} placeholder="Search names, emails or roles" />
-      {scope === 'all' && <Seg value={group} onChange={setGroup} options={[{ id: 'teams', label: 'By team' }, { id: 'az', label: 'A to Z' }]} />}
-      {t.people === null && !t.err && <Text style={{ fontSize: 13, color: c.ink3 }}>Loading…</Text>}
-
-      {t.people && scope === 'all' && group === 'az' && (
-        <PeopleCard title="Everyone" people={people.filter(p => clubRoles(p.roles).length)} line={p => topOf(p) ? topLabel(p) : TEAM_ORDER.filter(tm => inTeam(p, tm)).map(tm => `${TEAMS[tm].label}: ${summaryIn(p, tm)}`).join(' · ')} onOpen={setOpen} />
-      )}
-      {t.people && (scope !== 'all' || group === 'teams') && (
+      {t.people && searching && (
         <>
-          {scope === 'all' && tops.length > 0 && <PeopleCard title="Top" sub="President and Teacher Sponsor" tone="gold" people={tops} line={topLabel} onOpen={setOpen} />}
-          {teams.map(tm => {
-            const list = people.filter(p => inTeam(p, tm) && (scope === 'all' || !topOf(p)));
-            if (!list.length && s) return null;
-            return <PeopleCard key={tm} title={TEAMS[tm].label} art={TEAMS[tm].art} tone={TEAMS[tm].tone} people={list} line={p => summaryIn(p, tm)} onOpen={setOpen}
-              empty={`Nobody on ${TEAMS[tm].label} yet.`} />;
-          })}
+          <FoundLine n={found.length} q={q} onClear={() => setQ('')} />
+          {found.length > 0
+            ? <Group>{found.map(person(p => (scope === 'all' ? summaryAll(p) : summaryIn(p, scope))))}</Group>
+            : <Empty icon="search" title="Nobody matches" sub="Try part of a name, or a role like Polls." />}
         </>
       )}
-      {scope !== 'all' && tops.length > 0 && !s && (
-        <Text style={{ fontSize: 12.5, color: c.ink4, lineHeight: 17 }}>The President and Teacher Sponsor can do everything here too: {tops.map(o => o.me ? 'you' : o.name).join(', ')}.</Text>
+
+      {t.people && !searching && scope === 'all' && (
+        <>
+          <Seg value={group} onChange={setGroup} options={[{ id: 'teams', label: 'By team' }, { id: 'az', label: 'A to Z', count: everyone.length }]} />
+          {group === 'az' ? (
+            <Group>{az.map(person(summaryAll))}</Group>
+          ) : (
+            <View style={{ gap: 24, marginTop: 6 }}>
+              {tops.length > 0 && <Group title="Running the club">{tops.map(person(topLabel))}</Group>}
+              {TEAM_ORDER.map(tm => {
+                const list = everyone.filter(p => inTeam(p, tm) && !topOf(p));
+                return (
+                  <Group key={tm} title={TEAMS[tm].label} note={String(list.length)}>
+                    {list.length ? list.map(person(p => summaryIn(p, tm)))
+                      : <Text style={{ fontSize: 14, color: c.ink3, padding: 16 }}>Nobody yet.</Text>}
+                  </Group>
+                );
+              })}
+            </View>
+          )}
+        </>
       )}
+
+      {t.people && !searching && scope !== 'all' && (
+        <Group title={`${everyone.length} on the team`} footer={managers.length ? undefined : lead ? 'No manager yet.' : undefined}>
+          {everyone.length ? everyone.map(person(p => summaryIn(p, scope)))
+            : <Text style={{ fontSize: 14, color: c.ink3, padding: 16 }}>Nobody on {TEAMS[scope].label} yet.</Text>}
+        </Group>
+      )}
+      {!t.live && <Hint text="Demo: sample club members. Changes stay on this phone." />}
 
       <PersonSheet p={open} scope={scope} myRoles={t.myRoles} onClose={() => setOpen(null)} onSet={t.set} />
       <InviteSheet visible={inviting} scope={scope} myRoles={t.myRoles} live={t.live} find={t.find} add={t.add} onClose={() => setInviting(false)} />
     </View>
-  );
-};
-
-const PeopleCard = ({ title, sub, art, tone = 'navy', people, line, onOpen, empty }: {
-  title: string; sub?: string; art?: any; tone?: any; people: Person[]; line: (p: Person) => string; onOpen: (p: Person) => void; empty?: string;
-}) => {
-  const { c, mode } = useTheme();
-  const t = toneOf(c, mode, tone);
-  return (
-    <Card pad={14}>
-      <CardHead art={art} icon="shield" tone={tone} title={title} sub={sub} trailing={<Pill text={String(people.length)} tone={tone} />} />
-      {people.length === 0 ? (
-        <Text style={{ fontSize: 13, color: c.ink4 }}>{empty || 'Nobody yet.'}</Text>
-      ) : (
-        <View>
-          {people.map((p, i) => {
-            const top = topOf(p);
-            const isMgr = p.roles.some(isLead);
-            return (
-              <Pressable key={p.id} onPress={() => onOpen(p)} accessibilityRole="button" accessibilityLabel={`${p.name}. ${line(p)}`}
-                style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderTopWidth: i ? 1 : 0, borderTopColor: c.line2, opacity: pressed ? 0.6 : 1 })}>
-                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: top ? c.gold : isMgr ? t.ink : t.bg, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontSize: 13.5, fontWeight: '800', color: top || isMgr ? '#fff' : t.ink }}>{initialsOf(p.name)}</Text>
-                </View>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '700', color: c.ink }}>{p.name}{p.me ? ' (you)' : ''}</Text>
-                  <Text numberOfLines={2} style={{ fontSize: 12.5, color: c.ink3, marginTop: 1 }}>{line(p) || 'No roles'}</Text>
-                </View>
-                {p.teacher && <Pill text="Teacher" tone="ink" />}
-                <Icon name="chev-r" size={15} stroke={2} color={c.ink4} />
-              </Pressable>
-            );
-          })}
-        </View>
-      )}
-    </Card>
   );
 };
 
@@ -253,8 +238,14 @@ const PersonSheet = ({ p, scope, myRoles, onClose, onSet }: {
 }) => {
   const { c } = useTheme();
   const [msg, setMsg] = useState<string | null>(null);
-  useEffect(() => { setMsg(null); }, [p?.id]);
+  const [unfolded, setUnfolded] = useState<string[]>([]);
+  // Opens on what they do already; the other teams stay one line each.
+  useEffect(() => {
+    setMsg(null);
+    setUnfolded(scope !== 'all' ? [scope] : p ? TEAM_ORDER.filter(tm => inTeam(p, tm) && !topOf(p)) : []);
+  }, [p?.id]);   // eslint-disable-line react-hooks/exhaustive-deps
   if (!p) return null;
+  const fold = (id: string) => setUnfolded(x => (x.includes(id) ? x.filter(y => y !== id) : [...x, id]));
   const teams = scope === 'all' ? TEAM_ORDER : [scope];
   const who = p.me ? 'yourself' : p.name.split(' ')[0];
 
@@ -278,44 +269,46 @@ const PersonSheet = ({ p, scope, myRoles, onClose, onSet }: {
       sub={[p.teacher ? 'Teacher' : p.grade ? `Grade ${p.grade}` : null, p.email].filter(Boolean).join(' · ')}>
       {!!msg && <Hint text={msg} warn />}
       {(p.since || p.by) && (
-        <Text style={[{ fontSize: 12.5, color: c.ink4 }, tnum]}>{[p.since ? `In the club since ${new Date(p.since).toLocaleDateString()}` : null, p.by ? `added by ${p.by}` : null].filter(Boolean).join(' · ')}</Text>
+        <Text style={[{ fontSize: 13, color: c.ink3, paddingHorizontal: 4 }, tnum]}>{[p.since ? `In the club since ${new Date(p.since).toLocaleDateString()}` : null, p.by ? `added by ${p.by}` : null].filter(Boolean).join(' · ')}</Text>
       )}
       {p.roles.includes('owner') && (
         <Text style={{ fontSize: 13.5, color: c.ink2 }}>{p.me ? 'You own' : 'Owns'} the app, so {p.me ? 'you see' : 'they see'} the President view. That isn't a role and can't be changed here.</Text>
       )}
       {scope === 'all' && (
-        <RoleGroup title="Top" tone="gold">
+        <Group title="Running the club">
           {(['president', 'sponsor'] as Role[]).map(r => (
             <RoleSwitch key={r} role={r} on={p.roles.includes(r)} disabled={!canAssign(myRoles, r)} onChange={v => flip(r, v)}
               note={r === 'sponsor' && !p.teacher ? 'Teachers only' : undefined} />
           ))}
-        </RoleGroup>
+        </Group>
       )}
-      {teams.map(tm => {
-        const team = TEAMS[tm];
-        const top = !!topOf(p);
-        const mgr = !!team.lead && p.roles.includes(team.lead);
-        return (
-          <RoleGroup key={tm} title={team.label} art={team.art} tone={team.tone}>
-            {team.lead && (
-              <RoleSwitch role={team.lead} on={top || mgr} disabled={top || !canAssign(myRoles, team.lead)}
-                note={top ? 'Included with their top role' : !canAssign(myRoles, team.lead) ? 'Only a top role can change this' : undefined}
-                onChange={v => flip(team.lead!, v)} />
-            )}
-            {team.jobs.filter(j => !TOP.includes(j.role)).map(j => {
-              const via = top || mgr;
-              return (
-                <RoleSwitch key={j.role} role={j.role} on={via || p.roles.includes(j.role)} disabled={via || !canAssign(myRoles, j.role)}
-                  note={via ? (top ? 'Included with their top role' : 'Included as manager') : j.teacher && !p.teacher ? 'Teachers only' : undefined}
-                  onChange={v => flip(j.role, v)} />
-              );
-            })}
-            {(team.legacy || []).filter(r => p.roles.includes(r)).map(r => (
-              <RoleSwitch key={r} role={r} on disabled={!canAssign(myRoles, r)} note="Old role. Switch it off once they have a new one." onChange={v => flip(r, v)} />
-            ))}
-          </RoleGroup>
-        );
-      })}
+      <Group title={scope === 'all' ? 'Teams' : undefined}>
+        {teams.map(tm => {
+          const team = TEAMS[tm];
+          const top = !!topOf(p);
+          const mgr = !!team.lead && p.roles.includes(team.lead);
+          return (
+            <Fold key={tm} art={team.art} label={team.label} sub={top ? 'Everything, with their role' : summaryIn(p, tm) || 'Not on this team'} open={unfolded.includes(tm)} onToggle={() => fold(tm)}>
+              {team.lead && (
+                <RoleSwitch role={team.lead} on={top || mgr} disabled={top || !canAssign(myRoles, team.lead)}
+                  note={top ? 'Included with their top role' : !canAssign(myRoles, team.lead) ? 'Only the President or Teacher Sponsor can change this' : undefined}
+                  onChange={v => flip(team.lead!, v)} />
+              )}
+              {team.jobs.filter(j => !TOP.includes(j.role)).map(j => {
+                const via = top || mgr;
+                return (
+                  <RoleSwitch key={j.role} role={j.role} on={via || p.roles.includes(j.role)} disabled={via || !canAssign(myRoles, j.role)}
+                    note={via ? (top ? 'Included with their top role' : 'Included as manager') : j.teacher && !p.teacher ? 'Teachers only' : undefined}
+                    onChange={v => flip(j.role, v)} />
+                );
+              })}
+              {(team.legacy || []).filter(r => p.roles.includes(r)).map(r => (
+                <RoleSwitch key={r} role={r} on disabled={!canAssign(myRoles, r)} note="Old role. Switch it off once they have a new one." onChange={v => flip(r, v)} />
+              ))}
+            </Fold>
+          );
+        })}
+      </Group>
       {!p.me && p.roles.some(r => canAssign(myRoles, r) && (scope === 'all' || teamOf(r) === scope)) && (
         <Act label={scope === 'all' ? 'Take out of the club' : `Take off ${TEAMS[scope].label}`} icon="trash" tone="danger" onPress={removeAll} />
       )}
@@ -323,22 +316,15 @@ const PersonSheet = ({ p, scope, myRoles, onClose, onSet }: {
   );
 };
 
-const RoleGroup = ({ title, art, tone, children }: { title: string; art?: any; tone: any; children: React.ReactNode }) => (
-  <Card pad={14}>
-    <CardHead art={art} icon="shield" tone={tone} title={title} />
-    <View>{children}</View>
-  </Card>
-);
-
 const RoleSwitch = ({ role, on, disabled, note, onChange }: { role: Role; on: boolean; disabled?: boolean; note?: string; onChange: (v: boolean) => void }) => {
   const { c } = useTheme();
   const job = jobOf(role);
   const sub = role === 'owner' ? 'Everything, every team' : isLead(role) ? 'Every job on the team, approvals, members' : job?.sub || '';
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 9, borderTopWidth: 1, borderTopColor: c.line2 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 9, paddingHorizontal: 16 }}>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text style={{ fontSize: 14.5, fontWeight: '600', color: c.ink }}>{isLead(role) ? 'Manager' : roleLabel(role)}</Text>
-        <Text style={{ fontSize: 12, color: note ? c.ink4 : c.ink3, marginTop: 1, lineHeight: 16 }}>{note || sub}</Text>
+        <Text style={{ fontSize: 15.5, fontWeight: '600', color: c.ink }}>{isLead(role) ? 'Manager' : roleLabel(role)}</Text>
+        <Text style={{ fontSize: 13, color: c.ink3, marginTop: 1, lineHeight: 17 }}>{note || sub}</Text>
       </View>
       <Toggle on={on} disabled={disabled} onChange={onChange} label={roleLabel(role)} />
     </View>
@@ -347,65 +333,29 @@ const RoleSwitch = ({ role, on, disabled, note, onChange }: { role: Role; on: bo
 
 // ── Invite: pick the role (by team), then the person or a code ──
 export const RolePicker = ({ value, onPick, scope, myRoles }: { value: Role | null; onPick: (r: Role) => void; scope: TeamId | 'all'; myRoles: Role[] }) => {
-  const { c, mode } = useTheme();
-  const teams = scope === 'all' ? TEAM_ORDER : [scope];
   const [openTeam, setOpenTeam] = useState<TeamId | 'top' | null>(scope === 'all' ? (value ? teamOf(value) || 'top' : null) : scope);
+  const teams = scope === 'all' ? TEAM_ORDER : [scope];
   const tops = (['president', 'sponsor'] as Role[]).filter(r => scope === 'all' && canAssign(myRoles, r));
-  const groups: { id: TeamId | 'top'; label: string; art: any; tone: any; roles: Role[] }[] = [
-    ...(tops.length ? [{ id: 'top' as const, label: 'Top', art: roleArt('owner'), tone: 'gold', roles: tops }] : []),
+  const groups: { id: TeamId | 'top'; label: string; art: any; roles: Role[] }[] = [
     ...teams.map(tm => ({
-      id: tm, label: TEAMS[tm].label, art: TEAMS[tm].art, tone: TEAMS[tm].tone,
+      id: tm, label: TEAMS[tm].label, art: TEAMS[tm].art,
       roles: [...(TEAMS[tm].lead ? [TEAMS[tm].lead!] : []), ...TEAMS[tm].jobs.map(j => j.role)].filter(r => !TOP.includes(r) && canAssign(myRoles, r)),
     })),
+    ...(tops.length ? [{ id: 'top' as const, label: 'Running the club', art: roleArt('owner'), roles: tops }] : []),
   ].filter(g => g.roles.length);
 
   return (
-    <View style={{ gap: 10 }}>
-      {groups.map(g => {
-        const isOpen = openTeam === g.id;
-        const t = toneOf(c, mode, g.tone);
-        const picked = !!value && g.roles.includes(value);
-        return (
-          <View key={g.id} style={{ borderRadius: 20, backgroundColor: t.bg, overflow: 'hidden' }}>
-            <Pressable onPress={() => setOpenTeam(isOpen ? null : g.id)} accessibilityRole="button" accessibilityState={{ expanded: isOpen }}
-              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, opacity: pressed ? 0.7 : 1 })}>
-              <View style={{ width: 42, height: 42, borderRadius: 14, backgroundColor: c.surface, alignItems: 'center', justifyContent: 'center' }}>
-                <Image source={g.art} style={{ width: 28, height: 28 }} resizeMode="contain" />
-              </View>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ fontSize: 16, fontWeight: '800', color: c.ink }}>{g.label}</Text>
-                <Text numberOfLines={1} style={{ fontSize: 12.5, color: c.ink3 }}>{picked ? roleLabel(value!) : `${g.roles.length} role${g.roles.length === 1 ? '' : 's'}`}</Text>
-              </View>
-              {picked && <Icon name="check-circle" size={18} stroke={2.2} color={t.ink} />}
-              <Icon name={isOpen ? 'chev-d' : 'chev-r'} size={16} stroke={2.2} color={t.ink} />
-            </Pressable>
-            {isOpen && (
-              <View style={{ paddingHorizontal: 10, paddingBottom: 10, gap: 6 }}>
-                {g.roles.map(r => {
-                  const on = value === r;
-                  const job = jobOf(r);
-                  return (
-                    <Pressable key={r} onPress={() => onPick(r)} accessibilityRole="radio" accessibilityState={{ selected: on }}
-                      style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 14, backgroundColor: on ? t.ink : c.surface, opacity: pressed ? 0.8 : 1 })}>
-                      <View style={{ flex: 1, minWidth: 0 }}>
-                        <Text style={{ fontSize: 14.5, fontWeight: '700', color: on ? t.on : c.ink }}>{isLead(r) ? 'Manager' : roleLabel(r)}</Text>
-                        <Text style={{ fontSize: 12, color: on ? t.on : c.ink3, opacity: on ? 0.85 : 1, marginTop: 1, lineHeight: 16 }}>
-                          {r === 'owner' ? 'Everything, every team' : isLead(r) ? `Runs ${TEAMS[teamOf(r)!].label}: every job, approvals, members` : job?.sub}
-                        </Text>
-                      </View>
-                      {job?.teacher && <Pill text="Teachers" tone={on ? 'ink' : 'navy'} />}
-                      <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: on ? t.on : c.line, alignItems: 'center', justifyContent: 'center' }}>
-                        {on && <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: t.on }} />}
-                      </View>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            )}
-          </View>
-        );
-      })}
-    </View>
+    <Group>
+      {groups.map(g => (
+        <Fold key={g.id} art={g.art} label={g.label} open={openTeam === g.id} onToggle={() => setOpenTeam(o => (o === g.id ? null : g.id))}
+          sub={value && g.roles.includes(value) ? (isLead(value) ? 'Manager' : roleLabel(value)) : `${g.roles.length} role${g.roles.length === 1 ? '' : 's'}`}>
+          {g.roles.map(r => (
+            <Choice key={r} on={value === r} onPress={() => onPick(r)} label={isLead(r) ? 'Manager' : roleLabel(r)}
+              sub={isLead(r) ? 'Every job on the team, approvals, members' : jobOf(r)?.sub} />
+          ))}
+        </Fold>
+      ))}
+    </Group>
   );
 };
 
@@ -416,26 +366,20 @@ const InviteSheet = ({ visible, scope, myRoles, live, find, add, onClose }: {
   const { c } = useTheme();
   const [role, setRole] = useState<Role | null>(null);
   const [how, setHow] = useState<'find' | 'code'>('find');
-  const [q, setQ] = useState('');
-  const [found, setFound] = useState<Found[] | null>(null);
+  const who = usePeopleSearch(find);
   const [code, setCode] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { if (visible) { setRole(null); setQ(''); setFound(null); setCode(null); setMsg(null); setHow('find'); } }, [visible]);
+  useEffect(() => { if (visible) { setRole(null); who.clear(); setCode(null); setMsg(null); setHow('find'); } }, [visible]);
   const job = role ? jobOf(role) : undefined;
 
-  const search = async () => {
-    if (q.trim().length < 2) return;
-    setMsg(null);
-    try { setFound(await find(q)); } catch (e: any) { setMsg({ ok: false, text: String(e?.message || 'Search failed.') }); }
-  };
   const give = async (f: Found) => {
     if (!role) return;
     if (job?.teacher && !f.teacher && !(await ask(`${f.name} isn't a teacher account`, 'The Teacher Sponsor has to be a teacher. Give it anyway?', 'Give it anyway'))) return;
     try {
       await add(f, [role]);
       setMsg({ ok: true, text: `${f.name} is now ${roleLabel(role)}${teamOf(role) && teamOf(role) !== 'executive' && !isLead(role) ? ` on ${TEAMS[teamOf(role)!].label}` : ''}.` });
-      setFound(null); setQ('');
+      who.clear();
     } catch (e: any) { setMsg({ ok: false, text: String(e?.message || 'Could not add them.') }); }
   };
   const mint = async () => {
@@ -447,30 +391,18 @@ const InviteSheet = ({ visible, scope, myRoles, live, find, add, onClose }: {
   };
 
   return (
-    <ClubSheet visible={visible} onClose={onClose} title="Invite someone" sub={scope === 'all' ? 'Pick the role first, then who' : `To ${TEAMS[scope].label}`} tone="gold" art={roleArt('owner')}>
-      <StepLabel n={1} text="What will they do?" />
+    <ClubSheet visible={visible} onClose={onClose} title="Invite someone" sub={scope === 'all' ? 'Pick the role first, then who' : `To ${TEAMS[scope].label}`}>
+      <Step n={1} text="What will they do?" />
       <RolePicker value={role} onPick={r => { setRole(r); setCode(null); setMsg(null); }} scope={scope} myRoles={myRoles} />
 
       {role && (
         <>
-          <StepLabel n={2} text={`Who is the new ${isLead(role) ? 'Manager' : roleLabel(role)}?`} />
+          <Step n={2} text={`Who is the new ${isLead(role) ? 'Manager' : roleLabel(role)}?`} />
           {job?.teacher && <Hint text="The Teacher Sponsor has to be a teacher (a wvschools.ca account)." icon="grad" />}
-          <Seg value={how} onChange={v => { setHow(v); setMsg(null); }} options={[{ id: 'find', label: 'On Spartans already' }, { id: 'code', label: 'Not on Spartans yet' }]} />
+          <Seg value={how} onChange={v => { setHow(v); setMsg(null); }} options={[{ id: 'find', label: 'Already on Spartans' }, { id: 'code', label: 'Not yet' }]} />
           {how === 'find' ? (
-            <Card pad={14}>
-              <Field value={q} onChangeText={setQ} onSubmitEditing={search} placeholder="Name, school email or student number" autoCapitalize="none" autoCorrect={false} returnKeyType="search" />
-              <Act label="Search" icon="search" tone="soft" fill onPress={search} disabled={q.trim().length < 2} />
-              {found && found.length === 0 && <Text style={{ fontSize: 13, color: c.ink3, lineHeight: 18 }}>Nobody found. If they don't have Spartans yet, make an invite code instead.</Text>}
-              {found && found.map(f => (
-                <View key={f.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: c.line2 }}>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text numberOfLines={1} style={{ fontSize: 15, fontWeight: '700', color: c.ink }}>{f.name}</Text>
-                    <Text numberOfLines={1} style={{ fontSize: 12.5, color: c.ink3 }}>{[f.teacher ? 'Teacher' : f.grade ? `Grade ${f.grade}` : null, f.email].filter(Boolean).join(' · ')}</Text>
-                  </View>
-                  <Act label="Add" icon="plus" small onPress={() => give(f)} />
-                </View>
-              ))}
-            </Card>
+            <PeopleFinder s={who} none="Nobody found. If they don't have Spartans yet, make an invite code instead."
+              action={f => <Act label="Add" small onPress={() => give(f)} />} />
           ) : (
             <Card pad={14}>
               <Text style={{ fontSize: 13.5, color: c.ink2, lineHeight: 19 }}>A one-use code for {roleLabel(role)}. It lasts 7 days. Send it to them privately; they enter it on the App Club page.</Text>
@@ -481,26 +413,13 @@ const InviteSheet = ({ visible, scope, myRoles, live, find, add, onClose }: {
                   <Act label="Copy code" icon="copy" small tone="soft" onPress={() => { Clipboard.setStringAsync(code).catch(() => {}); setMsg({ ok: true, text: 'Copied.' }); }} />
                 </View>
               ) : (
-                <Act label={busy ? 'Making…' : 'Make a code'} icon="mail" fill onPress={mint} disabled={busy || !live} />
+                <Act label="Make a code" icon="mail" fill onPress={mint} busy={busy} disabled={!live} />
               )}
             </Card>
           )}
         </>
       )}
-      {msg && <Text style={{ fontSize: 14, fontWeight: '600', color: msg.ok ? c.moss : c.danger }}>{msg.text}</Text>}
+      <Result msg={msg} />
     </ClubSheet>
   );
 };
-
-const StepLabel = ({ n, text }: { n: number; text: string }) => {
-  const { c } = useTheme();
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-      <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: c.navy700, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontSize: 13, fontWeight: '800', color: '#fff' }}>{n}</Text>
-      </View>
-      <Text style={{ flex: 1, fontSize: 16, fontWeight: '700', color: c.ink }}>{text}</Text>
-    </View>
-  );
-};
-

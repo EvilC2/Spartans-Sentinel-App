@@ -23,6 +23,7 @@ import { useKeyboardHeight, sheetHeight } from '../useKeyboard';
 import { fonts, shadow, tnum, G155, G90, PNG_SHADOW } from '../theme';
 import { Icon, IconName } from '../components/Icon';
 import { AppHeader } from '../components/AppHeader';
+import { BottomSheet, SheetScroll } from '../components/BottomSheet';
 import { BadgeArt, RarityPill, TiltBadge } from '../components/BadgeArt';
 import { RankEmblem } from '../components/RankEmblem';
 import { Avatar, AvatarSpec, AVATAR_TONES, AVATAR_GLYPHS, wash } from '../components/Avatar';
@@ -41,6 +42,8 @@ import {
   compareSchedules, todayTogether, friendsInPeriod, sortFriends, fullName, peerInitials, badgeOf, friendXp,
   myFriendCode, formatCode, cleanCode, friendsForDays, sharedClassNames, DEMO_CODE, MAX_PINNED, myAvatar, mePeer, blockName,
 } from '../social';
+import { useFocus } from '../nav';
+import { Spot } from '../components/Spot';
 import type { ScreenProps } from '../../App';
 
 const FRAME = 430;
@@ -182,6 +185,27 @@ export default function SocialScreen({ topInset }: ScreenProps) {
   const outgoing = social.requests.filter(r => r.direction === 'out');
   const openFriend = open ? social.friends.find(f => f.id === open.id) || null : null;
 
+  // From a notification: that request. Already answered? Then that friend.
+  const scroll = useRef<ScrollView>(null);
+  const reqY = useRef(0);
+  const [spot, setSpot] = useState<string | null>(null);
+  useFocus('request', f => {
+    if (incoming.some(r => r.id === f.id)) {
+      setSpot(f.id);
+      setTimeout(() => scroll.current?.scrollTo({ y: Math.max(0, reqY.current - 80), animated: true }), 350);
+      return true;
+    }
+    const friend = social.friends.find(x => x.rowId === f.id);
+    if (!friend) return false;
+    setOpen(friend);
+    return true;
+  }, [social.requests, social.friends]);
+  useEffect(() => {
+    if (!spot) return;
+    const t = setTimeout(() => setSpot(null), 4000);
+    return () => clearTimeout(t);
+  }, [spot]);
+
   // The class row (the caf's category row): my classes, one per name, spares too.
   const classes = useMemo(() => {
     const seen = new Set<string>();
@@ -206,7 +230,7 @@ export default function SocialScreen({ topInset }: ScreenProps) {
 
   return (
     <View style={{ flex: 1, backgroundColor: c.paper }}>
-      <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scroll} style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         <AppHeader topInset={topInset} title="Social" />
         <View style={{ height: 14 }} />
 
@@ -219,9 +243,9 @@ export default function SocialScreen({ topInset }: ScreenProps) {
         {!!social.error && <Text style={{ paddingHorizontal: 20, paddingTop: 10, fontSize: 12.5, color: c.crimson, fontWeight: '600' }}>{social.error}</Text>}
 
         {incoming.length + outgoing.length > 0 && (
-          <View style={{ paddingTop: 22 }}>
+          <View onLayout={e => { reqY.current = e.nativeEvent.layout.y; }} style={{ paddingTop: 22 }}>
             <Heading text="Requests" right={incoming.length ? `${incoming.length} new` : undefined} />
-            <RequestStrip incoming={incoming} outgoing={outgoing} social={social} />
+            <RequestStrip incoming={incoming} outgoing={outgoing} social={social} spot={spot} />
           </View>
         )}
 
@@ -397,16 +421,24 @@ const YouCard = ({ profile, friendCount, onPreview, onAvatar, onPins }: { profil
 // ────────────────────────────────────────────────────────────────
 // Requests — the caf's gold "Today" cards, with Accept / Decline.
 // ────────────────────────────────────────────────────────────────
-const RequestStrip = ({ incoming, outgoing, social }: { incoming: Request[]; outgoing: Request[]; social: Social }) => {
+const RequestStrip = ({ incoming, outgoing, social, spot }: { incoming: Request[]; outgoing: Request[]; social: Social; spot: string | null }) => {
   const { c } = useTheme();
   const [busy, setBusy] = useState<string | null>(null);
+  const strip = useRef<ScrollView>(null);
+  const spotAt = incoming.findIndex(r => r.id === spot);
+  useEffect(() => {
+    if (spotAt < 0) return;
+    const t = setTimeout(() => strip.current?.scrollTo({ x: spotAt * 280, animated: true }), 350);   // card 270 + gap 10
+    return () => clearTimeout(t);
+  }, [spotAt]);
   const act = async (r: Request, fn: () => Promise<void>) => { setBusy(r.id); try { await fn(); } finally { setBusy(null); } };
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
+    <ScrollView ref={strip} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
       {[...incoming, ...outgoing].map(r => {
         const inc = r.direction === 'in';
         return (
           <View key={r.id} style={[{ width: 270, padding: 12, borderRadius: 20, backgroundColor: inc ? c.goldTint : c.surface, borderWidth: 1, borderColor: inc ? '#E7D2A0' : c.line, opacity: busy === r.id ? 0.5 : 1 }, shadow.sm]}>
+            <Spot on={spot === r.id} radius={19} />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               <PeerAvatar peer={r.peer} size={48} />
               <View style={{ flex: 1, minWidth: 0 }}>
@@ -556,15 +588,12 @@ const AddCard = ({ first, onPress }: { first: boolean; onPress: () => void }) =>
 // ────────────────────────────────────────────────────────────────
 // Sheet frame.
 // ────────────────────────────────────────────────────────────────
-const Sheet = ({ visible, onClose, title, children, flush, frac = 0.9 }: { visible: boolean; onClose: () => void; title?: string; children: React.ReactNode; flush?: boolean; frac?: number }) => {
+const Sheet = ({ visible, onClose, title, children, over, flush, frac = 0.9 }: { visible: boolean; onClose: () => void; title?: string; children: React.ReactNode; over?: React.ReactNode; flush?: boolean; frac?: number }) => {
   const { c } = useTheme();
   const { height } = useWindowDimensions();
   const kb = useKeyboardHeight();
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(14,34,56,0.35)' }} accessibilityLabel="Close" />
-      <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, bottom: kb }}>
-        <View style={[{ height: sheetHeight(height, kb, frac), backgroundColor: c.paper, borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden' }, shadow.lg]}>
+    <BottomSheet visible={visible} onClose={onClose} bottom={kb} over={over} style={[{ height: sheetHeight(height, kb, frac), backgroundColor: c.paper, borderTopLeftRadius: 26, borderTopRightRadius: 26, overflow: 'hidden' }, shadow.lg]}>
           {!flush && (
             <>
               <View style={{ alignItems: 'center', paddingTop: 10 }}>
@@ -577,9 +606,7 @@ const Sheet = ({ visible, onClose, title, children, flush, frac = 0.9 }: { visib
             </>
           )}
           {children}
-        </View>
-      </View>
-    </Modal>
+    </BottomSheet>
   );
 };
 
@@ -609,7 +636,7 @@ const AvatarSheet = ({ visible, profile, onClose }: { visible: boolean; profile:
   const save = () => { setAvatar(draft); onClose(); };
   return (
     <Sheet visible={visible} onClose={onClose} title="Your avatar">
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <SheetScroll contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         <View style={{ alignItems: 'center', paddingVertical: 18 }}>
           <Floaty><Avatar spec={draft} initials={ini} size={112} ring={c.surface} /></Floaty>
           <Text style={{ fontSize: 12, color: c.ink3, marginTop: 12, textAlign: 'center' }}>{profile.photoUri ? 'Friends see your photo. This shows if you remove it.' : 'Friends see this. Add a photo in Edit profile to use that instead.'}</Text>
@@ -644,7 +671,7 @@ const AvatarSheet = ({ visible, profile, onClose }: { visible: boolean; profile:
         </View>
 
         <PillBtn text="Save" icon="check" kind="navy" label="Save avatar" onPress={save} style={{ marginTop: 22, height: 50 }} />
-      </ScrollView>
+      </SheetScroll>
     </Sheet>
   );
 };
@@ -708,7 +735,7 @@ const AddFriendSheet = ({ visible, onClose, social }: { visible: boolean; onClos
         </Pressable>
       </View>
 
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
+      <SheetScroll keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 18, paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         {busy && <ActivityIndicator color={c.navy700} style={{ marginVertical: 12 }} />}
         {!!error && <Text style={{ fontSize: 12.5, color: c.crimson, fontWeight: '600', marginBottom: 10 }}>{error}</Text>}
 
@@ -755,7 +782,7 @@ const AddFriendSheet = ({ visible, onClose, social }: { visible: boolean; onClos
             ))}
           </View>
         )}
-      </ScrollView>
+      </SheetScroll>
     </Sheet>
   );
 };
@@ -871,8 +898,13 @@ const FriendSheet = ({ friend, me, plan, isSchoolDay, onClose, social }: { frien
   };
 
   return (
-    <Sheet visible onClose={onClose} flush frac={0.94}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
+    <Sheet visible onClose={onClose} flush frac={0.94} over={(
+      <>
+        <AllBadges visible={allBadges} owner={friend.firstName} badges={badges} onClose={() => setAllBadges(false)} onOpen={i => { setAllBadges(false); setShown(i); }} />
+        <FriendBadge badges={badges} index={shown} owner={friend.firstName} onIndex={setShown} />
+      </>
+    )}>
+      <SheetScroll contentContainerStyle={{ paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
         <ProfileHero peer={friend} lv={lv} pinned={pinned} onBadge={openBadge} onClose={onClose} stats={[
           { icon: 'chart', label: `Level ${lv.level}` },
           { icon: 'badge', label: `${badges.length} ${badges.length === 1 ? 'badge' : 'badges'}` },
@@ -987,10 +1019,7 @@ const FriendSheet = ({ friend, me, plan, isSchoolDay, onClose, social }: { frien
           )}
           {confirm && <Text style={{ fontSize: 12, color: c.ink3 }}>They won't be told.</Text>}
         </View>
-      </ScrollView>
-
-      <AllBadges visible={allBadges} owner={friend.firstName} badges={badges} onClose={() => setAllBadges(false)} onOpen={i => { setAllBadges(false); setShown(i); }} />
-      <FriendBadge badges={badges} index={shown} owner={friend.firstName} onIndex={setShown} />
+      </SheetScroll>
     </Sheet>
   );
 };
@@ -1020,8 +1049,13 @@ const YouSheet = ({ visible, profile, friendCount, onClose, onAvatar }: { visibl
     [false, 'Your student number'],
   ];
   return (
-    <Sheet visible onClose={onClose} flush frac={0.94}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
+    <Sheet visible onClose={onClose} flush frac={0.94} over={(
+      <>
+        <AllBadges visible={allBadges} owner={profile.firstName} badges={badges} onClose={() => setAllBadges(false)} onOpen={i => { setAllBadges(false); setShown(i); }} />
+        <FriendBadge badges={badges} index={shown} owner={profile.firstName} onIndex={setShown} />
+      </>
+    )}>
+      <SheetScroll contentContainerStyle={{ paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
         <ProfileHero peer={peer} lv={lv} pinned={pinned} onBadge={openBadge} onClose={onClose} preview onAvatar={onAvatar} stats={[
           { icon: 'chart', label: `Level ${lv.level}` },
           { icon: 'badge', label: `${badges.length} ${badges.length === 1 ? 'badge' : 'badges'}` },
@@ -1048,9 +1082,7 @@ const YouSheet = ({ visible, profile, friendCount, onClose, onAvatar }: { visibl
             ))}
           </View>
         </View>
-      </ScrollView>
-      <AllBadges visible={allBadges} owner={profile.firstName} badges={badges} onClose={() => setAllBadges(false)} onOpen={i => { setAllBadges(false); setShown(i); }} />
-      <FriendBadge badges={badges} index={shown} owner={profile.firstName} onIndex={setShown} />
+      </SheetScroll>
     </Sheet>
   );
 };
@@ -1074,7 +1106,7 @@ const AllBadges = ({ visible, owner, badges, onClose, onOpen }: { visible: boole
   const cols = 4, gap = 10;
   const w = Math.floor((Math.min(width, FRAME) - 40 - gap * (cols - 1)) / cols);
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: c.paper }}>
         <View style={{ alignItems: 'center', paddingTop: 8 }}><View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: c.line }} /></View>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 10, paddingBottom: 8 }}>
@@ -1114,7 +1146,7 @@ const FriendBadge = ({ badges, index, owner, onIndex }: { badges: Badge[]; index
     </Pressable>
   );
   return (
-    <Modal visible animationType="slide" presentationStyle="pageSheet" onRequestClose={close}>
+    <Modal visible animationType="slide" presentationStyle="pageSheet" allowSwipeDismissal onRequestClose={close}>
       <View style={{ flex: 1, backgroundColor: c.paper }}>
         <LinearGradient colors={[glow, glow + (mode === 'dark' ? '66' : 'AA'), c.paper]} locations={[0, 0.45, 1]}
           style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '62%' }} />

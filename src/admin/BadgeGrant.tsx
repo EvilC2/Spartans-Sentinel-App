@@ -27,7 +27,8 @@ import { useContent } from '../content';
 import { ask } from '../confirm';
 import type { GrantTarget } from '../backend';
 import { ART } from '../ranks';
-import { Act, Card, CardHead, ChipPick, ClubSheet, Empty, Field, Hint, Pill, Search, SectionTitle, Seg, ago } from './ui';
+import { Act, Card, Empty, Field, Hint, PeopleFinder, Pill, Result, Search, SectionTitle, Seg, Step, ago } from './ui';
+import { byTitle, matches, usePeopleSearch } from './search';
 
 // ── Shared ──────────────────────────────────────────────────────
 type Student = { id: string; name: string; email: string; grade?: number; studentId?: string | null };
@@ -71,7 +72,7 @@ const useGiving = () => {
   };
 
   const search = async (q: string): Promise<Student[]> => {
-    if (!live) { const s = q.trim().toLowerCase(); return DEMO_STUDENTS.filter(x => `${x.name} ${x.email} ${x.studentId}`.toLowerCase().includes(s)); }
+    if (!live) return byTitle(q, DEMO_STUDENTS.filter(x => matches(q, x.name, x.email, x.studentId)), x => x.name);
     const { team } = await import('../backend');
     return (await team.find(q)).map(r => ({ id: r.id, name: `${r.first_name} ${r.last_name}`.trim(), email: r.email, grade: r.grade }));
   };
@@ -94,8 +95,9 @@ const BadgePick = ({ value, onPick }: { value: Badge | null; onPick: (b: Badge |
   const { c } = useTheme();
   const { catalog } = useBadgeDesigns();
   const [q, setQ] = useState('');
-  const s = q.trim().toLowerCase();
-  const list = useMemo(() => BADGES.filter(b => !s || `${b.title} ${b.desc}`.toLowerCase().includes(s)).slice(0, s ? 30 : 12), [s, catalog]);
+  const s = q.trim();
+  const all = useMemo(() => byTitle(s, BADGES.filter(b => matches(s, b.title, b.desc)), b => b.title), [s, catalog]);
+  const list = all.slice(0, s ? 30 : 9);
   if (value) {
     return (
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 18, backgroundColor: c.goldTint }}>
@@ -110,29 +112,18 @@ const BadgePick = ({ value, onPick }: { value: Badge | null; onPick: (b: Badge |
   }
   return (
     <View style={{ gap: 10 }}>
-      <Search value={q} onChange={setQ} placeholder="Search badges" />
+      <Search value={q} onChange={setQ} placeholder={`Search all ${BADGES.length} badges`} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {list.map(b => (
           <Pressable key={b.id} onPress={() => onPick(b)} accessibilityRole="button" accessibilityLabel={b.title}
-            style={({ pressed }) => ({ width: '31%', flexGrow: 1, alignItems: 'center', gap: 4, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line2, opacity: pressed ? 0.7 : 1 })}>
+            style={({ pressed }) => ({ width: '31%', alignItems: 'center', gap: 4, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line2, opacity: pressed ? 0.7 : 1 })}>
             <BadgeArt badge={b} size={52} />
             <Text numberOfLines={2} style={{ fontSize: 12, fontWeight: '700', color: c.ink, textAlign: 'center' }}>{b.title}</Text>
           </Pressable>
         ))}
       </View>
-      {!list.length && <Text style={{ fontSize: 13, color: c.ink3 }}>No badge called that.</Text>}
-    </View>
-  );
-};
-
-const Step = ({ n, text }: { n: number; text: string }) => {
-  const { c } = useTheme();
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-      <View style={{ width: 26, height: 26, borderRadius: 13, backgroundColor: c.gold, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ fontSize: 13, fontWeight: '800', color: '#fff' }}>{n}</Text>
-      </View>
-      <Text style={{ flex: 1, fontSize: 16, fontWeight: '700', color: c.ink }}>{text}</Text>
+      {!list.length ? <Text style={{ fontSize: 13.5, color: c.ink3 }}>No badge matches “{s}”.</Text>
+        : all.length > list.length && <Text style={[{ fontSize: 13, color: c.ink3 }, tnum]}>Showing {list.length} of {all.length}. Search to find the rest.</Text>}
     </View>
   );
 };
@@ -140,7 +131,7 @@ const Step = ({ n, text }: { n: number; text: string }) => {
 const StudentChip = ({ s, onRemove }: { s: Student; onRemove?: () => void }) => {
   const { c } = useTheme();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 12, paddingRight: onRemove ? 6 : 12, minHeight: 34, borderRadius: 999, backgroundColor: c.navy50 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingLeft: 12, paddingRight: onRemove ? 6 : 12, minHeight: 36, borderRadius: 12, backgroundColor: c.navy50 }}>
       <Text style={{ fontSize: 13.5, fontWeight: '600', color: c.link }}>{s.name}</Text>
       {onRemove && (
         <Pressable onPress={onRemove} hitSlop={8} accessibilityLabel={`Remove ${s.name}`} style={{ width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: c.surface }}>
@@ -185,24 +176,19 @@ export const AwardGrant = () => {
   const { c } = useTheme();
   const g = useGiving();
   const [badge, setBadge] = useState<Badge | null>(null);
-  const [q, setQ] = useState('');
-  const [found, setFound] = useState<Student[] | null>(null);
+  const who = usePeopleSearch(g.search);
   const [picked, setPicked] = useState<Student[]>([]);
   const [reason, setReason] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const search = async () => {
-    if (q.trim().length < 2) return;
-    try { setFound(await g.search(q)); } catch (e: any) { setMsg({ ok: false, text: String(e?.message || 'Search failed.') }); }
-  };
   const give = async () => {
     if (!badge || !picked.length || !reason.trim() || busy) return;
     setBusy(true); setMsg(null);
     try {
       await g.give(badge, picked, reason.trim(), picked.length === 1 ? picked[0].name : `${picked.length} students`);
       setMsg({ ok: true, text: `${badge.title} given to ${picked.length === 1 ? picked[0].name : `${picked.length} students`}.` });
-      setPicked([]); setReason(''); setFound(null); setQ('');
+      setPicked([]); setReason(''); who.clear();
     } catch (e: any) { setMsg({ ok: false, text: String(e?.message || 'Could not give it.') }); }
     finally { setBusy(false); }
   };
@@ -217,21 +203,8 @@ export const AwardGrant = () => {
       {badge && (
         <Card>
           <Step n={2} text="Who earned it?" />
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'flex-end' }}>
-            <View style={{ flex: 1 }}><Field value={q} onChangeText={setQ} onSubmitEditing={search} placeholder="Name, school email or student number" autoCapitalize="none" autoCorrect={false} returnKeyType="search" /></View>
-            <Act label="Find" icon="search" tone="soft" onPress={search} disabled={q.trim().length < 2} />
-          </View>
-          {found && found.length === 0 && <Text style={{ fontSize: 13, color: c.ink3 }}>Nobody found.</Text>}
-          {found && found.filter(f => !picked.some(p => p.id === f.id)).map(f => (
-            <Pressable key={f.id} onPress={() => setPicked(p => [...p, f])} accessibilityRole="button" accessibilityLabel={`Add ${f.name}`}
-              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, opacity: pressed ? 0.6 : 1 })}>
-              <View style={{ flex: 1, minWidth: 0 }}>
-                <Text style={{ fontSize: 15, fontWeight: '600', color: c.ink }}>{f.name}</Text>
-                <Text style={{ fontSize: 12.5, color: c.ink3 }}>{[f.grade ? `Grade ${f.grade}` : null, f.email].filter(Boolean).join(' · ')}</Text>
-              </View>
-              <Icon name="plus" size={18} stroke={2.4} color={c.link} />
-            </Pressable>
-          ))}
+          <PeopleFinder s={who} skip={picked.map(p => p.id)}
+            action={p => <Act label="Add" small tone="soft" onPress={() => { setPicked(x => [...x, p]); who.clear(); }} />} />
           {picked.length > 0 && (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
               {picked.map(p => <StudentChip key={p.id} s={p} onRemove={() => setPicked(x => x.filter(y => y.id !== p.id))} />)}
@@ -243,10 +216,10 @@ export const AwardGrant = () => {
         <Card>
           <Step n={3} text="Why?" />
           <Field value={reason} onChangeText={setReason} placeholder="Top scorer at the Science Fair" />
-          <Act label={busy ? 'Giving…' : `Give to ${picked.length === 1 ? picked[0].name.split(' ')[0] : `${picked.length} students`}`} icon="badge" tone="gold" fill onPress={give} disabled={!reason.trim() || busy} />
+          <Act busy={busy} label={`Give to ${picked.length === 1 ? picked[0].name.split(' ')[0] : `${picked.length} students`}`} icon="badge" tone="gold" fill onPress={give} disabled={!reason.trim()} />
         </Card>
       )}
-      {msg && <Text style={{ fontSize: 14, fontWeight: '600', color: msg.ok ? c.moss : c.danger }}>{msg.text}</Text>}
+      <Result msg={msg} />
       <History given={g.given} />
     </View>
   );
@@ -272,7 +245,7 @@ export const ListGrant = () => {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const matches = useMemo(() => q.trim().length < 2 ? [] : matchPrograms(q)
+  const groups = useMemo(() => q.trim().length < 2 ? [] : matchPrograms(q)
     .filter(e => source === 'program' ? CLASS_KINDS.includes(e.kind) : !CLASS_KINDS.includes(e.kind)).slice(0, 8), [q, source]);
 
   useEffect(() => { setGroup(null); setPeople(null); setMissing([]); setQ(''); }, [source]);
@@ -326,8 +299,9 @@ export const ListGrant = () => {
               </View>
             ) : (
               <>
-                <Field value={q} onChangeText={setQ} placeholder={source === 'program' ? 'Search classes, e.g. Chemistry 11' : 'Search teams and clubs, e.g. Senior Boys Soccer'} autoCorrect={false} />
-                {matches.map(m => (
+                <Search value={q} onChange={setQ} placeholder={source === 'program' ? 'Search classes' : 'Search teams and clubs'} />
+                {q.trim().length >= 2 && groups.length === 0 && <Text style={{ fontSize: 13.5, color: c.ink3, lineHeight: 19 }}>No {source === 'program' ? 'class' : 'team or club'} matches “{q.trim()}”.</Text>}
+                {groups.map(m => (
                   <Pressable key={m.name} onPress={() => pickGroup(m.name)} accessibilityRole="button"
                     style={({ pressed }) => ({ paddingVertical: 10, borderTopWidth: 1, borderTopColor: c.line2, opacity: pressed ? 0.6 : 1 })}>
                     <Text style={{ fontSize: 15, fontWeight: '600', color: c.ink }}>{m.name}</Text>
@@ -355,10 +329,10 @@ export const ListGrant = () => {
         <Card>
           <Step n={3} text="Why?" />
           <Field value={reason} onChangeText={setReason} placeholder="Made the playoffs" />
-          <Act label={busy ? 'Giving…' : `Give to all ${people.length}`} icon="badge" tone="gold" fill onPress={give} disabled={!reason.trim() || busy} />
+          <Act busy={busy} label={`Give to all ${people.length}`} icon="badge" tone="gold" fill onPress={give} disabled={!reason.trim()} />
         </Card>
       )}
-      {msg && <Text style={{ fontSize: 14, fontWeight: '600', color: msg.ok ? c.moss : c.danger }}>{msg.text}</Text>}
+      <Result msg={msg} />
       <History given={g.given} />
     </View>
   );
@@ -379,9 +353,7 @@ export const QrGrant = () => {
 
   return (
     <View style={{ gap: 14 }}>
-      <Card>
-        <CardHead art={ART.camera} tone="gold" title="Put up a code" sub="Show a code at an event, or print it as a poster. Students scan it from their Badges page to get the badge." />
-      </Card>
+      <Hint icon="qr" text="Show a code at an event, or print it as a poster. Students scan it from their Badges page to get the badge." />
       <Seg value={filter} onChange={setFilter} options={[{ id: 'live', label: 'Ready to use', count: live.length }, { id: 'waiting', label: 'Not approved yet', count: waiting.length }]} />
       {list.length === 0 && (
         <Empty art={ART.camera} title={filter === 'live' ? 'No QR badges yet' : 'Nothing waiting'}

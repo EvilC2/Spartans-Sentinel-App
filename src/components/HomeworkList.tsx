@@ -29,6 +29,7 @@ import { toISO, fromISO, MONTH_NAMES } from '../calendar';
 import { fmt12 } from '../bell';
 import { programsFor, groupPrograms, HomeworkItem, KIND_ONE, HW_KINDS, HW_KIND_LABEL, type HomeworkKind } from '../programs';
 import { wash } from './ProgramIcon';
+import { Spot, useReveal } from './Spot';
 
 export const UNSORTED = 'unsorted';
 // The tick column: a 44pt target whose 24pt circle lines up with the headings.
@@ -95,11 +96,12 @@ export type Scroller = {
   reveal: () => void;
   focus: (node: TextInput | null) => void;
   blur: (node: TextInput | null) => void;
+  bring: (node: View | null) => void;      // scroll a row into view
   lock: (on: boolean) => void;
   scrollBy: (dy: number) => number;        // returns how far it really moved
   edges: () => { top: number; bottom: number };
 };
-export const ScrollerCtx = createContext<Scroller>({ reveal: () => {}, focus: () => {}, blur: () => {}, lock: () => {}, scrollBy: () => 0, edges: () => ({ top: 0, bottom: 0 }) });
+export const ScrollerCtx = createContext<Scroller>({ reveal: () => {}, focus: () => {}, blur: () => {}, bring: () => {}, lock: () => {}, scrollBy: () => 0, edges: () => ({ top: 0, bottom: 0 }) });
 
 // Wire a screen's ScrollView up: spread rootProps on a View around it and
 // scrollProps on it, and put `scroller` in ScrollerCtx above both.
@@ -131,6 +133,16 @@ export const useHomeworkScroller = (topInset: number) => {
       reveal,
       focus: node => { focused.current = node; setTimeout(reveal, 80); },
       blur: node => { if (focused.current === node) focused.current = null; },
+      // Measured from the list itself, not the screen: on the Homework page it
+      // starts below the pinned Quick type panel.
+      bring: node => {
+        const list = (scrollRef.current as unknown as { getNativeScrollRef?: () => View | null } | null)?.getNativeScrollRef?.();
+        if (!node || !list) return;
+        list.measureInWindow((_lx, ly, _lw, lh) => node.measureInWindow((_x, y, _w, h) => {
+          const top = Math.max(ly + 12, Math.min(ly + lh * 0.3, ly + lh - room() - h));
+          scrollRef.current?.scrollTo({ y: Math.max(0, scrollY.current + y - top), animated: true });
+        }));
+      },
       lock: setDragging,
       scrollBy: dy => {
         const max = Math.max(0, contentH.current - viewH.current);
@@ -177,9 +189,10 @@ export const useHomeworkScroller = (topInset: number) => {
 // on, then "Completed" — everything ticked off, newest first, folded away until
 // opened. Completed rows still open to edit (or untick).
 // ────────────────────────────────────────────────────────────────
-export const ClassHomework = ({ s, list, completed, sections, todayIso, openId, setOpenId, showDone, onToggleDone }: {
+export const ClassHomework = ({ s, list, completed, sections, todayIso, openId, setOpenId, showDone, onToggleDone, spotId }: {
   s: Section; list: HomeworkItem[]; completed: HomeworkItem[]; sections: Section[]; todayIso: string;
   openId: string | null; setOpenId: (id: string | null) => void; showDone: boolean; onToggleDone: () => void;
+  spotId?: string | null;   // the task a notification opened
 }) => {
   const hw = useHomework();
   const drag = useReorder(list, hw.reorder);
@@ -211,6 +224,7 @@ export const ClassHomework = ({ s, list, completed, sections, todayIso, openId, 
             h={h}
             {...rowProps}
             open={openId === h.id}
+            spot={spotId === h.id}
             drag={drag}
             canDrag={list.length > 1}
             index={i}
@@ -224,7 +238,7 @@ export const ClassHomework = ({ s, list, completed, sections, todayIso, openId, 
 
       {completed.length > 0 && <DoneToggle count={completed.length} name={s.name} open={showDone} onPress={onToggleDone} />}
       {showDone && completed.map((h, i) => (
-        <Row key={h.id} h={h} {...rowProps} open={openId === h.id} older index={i} />
+        <Row key={h.id} h={h} {...rowProps} open={openId === h.id} spot={spotId === h.id} older index={i} />
       ))}
     </>
   );
@@ -579,14 +593,17 @@ const moveActions = (index: number, count: number, onMove?: (delta: number) => v
 // ────────────────────────────────────────────────────────────────
 // Row: tick · task (tap to edit in place) · handle. Opens where it is.
 // ────────────────────────────────────────────────────────────────
-const Row = ({ h, section, sections, todayIso, open, older, drag, canDrag, index = 0, count = 0, onMove, onOpen, onClose, onMoved }: {
-  h: HomeworkItem; section: Section; sections: Section[]; todayIso: string; open: boolean; older?: boolean;
+const Row = ({ h, section, sections, todayIso, open, spot, older, drag, canDrag, index = 0, count = 0, onMove, onOpen, onClose, onMoved }: {
+  h: HomeworkItem; section: Section; sections: Section[]; todayIso: string; open: boolean; spot?: boolean; older?: boolean;
   drag?: Drag; canDrag?: boolean; index?: number; count?: number; onMove?: (delta: number) => void;
   onOpen: (id: string) => void; onClose: () => void; onMoved: () => void;
 }) => {
   const { c, mode } = useTheme();
   const hw = useHomework();
   const active = drag?.activeId === h.id;
+  const scroller = useContext(ScrollerCtx);
+  const rowRef = useRef<View>(null);
+  useReveal(!!spot, rowRef, scroller.bring);
   // Every other row a hair darker: just enough to keep the eye on a line.
   const zebra = index % 2 === 1 && !active && !open;
   const late = !h.done && h.due < todayIso;
@@ -596,6 +613,7 @@ const Row = ({ h, section, sections, todayIso, open, older, drag, canDrag, index
 
   return (
     <Animated.View
+      ref={rowRef}
       onLayout={e => drag?.setHeight(h.id, e.nativeEvent.layout.height)}
       style={[
         { transform: [{ translateY: drag ? drag.translateOf(h.id) : 0 }] },
@@ -603,6 +621,7 @@ const Row = ({ h, section, sections, todayIso, open, older, drag, canDrag, index
         active ? [{ zIndex: 10, backgroundColor: c.surface, borderRadius: radii.sm }, shadow.md] : null,
       ]}
     >
+      <Spot on={!!spot} radius={14} inset={6} />
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', paddingLeft: ROW_LEFT, paddingRight: ROW_RIGHT }}>
         <Pressable
           onPress={() => { animateMove(); if (open) onClose(); hw.toggle(h.id, todayIso); }}
@@ -626,7 +645,8 @@ const Row = ({ h, section, sections, todayIso, open, older, drag, canDrag, index
               <DraftField
                 initial={h.title}
                 onSave={title => hw.update(h.id, { title })}
-                autoFocus
+                // Opened from a notification: show it, don't start typing in it.
+                autoFocus={!spot}
                 multiline
                 scrollEnabled={false}
                 returnKeyType="done"
@@ -911,17 +931,19 @@ const MiniCal = ({ iso, todayIso, onPick }: { iso: string; todayIso: string; onP
   );
 };
 
-// ── Type: homework, quiz, test, project ─────────────────────────
+// ── Type: homework, quiz, test, project, presentation, essay ─────────────────────────
 // Colours that say "this one matters more" without shouting: tests warm red,
-// quizzes gold, projects blue. The word is always there too.
+// quizzes gold, projects blue, presentations violet, essays green. The word is
+// always there too.
 export const useKindColor = () => {
   const { c, mode } = useTheme();
   return (k: HomeworkKind) => k === 'test' ? c.danger : k === 'quiz' ? (mode === 'dark' ? '#E3B871' : c.gold)
+    : k === 'presentation' ? (mode === 'dark' ? '#BBA3E6' : '#73569E')
     : k === 'essay' ? (mode === 'dark' ? '#8DB57A' : c.moss) : (mode === 'dark' ? '#8FBDF0' : c.sky);
 };
 
 // The type as a round chip on the right of a row. One tap steps to the next
-// type: Homework → Quiz → Test → Project → Essay → Homework. Plain homework is
+// type: Homework → Quiz → Test → Project → Presentation → Essay → Homework. Plain homework is
 // a quiet outline so the others stand out.
 export const KindChip = ({ kind, dim, onKind }: { kind?: HomeworkKind; dim?: boolean; onKind: (k: HomeworkKind | null) => void }) => {
   const { c } = useTheme();

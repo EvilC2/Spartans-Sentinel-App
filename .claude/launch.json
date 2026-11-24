@@ -38,6 +38,20 @@
         "8083"
       ],
       "port": 8083
+    },
+    {
+      "name": "sentinel-metro-demo",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "EXPO_PUBLIC_SUPABASE_URL=",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY=",
+        "npx",
+        "expo",
+        "start",
+        "--port",
+        "8084"
+      ],
+      "port": 8084
     }
   ]
 }
