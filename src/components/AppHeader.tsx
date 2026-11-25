@@ -12,6 +12,7 @@ import { Header } from './Chrome';
 import { useProfile, initials } from '../ProfileContext';
 import { useNav } from '../nav';
 import { useNotify } from '../notify/context';
+import { useTeacher } from '../teacher';
 
 export const AppHeader = ({ topInset, title, count, back, onBack, club }: {
   topInset: number; title?: string; count?: React.ReactNode; back?: boolean; onBack?: () => void; club?: React.ReactNode;
@@ -19,6 +20,10 @@ export const AppHeader = ({ topInset, title, count, back, onBack, club }: {
   const { profile } = useProfile();
   const nav = useNav();
   const notify = useNotify();
+  // App Club is the students' club. A confirmed teacher goes there for Clubs &
+  // programs; until then the bubble would only show the pitch to join.
+  const t = useTeacher();
+  const noClub = t.teacher && !t.confirmed;
   return (
     <Header
       topInset={topInset}
@@ -31,7 +36,7 @@ export const AppHeader = ({ topInset, title, count, back, onBack, club }: {
       title={title}
       count={count}
       onBack={onBack || (back ? nav.back : undefined)}
-      club={club}
+      club={club !== undefined ? club : noClub ? null : undefined}
     />
   );
 };

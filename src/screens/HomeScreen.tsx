@@ -22,7 +22,8 @@ import { SpartanMark, SectionHeader, NowDot, Grid } from '../components/Chrome';
 import { QuickLink } from '../components/Cards';
 import { Buzz, postToSlide } from '../components/Buzz';
 import { useProfile, shortName, teacherShort, roomLabel, Course } from '../ProfileContext';
-import { useSocial, togetherLabel } from '../social';
+import { useSocial, togetherLabel, friendsInPeriod, Friend } from '../social';
+import { WithSheet, With } from '../components/WithSheet';
 import { useToday, fmtWeekday, fmtMonthDay, fmtClock, greeting, nextSchoolDay, TodayState } from '../useToday';
 import { fmt12, fmtCountdown, gapEyebrow, PlanPeriod } from '../bell';
 import { usePreviewTime } from '../PreviewTime';
@@ -73,6 +74,13 @@ export default function HomeScreen({ onNavigate, topInset }: ScreenProps) {
     return true;
   }, [slides]);
 
+  // "with Sam +2" on the hero: who they are, then that friend's card on Social.
+  const [with_, setWith_] = useState<With | null>(null);
+  const openFriend = (f: Friend) => {
+    setWith_(null);
+    setTimeout(() => nav.open('social', { kind: 'friend', id: f.id }), 360);   // after the sheet is gone
+  };
+
   const openPage = (p: Page) => {
     if (p.go) onNavigate(p.go);
     else if (p.action === 'badges') setBadges(true);
@@ -115,7 +123,7 @@ export default function HomeScreen({ onNavigate, topInset }: ScreenProps) {
       </View>
 
       {/* ── Hero day card (rotation + in-progress row) ────────── */}
-      <DayHeroCard t={t} scrubOpen={scrub} onToggleScrub={() => setScrub(s => !s)} onCourse={sheet.openCourse} />
+      <DayHeroCard t={t} scrubOpen={scrub} onToggleScrub={() => setScrub(s => !s)} onCourse={sheet.openCourse} onWith={setWith_} />
       {scrub && tempTools && <TimeScrubber now={t.now} />}
 
       {/* ── The Buzz — banner news, trivia, polls ─────────────── */}
@@ -171,6 +179,7 @@ export default function HomeScreen({ onNavigate, topInset }: ScreenProps) {
 
       <BadgesSheet visible={badges} onClose={() => setBadges(false)} />
       <XpSheet visible={xp} onClose={() => setXp(false)} />
+      <WithSheet open={with_} onClose={() => setWith_(null)} onFriend={openFriend} />
     </ScrollView>
   );
 }
@@ -340,7 +349,7 @@ const TimeScrubber = ({ now }: { now: Date }) => {
 // ────────────────────────────────────────────────────────────────
 // Hero day card — the #1 thing students check
 // ────────────────────────────────────────────────────────────────
-const DayHeroCard = ({ t, scrubOpen, onToggleScrub, onCourse }: { t: TodayState; scrubOpen: boolean; onToggleScrub: () => void; onCourse: (k: Course) => void }) => {
+const DayHeroCard = ({ t, scrubOpen, onToggleScrub, onCourse, onWith }: { t: TodayState; scrubOpen: boolean; onToggleScrub: () => void; onCourse: (k: Course) => void; onWith: (w: With) => void }) => {
   const { c } = useTheme();
   const { plan, cal } = t;
   const weather = useWeather();
@@ -409,8 +418,18 @@ const DayHeroCard = ({ t, scrubOpen, onToggleScrub, onCourse }: { t: TodayState;
   // Friends in the block on now (or up next): "with Alex", and a spare you
   // both have reads "Spare with Alex" — it counts as a block together.
   const { friends } = useSocial();
-  const together = aheadPlan ? togetherLabel(first, courses, friends)
-    : plan && t.phase !== 'after' ? togetherLabel(focus, courses, friends) : '';
+  const block = aheadPlan ? first : plan && t.phase !== 'after' ? focus : null;
+  const together = togetherLabel(block, courses, friends);
+  const showWith = () => {
+    if (!block) return;
+    const hits = friendsInPeriod(block, courses, friends);
+    const name = block.course?.spare ? 'your spare' : block.course?.name || `Block ${block.slot}`;
+    onWith({
+      title: `With you in ${name}`,
+      sub: `${aheadPlan ? `${ahead!.when}, ` : ''}${fmt12(block.start)} to ${fmt12(block.end, true)}`,
+      people: hits.map(x => ({ friend: x.friend, spare: x.kind === 'spare' })),
+    });
+  };
 
   return (
     <View style={{ paddingHorizontal: 20 }}>
@@ -543,10 +562,12 @@ const DayHeroCard = ({ t, scrubOpen, onToggleScrub, onCourse }: { t: TodayState;
         <View style={{ marginTop: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
           <Text numberOfLines={1} style={[{ flex: 1, fontSize: 12.5, color: off ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.7)' }, tnum]}>{footer || ' '}</Text>
           {!!together && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 1 }} accessibilityLabel={together}>
-              <Icon name="users" size={13} stroke={2} color={c.moss} />
-              <Text numberOfLines={1} style={{ fontSize: 12.5, fontWeight: '700', color: c.moss, flexShrink: 1 }}>{together}</Text>
-            </View>
+            <Pressable onPress={showWith} hitSlop={{ top: 12, bottom: 12, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={together} accessibilityHint="Shows who"
+              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 1, height: 30, paddingLeft: 10, paddingRight: 8, borderRadius: 15, backgroundColor: 'rgba(168,208,146,0.16)', opacity: pressed ? 0.6 : 1 })}>
+              <Icon name="users" size={13} stroke={2} color="#A8D092" />
+              <Text numberOfLines={1} style={{ fontSize: 13, fontWeight: '700', color: '#A8D092', flexShrink: 1 }}>{together}</Text>
+              <Icon name="chev-r" size={10} stroke={2.6} color="#A8D092" />
+            </Pressable>
           )}
           {tempTools && <TimeScrubButton open={scrubOpen} active={t.isPreview} onPress={onToggleScrub} />}
         </View>

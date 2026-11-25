@@ -12,6 +12,12 @@
 //                          (src/components/ProgramBody.tsx).
 //   useCanPost(name)       staff (Owner, President, Teacher Sponsor, teacher)
 //                          post anywhere; a program's managers post in theirs.
+//   seesPost(post, …)      a teacher's post can be for one block of a class
+//                          (`slot`, migration 0026): only the students in that
+//                          block with that teacher see it. Everything else
+//                          goes to everyone in the program.
+//   postToProgram(…)       one post to one program; the hooks and the
+//                          teacher's "New announcement" both use it.
 //   useProgramManagers()   staff: who runs each program.
 // A program is its name lowercased and trimmed (programKey, the same as
 // classKey in src/programs.ts and program_key on the server).
@@ -27,9 +33,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { demoBuild } from './supabase';
 import { useContent, ContentMode } from './content';
-import { useProfile, fullName } from './ProfileContext';
+import { useProfile, fullName, isTeacher, teacherShort, Slot, SLOTS, StudentProfile } from './ProfileContext';
 import { REAL_CLUBS } from './clubList';
-import { isStaff } from './ranks';
+import { isStaff, isTop } from './ranks';
+import type { Role } from './backend';
 import type { ClubKind, ClubRow, ManagerRow, ProgramPostRow } from './backend';
 
 export type { ClubKind } from './backend';
@@ -206,11 +213,34 @@ export const clubLine = (x: Club) => [x.meets, x.room, x.sponsor].map(s => s.tri
 export type ProgramPost = {
   id: string; key: string; title: string; body: string; pinned: boolean;
   author: string | null; authorName: string; createdAt: string;
+  slot: Slot | null;          // one block of the class; null = everyone in the program
+  teacherKey: string;         // that block's teacher: last name, lowercased
+  fromTeacher: boolean;       // a teacher wrote it
 };
 const fromPostRow = (r: ProgramPostRow): ProgramPost => ({
   id: r.id, key: r.program_key, title: r.title, body: r.body || '', pinned: r.pinned,
   author: r.author, authorName: r.author_name || '', createdAt: r.created_at,
+  slot: SLOTS.includes(r.slot as Slot) ? r.slot as Slot : null, teacherKey: r.teacher_key || '', fromTeacher: !!r.from_teacher,
 });
+// Posts saved on this phone before 0026 have none of the new fields.
+const tidyPost = (p: ProgramPost): ProgramPost => ({ ...p, slot: p.slot ?? null, teacherKey: p.teacherKey || '', fromTeacher: !!p.fromTeacher });
+
+// "Grant, David" or "Grant" → "grant": how a block's teacher is matched.
+export const teacherKeyOf = (name: string) => teacherShort(name || '').trim().toLowerCase();
+
+// May this account see the post? Only a post for one block is ever hidden:
+// its teacher sees it, the top roles see it, and so do the students with that
+// class in that block (unless their timetable names a different teacher).
+export const seesPost = (p: ProgramPost, profile: StudentProfile | null, roles: Role[]) => {
+  if (!p.slot) return true;
+  if (isTop(roles) || p.author === 'me') return true;
+  if (!profile) return false;
+  if (isTeacher(profile)) return !!p.teacherKey && p.teacherKey === teacherKeyOf(profile.lastName);
+  const k = profile.courses.find(x => x.slot === p.slot);
+  if (!k || k.spare || programKey(k.name) !== p.key) return false;
+  const theirs = teacherKeyOf(k.teacher);
+  return !theirs || !p.teacherKey || theirs === p.teacherKey;
+};
 const sortPosts = (a: ProgramPost, b: ProgramPost) => Number(b.pinned) - Number(a.pinned) || b.createdAt.localeCompare(a.createdAt);
 
 type PostEntry = { list: ProgramPost[]; at: number; note: string | null };
@@ -242,7 +272,7 @@ const loadPosts = (mode: ContentMode, key: string, force = false): Promise<void>
   const p = (async () => {
     if (mode !== 'live') {
       const saved = demoBuild ? await readJSON<Record<string, ProgramPost[]>>(POSTS_DEMO_KEY, {}) : {};
-      setEntry(key, { list: saved[key] || [], at: Date.now(), note: null });
+      setEntry(key, { list: (saved[key] || []).map(tidyPost), at: Date.now(), note: null });
       return;
     }
     try {
@@ -251,7 +281,7 @@ const loadPosts = (mode: ContentMode, key: string, force = false): Promise<void>
       persistPosts(mode);
     } catch (e: any) {
       const saved = await readJSON<Record<string, ProgramPost[]>>(POSTS_KEY, {});
-      setEntry(key, { list: have?.list.length ? have.list : saved[key] || [], at: 0, note: needs0021(e) ? NEEDS : null });
+      setEntry(key, { list: have?.list.length ? have.list : (saved[key] || []).map(tidyPost), at: 0, note: needs0021(e) ? NEEDS : null });
     }
   })().finally(() => { postsLoading.delete(key); });
   postsLoading.set(key, p);
@@ -269,7 +299,7 @@ const loadManyPosts = async (mode: ContentMode, keys: string[], force = false) =
   if (!want.length) return;
   if (mode !== 'live') {
     const saved = demoBuild ? await readJSON<Record<string, ProgramPost[]>>(POSTS_DEMO_KEY, {}) : {};
-    want.forEach(k => setEntry(k, { list: saved[k] || [], at: Date.now(), note: null }));
+    want.forEach(k => setEntry(k, { list: (saved[k] || []).map(tidyPost), at: Date.now(), note: null }));
     return;
   }
   try {
@@ -279,13 +309,13 @@ const loadManyPosts = async (mode: ContentMode, keys: string[], force = false) =
     persistPosts(mode);
   } catch (e: any) {
     const saved = await readJSON<Record<string, ProgramPost[]>>(POSTS_KEY, {});
-    want.forEach(k => setEntry(k, { list: byKey[k]?.list.length ? byKey[k].list : saved[k] || [], at: 0, note: needs0021(e) ? NEEDS : null }));
+    want.forEach(k => setEntry(k, { list: byKey[k]?.list.length ? byKey[k].list : (saved[k] || []).map(tidyPost), at: 0, note: needs0021(e) ? NEEDS : null }));
   }
 };
 
 export const useProgramFeed = (names: string[]) => {
-  const { mode } = useContent();
-  const { signedIn } = useProfile();
+  const { mode, roles } = useContent();
+  const { signedIn, profile } = useProfile();
   const s = useStore(postsS);
   const keys = useMemo(() => Array.from(new Set(names.map(programKey).filter(Boolean))), [names.join('|')]);   // eslint-disable-line react-hooks/exhaustive-deps
   const [loading, setLoading] = useState(true);
@@ -297,10 +327,43 @@ export const useProgramFeed = (names: string[]) => {
   }, [mode, keys, signedIn]);
   const byKey = s.mode === mode ? s.byKey : {};
   return {
-    postsOf: (name: string) => byKey[programKey(name)]?.list || [],
+    postsOf: (name: string) => (byKey[programKey(name)]?.list || []).filter(p => seesPost(p, profile, roles)),
     loading,
     reload: () => loadManyPosts(mode, keys, true),
   };
+};
+
+// One post to one program. `slot` (teachers) sends it to that block only.
+// Throws with a sentence to show.
+export type NewPost = { title: string; body: string; pinned: boolean; slot?: Slot | null };
+export const postToProgram = async (mode: ContentMode, profile: StudentProfile | null, name: string, p: NewPost) => {
+  const key = programKey(name);
+  const clean = { title: p.title.trim(), body: p.body.trim(), pinned: p.pinned };
+  if (!clean.title) throw new Error('Give the post a title.');
+  if (postsS.get().mode !== mode) postsS.set({ byKey: {}, mode });
+  const list = postsS.get().byKey[key]?.list || [];
+  if (mode === 'live') {
+    try {
+      const { programPosts } = await import('./backend');
+      const row = await programPosts.add({ program_key: key, ...clean, ...(p.slot ? { slot: p.slot } : {}) });
+      setEntry(key, { list: [fromPostRow(row), ...list.filter(x => x.id !== row.id)] });
+      persistPosts(mode);
+      return;
+    } catch (e: any) {
+      const msg = String(e?.message || '');
+      throw new Error(needs0021(e) ? (p.slot ? 'Posting to one class needs migration 0026 on the server.' : NEEDS)
+        : /row-level security|violates/i.test(msg) ? 'Only staff and this program\'s managers can post here.'
+        : msg || 'Could not post.');
+    }
+  }
+  if (!demoBuild) throw new Error('Posting needs the server.');
+  const teacher = isTeacher(profile);
+  const post: ProgramPost = {
+    id: localId(), key, ...clean, author: 'me', authorName: profile ? fullName(profile) : '', createdAt: new Date().toISOString(),
+    slot: p.slot || null, teacherKey: p.slot && profile ? teacherKeyOf(profile.lastName) : '', fromTeacher: teacher,
+  };
+  setEntry(key, { list: [post, ...list] });
+  persistPosts(mode);
 };
 
 // This account's id, to know which posts are yours (demo: 'me').
@@ -323,28 +386,10 @@ export const useProgramPosts = (name: string) => {
   const me = useMyId(mode, signedIn);
   useEffect(() => { loadPosts(mode, key); }, [mode, key, signedIn]);
   const entry = s.mode === mode ? s.byKey[key] : undefined;
-  const list = entry?.list || [];
+  const list = entry?.list || [];   // everything loaded; `posts` below is what this account may see
   const staff = isStaff(roles);
 
-  const add = async (p: { title: string; body: string; pinned: boolean }) => {
-    const clean = { title: p.title.trim(), body: p.body.trim(), pinned: p.pinned };
-    if (!clean.title) throw new Error('Give the post a title.');
-    if (mode === 'live') {
-      try {
-        const { programPosts } = await import('./backend');
-        const row = await programPosts.add({ program_key: key, ...clean });
-        setEntry(key, { list: [fromPostRow(row), ...list.filter(x => x.id !== row.id)] });
-        persistPosts(mode);
-        return;
-      } catch (e: any) {
-        throw new Error(needs0021(e) ? NEEDS : /row-level security|violates/i.test(String(e?.message)) ? 'Only staff and this program\'s managers can post here.' : String(e?.message || 'Could not post.'));
-      }
-    }
-    if (!demoBuild) throw new Error('Posting needs the server.');
-    const post: ProgramPost = { id: localId(), key, ...clean, author: 'me', authorName: profile ? fullName(profile) : '', createdAt: new Date().toISOString() };
-    setEntry(key, { list: [post, ...list] });
-    persistPosts(mode);
-  };
+  const add = (p: NewPost) => postToProgram(mode, profile, name, p);
 
   const update = async (id: string, patch: Partial<Pick<ProgramPost, 'title' | 'body' | 'pinned'>>) => {
     if (mode === 'live') {
@@ -364,7 +409,7 @@ export const useProgramPosts = (name: string) => {
   };
 
   return {
-    posts: list, loaded: !!entry, note: entry?.note ?? null,
+    posts: list.filter(p => seesPost(p, profile, roles)), loaded: !!entry, note: entry?.note ?? null,
     // the author, or staff (the server checks again)
     canChange: (p: ProgramPost) => staff || (!!me && p.author === me),
     reload: () => loadPosts(mode, key, true), add, update, remove,

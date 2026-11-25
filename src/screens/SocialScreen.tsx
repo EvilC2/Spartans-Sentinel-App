@@ -44,6 +44,7 @@ import {
 } from '../social';
 import { useFocus } from '../nav';
 import { Spot } from '../components/Spot';
+import { WithSheet, With } from '../components/WithSheet';
 import type { ScreenProps } from '../../App';
 
 const FRAME = 430;
@@ -206,6 +207,16 @@ export default function SocialScreen({ topInset }: ScreenProps) {
     return () => clearTimeout(t);
   }, [spot]);
 
+  // From "with …" on Home: that friend's card.
+  useFocus('friend', f => {
+    const friend = social.friends.find(x => x.id === f.id);
+    if (!friend) return false;
+    setOpen(friend);
+    return true;
+  }, [social.friends]);
+  // "With 3 friends" on a Today card: pick who. Just one goes straight to them.
+  const [with_, setWith_] = useState<With | null>(null);
+
   // The class row (the caf's category row): my classes, one per name, spares too.
   const classes = useMemo(() => {
     const seen = new Set<string>();
@@ -249,7 +260,7 @@ export default function SocialScreen({ topInset }: ScreenProps) {
           </View>
         )}
 
-        {friends.length > 0 && <TodayStrip t={t} me={mine} friends={friends} onOpen={setOpen} />}
+        {friends.length > 0 && <TodayStrip t={t} me={mine} friends={friends} onOpen={setOpen} onWith={setWith_} />}
 
         {friends.length > 0 && classes.length > 0 && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingTop: 22, gap: 4 }}>
@@ -308,6 +319,7 @@ export default function SocialScreen({ topInset }: ScreenProps) {
       </ScrollView>
 
       <AddFriendSheet visible={adding} onClose={() => setAdding(false)} social={social} />
+      <WithSheet open={with_} onClose={() => setWith_(null)} onFriend={f => { setWith_(null); setTimeout(() => setOpen(f), 360); }} />
       <FriendSheet friend={openFriend} me={profile} plan={t.plan} isSchoolDay={!!t.plan} onClose={() => setOpen(null)} social={social} />
       {profile && <YouSheet visible={preview} profile={profile} friendCount={friends.length} onClose={() => setPreview(false)} onAvatar={() => { setPreview(false); setPicking(true); }} />}
       {profile && <AvatarSheet visible={picking} profile={profile} onClose={() => setPicking(false)} />}
@@ -466,28 +478,33 @@ const RequestStrip = ({ incoming, outgoing, social, spot }: { incoming: Request[
 
 // ────────────────────────────────────────────────────────────────
 // Today — the caf's specials strip: each block left today that you share
-// with friends, spares included. Tap opens the first friend.
+// with friends, spares included. Tap shows who (one friend: their card).
 // ────────────────────────────────────────────────────────────────
 type Today = ReturnType<typeof useToday>;
-const TodayStrip = ({ t, me, friends, onOpen }: { t: Today; me: Course[]; friends: Friend[]; onOpen: (f: Friend) => void }) => {
+const TodayStrip = ({ t, me, friends, onOpen, onWith }: { t: Today; me: Course[]; friends: Friend[]; onOpen: (f: Friend) => void; onWith: (w: With) => void }) => {
   const { c } = useTheme();
   if (!t.plan || t.phase === 'after' || t.phase === 'none') return null;
   const from = t.currentIndex >= 0 ? t.currentIndex : 0;
   const rows = t.plan.periods
     .map((p, i) => ({ p, i }))
     .filter(({ p, i }) => i >= from && p.kind === 'block')
-    .map(({ p, i }) => ({ p, i, with_: friendsInPeriod(p, me, friends).map(x => x.friend) }))
+    .map(({ p, i }) => ({ p, i, hits: friendsInPeriod(p, me, friends) }))
+    .map(r => ({ ...r, with_: r.hits.map(x => x.friend) }))
     .filter(r => r.with_.length > 0);
   if (!rows.length) return null;
   return (
     <View style={{ paddingTop: 22 }}>
       <Heading text="Today together" />
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, gap: 10 }}>
-        {rows.map(({ p, i, with_ }) => {
+        {rows.map(({ p, i, hits, with_ }) => {
           const now = i === t.currentIndex && t.phase !== 'before';
           const name = blockName(p.course) || blockName(me.find(k => k.slot === p.slot)) || `Block ${p.slot}`;
           return (
-            <Pressable key={i} onPress={() => onOpen(with_[0])} accessibilityRole="button" accessibilityLabel={`${name}, ${fmt12(p.start)}, ${withWho(with_)}`}
+            <Pressable key={i} onPress={() => with_.length === 1 ? onOpen(with_[0]) : onWith({
+              title: `With you in ${p.course?.spare ? 'your spare' : name}`,
+              sub: `${fmt12(p.start)} to ${fmt12(p.end, true)}`,
+              people: hits.map(x => ({ friend: x.friend, spare: x.kind === 'spare' })),
+            })} accessibilityRole="button" accessibilityLabel={`${name}, ${fmt12(p.start)}, ${withWho(with_)}`}
               style={({ pressed }) => [{
                 width: 250, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 20,
                 backgroundColor: c.skyTint, borderWidth: 1, borderColor: '#BFDDF7', opacity: pressed ? 0.85 : 1,

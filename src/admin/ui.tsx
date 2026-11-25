@@ -130,7 +130,7 @@ export const Row = ({ art, icon, label, sub, detail, onPress, trailing, count, d
         </View>
       )}
       {!!detail && <Text numberOfLines={1} style={[{ fontSize: 14, color: c.ink3, maxWidth: 120 }, tnum]}>{detail}</Text>}
-      {trailing ?? (onPress ? <Icon name="chev-r" size={15} stroke={2.2} color={c.ink4} /> : null)}
+      {trailing ? <View>{trailing}</View> : onPress ? <Icon name="chev-r" size={15} stroke={2.2} color={c.ink4} /> : null}
     </Pressable>
   );
 };
@@ -152,7 +152,7 @@ export const PersonRow = ({ person, sub, onPress, trailing, gold }: {
         <Text numberOfLines={1} style={{ fontSize: 16, fontWeight: '600', color: c.ink, letterSpacing: -0.2 }}>{person}</Text>
         {!!sub && <Text numberOfLines={2} style={[{ fontSize: 13, color: c.ink3, marginTop: 1, lineHeight: 17 }, tnum]}>{sub}</Text>}
       </View>
-      {trailing ?? (onPress ? <Icon name="chev-r" size={15} stroke={2.2} color={c.ink4} /> : null)}
+      {trailing ? <View>{trailing}</View> : onPress ? <Icon name="chev-r" size={15} stroke={2.2} color={c.ink4} /> : null}
     </Pressable>
   );
 };
@@ -180,7 +180,13 @@ export const Fold = ({ art, icon, label, sub, open, onToggle, children }: {
           <Icon name="chev-d" size={16} stroke={2.2} color={c.ink4} />
         </View>
       </Pressable>
-      {open && <View style={{ backgroundColor: c.paper, borderTopWidth: 1, borderTopColor: c.line2 }}>{children}</View>}
+      {open && (
+        <View style={{ backgroundColor: c.paper }}>
+          {React.Children.toArray(children).filter(Boolean).map((k, i) => (
+            <View key={i} style={{ borderTopWidth: 1, borderTopColor: c.line2 }}>{k}</View>
+          ))}
+        </View>
+      )}
     </View>
   );
 };
@@ -428,11 +434,15 @@ export const Search = ({ value, onChange, placeholder, busy }: { value: string; 
 // Search for people by name, school email or student number, with the results
 // right under the box. Pair with usePeopleSearch (search.ts).
 type Findable = { id: string; name: string; email: string; grade?: number; teacher?: boolean };
-export const PeopleFinder = <T extends Findable>({ s, placeholder = 'Name, email or student number', none = 'Nobody found. Check the spelling, or try their student number.', action, skip = [] }: {
+export const PeopleFinder = <T extends Findable>({ s, placeholder = 'Name, email or student number', none = 'Nobody found. Check the spelling, or try their student number.', action, skip = [], bare }: {
   s: ReturnType<typeof usePeopleSearch<T>>; placeholder?: string; none?: string; action: (p: T) => React.ReactNode; skip?: string[];
+  bare?: boolean;   // already on a card: no box of its own
 }) => {
   const { c } = useTheme();
   const list = s.found.filter(p => !skip.includes(p.id));
+  const row = (p: T) => (
+    <PersonRow key={p.id} person={p.name || p.email} sub={[p.teacher ? 'Teacher' : p.grade ? `Grade ${p.grade}` : null, p.email].filter(Boolean).join('\n')} trailing={action(p)} />
+  );
   const note = s.state === 'error' ? s.error
     : s.state === 'none' ? none
     : s.state === 'found' && !list.length ? 'Already added.'
@@ -442,11 +452,7 @@ export const PeopleFinder = <T extends Findable>({ s, placeholder = 'Name, email
       <Search value={s.q} onChange={s.setQ} placeholder={placeholder} busy={s.state === 'busy'} />
       {!!note && <Text accessibilityLiveRegion="polite" style={{ fontSize: 13.5, color: s.state === 'error' ? c.danger : c.ink3, lineHeight: 19, paddingHorizontal: 4 }}>{note}</Text>}
       {list.length > 0 && (s.state === 'found' || s.state === 'busy') && (
-        <Group>
-          {list.map(p => (
-            <PersonRow key={p.id} person={p.name || p.email} sub={[p.teacher ? 'Teacher' : p.grade ? `Grade ${p.grade}` : null, p.email].filter(Boolean).join(' · ')} trailing={action(p)} />
-          ))}
-        </Group>
+        bare ? <View style={{ marginHorizontal: -14 }}>{list.map(row)}</View> : <Group>{list.map(row)}</Group>
       )}
     </View>
   );

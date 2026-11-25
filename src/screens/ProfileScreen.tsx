@@ -19,7 +19,7 @@ import { AppHeader } from '../components/AppHeader';
 import { useClassSheet } from '../components/ClassCard';
 import { XpSheet } from '../components/XpSheet';
 import { XpBar } from '../components/XpBar';
-import { useProfile, StudentProfile, Course, fullName, gradeLabel, homeroom, teacherShort, roomShort, courseAt, Slot } from '../ProfileContext';
+import { useProfile, StudentProfile, Course, fullName, gradeLabel, homeroom, teacherShort, roomShort, courseAt, Slot, isTeacher, PREP } from '../ProfileContext';
 import { BadgesSheet, unlockedCount } from './BadgesScreen';
 import { useFocus } from '../nav';
 import { BadgeIcon, BadgeArt } from '../components/BadgeArt';
@@ -28,6 +28,7 @@ import { badgeOf, MAX_PINNED } from '../social';
 import { useEarnedVersion } from '../earned';
 import { SettingsSection } from './Settings';
 import { clubRoles, isTop, mainRole, roleLabel } from '../ranks';
+import { useTeacher } from '../teacher';
 import type { ScreenProps } from '../../App';
 
 // Shape the card/header components read. Built from the saved profile.
@@ -45,6 +46,7 @@ export default function ProfileScreen({ onNavigate, topInset, onEdit }: ScreenPr
   const p = profile!;
   useEffect(() => { refreshRoles(); }, []);   // pick up roles granted since last launch
   const stu = toStu(p);
+  const teacher = isTeacher(p);
   const [badges, setBadges] = useState(false);
   const [xp, setXp] = useState(false);
   const sheet = useClassSheet();
@@ -60,13 +62,15 @@ export default function ProfileScreen({ onNavigate, topInset, onEdit }: ScreenPr
 
       {/* ── Profile header ──────────────────────────────────── */}
       <ProfileHeader stu={stu} p={p} onBadges={() => setBadges(true)} onXp={() => setXp(true)} />
-      <PinnedBadges p={p} onPress={() => setBadges(true)} />
+      {!teacher && <PinnedBadges p={p} onPress={() => setBadges(true)} />}
 
       {/* ── Student ID card ─────────────────────────────────── */}
-      <View style={{ paddingTop: 4, paddingHorizontal: 20 }}>
-        <StudentIdCard p={p} />
-        <Text style={{ textAlign: 'center', fontSize: 11, color: c.ink4, marginTop: 8 }}>Tap the card to flip it</Text>
-      </View>
+      {!teacher && (
+        <View style={{ paddingTop: 4, paddingHorizontal: 20 }}>
+          <StudentIdCard p={p} />
+          <Text style={{ textAlign: 'center', fontSize: 11, color: c.ink4, marginTop: 8 }}>Tap the card to flip it</Text>
+        </View>
+      )}
 
       {/* ── My timetable ────────────────────────────────────── */}
       <SectionHeader title="My timetable" trailing="Day view" onTrailing={() => onNavigate('dayview')} />
@@ -106,6 +110,8 @@ export default function ProfileScreen({ onNavigate, topInset, onEdit }: ScreenPr
 const ProfileHeader = ({ stu, p, onBadges, onXp }: { stu: Stu; p: StudentProfile; onXp: () => void; onBadges: () => void }) => {
   const { c } = useTheme();
   const { roles } = useProfile();
+  const teacher = isTeacher(p);
+  const { confirmed } = useTeacher();
   const n = unlockedCount();
   // App Club role pill: gold for the top roles (President, Teacher Sponsor;
   // the app's owner reads as President), navy for any other club role, and
@@ -113,7 +119,7 @@ const ProfileHeader = ({ stu, p, onBadges, onXp }: { stu: Stu; p: StudentProfile
   const top = isTop(roles) ? mainRole(roles) : null;
   const rolePill = top ? { label: roleLabel(top), bg: c.goldTint, fg: c.gold, icon: 'shield' as IconName }
     : clubRoles(roles).length ? { label: 'App Club', bg: c.navy50, fg: c.navy700, icon: 'shield' as IconName }
-    : roles.length ? { label: roleLabel('teacher'), bg: c.navy50, fg: c.navy700, icon: 'grad' as IconName } : null;
+    : roles.length && !teacher ? { label: roleLabel('teacher'), bg: c.navy50, fg: c.navy700, icon: 'grad' as IconName } : null;
   return (
     <View style={{
       paddingTop: 22, paddingHorizontal: 20, paddingBottom: 18,
@@ -125,7 +131,7 @@ const ProfileHeader = ({ stu, p, onBadges, onXp }: { stu: Stu; p: StudentProfile
           fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase',
           fontWeight: '700', color: c.ink3,
         }}>
-          Student
+          {teacher ? 'Teacher' : 'Student'}
         </Text>
         <Text style={{
           fontSize: 24, fontWeight: '600', color: c.ink,
@@ -134,11 +140,17 @@ const ProfileHeader = ({ stu, p, onBadges, onXp }: { stu: Stu; p: StudentProfile
           {stu.name}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3, flexWrap: 'wrap' }}>
-          <Text style={{ fontSize: 13, color: c.ink3 }}>{stu.gradeLabel}</Text>
-          <Text style={{ fontSize: 13, color: c.ink4 }}>·</Text>
-          <Text style={{ fontSize: 13, color: c.ink3 }}>Homeroom {stu.homeroom}</Text>
-          <Text style={{ fontSize: 13, color: c.ink4 }}>·</Text>
-          <Text style={{ fontSize: 13, color: c.ink3 }}>{stu.pronouns}</Text>
+          {teacher ? (
+            <Text style={{ fontSize: 13, color: c.ink3 }}>{[p.dept, confirmed ? null : 'Waiting to be confirmed'].filter(Boolean).join(' · ') || 'Sentinel Secondary'}</Text>
+          ) : (
+            <>
+              <Text style={{ fontSize: 13, color: c.ink3 }}>{stu.gradeLabel}</Text>
+              <Text style={{ fontSize: 13, color: c.ink4 }}>·</Text>
+              <Text style={{ fontSize: 13, color: c.ink3 }}>Homeroom {stu.homeroom}</Text>
+              <Text style={{ fontSize: 13, color: c.ink4 }}>·</Text>
+              <Text style={{ fontSize: 13, color: c.ink3 }}>{stu.pronouns}</Text>
+            </>
+          )}
           {rolePill && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 999, backgroundColor: rolePill.bg }}>
               <Icon name={rolePill.icon} size={11} stroke={2.2} color={rolePill.fg} />
@@ -146,18 +158,20 @@ const ProfileHeader = ({ stu, p, onBadges, onXp }: { stu: Stu; p: StudentProfile
             </View>
           )}
         </View>
-        <XpBar rank onPress={onXp} style={{ marginTop: 10 }} />
+        {!teacher && <XpBar rank onPress={onXp} style={{ marginTop: 10 }} />}
       </View>
       {/* Badge button — right of the name, above the ID card */}
-      <Pressable
-        onPress={onBadges}
-        hitSlop={8}
-        accessibilityRole="button"
-        accessibilityLabel={`Badges, ${n} unlocked`}
-        style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-      >
-        <BadgeIcon size={50} />
-      </Pressable>
+      {!teacher && (
+        <Pressable
+          onPress={onBadges}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={`Badges, ${n} unlocked`}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+        >
+          <BadgeIcon size={50} />
+        </Pressable>
+      )}
     </View>
   );
 };
@@ -223,18 +237,19 @@ const WeekTable = ({ p, onCourse }: { p: StudentProfile; onCourse: (k: Course) =
           <View style={{ width: NUM_W, alignItems: 'center', justifyContent: 'center', borderRightWidth: 1, borderRightColor: c.line2, backgroundColor: c.paper2 }}>
             <Text style={[{ fontFamily: fonts.serif, fontSize: 18, color: c.ink2, letterSpacing: -0.3 }, tnum]}>{r.n}</Text>
           </View>
-          <TableCell k={r.d1} slot={`1-${r.n}`} divider onPress={r.d1 && !r.d1.spare && r.d1.name ? () => onCourse(r.d1!) : undefined} />
-          <TableCell k={r.d2} slot={`2-${r.n}`} onPress={r.d2 && !r.d2.spare && r.d2.name ? () => onCourse(r.d2!) : undefined} />
+          <TableCell own={isTeacher(p)} k={r.d1} slot={`1-${r.n}`} divider onPress={r.d1 && !r.d1.spare && r.d1.name ? () => onCourse(r.d1!) : undefined} />
+          <TableCell own={isTeacher(p)} k={r.d2} slot={`2-${r.n}`} onPress={r.d2 && !r.d2.spare && r.d2.name ? () => onCourse(r.d2!) : undefined} />
         </View>
       ))}
     </View>
   );
 };
 
-const TableCell = ({ k, slot, divider = false, onPress }: { k?: Course; slot: string; divider?: boolean; onPress?: () => void }) => {
+const TableCell = ({ k, slot, divider = false, onPress, own = false }: { k?: Course; slot: string; divider?: boolean; onPress?: () => void; own?: boolean }) => {
   const { c } = useTheme();
-  const name = k?.spare ? 'Spare' : (k?.name || `Block ${slot}`);
-  const sub = k?.spare ? '' : [teacherShort(k?.teacher || ''), k?.room ? roomShort(k.room) : null].filter(Boolean).join(' · ');
+  const name = k?.spare ? (k.name === PREP ? PREP : 'Spare') : (k?.name || `Block ${slot}`);
+  // A teacher's own name on every block says nothing: show the room alone.
+  const sub = k?.spare ? '' : [own ? null : teacherShort(k?.teacher || ''), k?.room ? roomShort(k.room) : null].filter(Boolean).join(' · ');
   const color = k?.color || c.ink4;
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={onPress ? `${name}, open class card` : undefined} style={({ pressed }) => ({ flex: 1, minWidth: 0, flexDirection: 'row', gap: 8, alignItems: 'center', paddingVertical: 11, paddingHorizontal: 12, borderRightWidth: divider ? 1 : 0, borderRightColor: c.line2, backgroundColor: pressed ? c.paper2 : 'transparent' })}>

@@ -25,7 +25,7 @@ import { ProgramIcon, wash, glow, onGlow } from '../components/ProgramIcon';
 import { ProgramBody } from '../components/ProgramBody';
 import { ScrollerCtx, useHomeworkScroller } from '../components/HomeworkList';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useProfile, teacherShort, roomShort } from '../ProfileContext';
+import { useProfile, teacherShort, roomShort, isTeacher } from '../ProfileContext';
 import { useNav } from '../nav';
 import { useHomework } from '../stores';
 import {
@@ -77,7 +77,7 @@ export default function ProgramsScreen({ topInset, onEdit, onNavigate }: ScreenP
     <ScrollerCtx.Provider value={scroller}>
     <View {...rootProps} style={{ flex: 1 }}>
     <ScrollView {...scrollProps} style={{ flex: 1, backgroundColor: c.paper }} contentContainerStyle={{ paddingBottom: kb ? kb + 40 : 110 }} showsVerticalScrollIndicator={false}>
-      <AppHeader topInset={topInset} title="Programs" count={
+      <AppHeader topInset={topInset} title={isTeacher(profile) ? 'Classes' : 'Programs'} count={
         <View style={{ minWidth: 30, height: 26, paddingHorizontal: 10, borderRadius: 13, backgroundColor: c.navy50, alignItems: 'center', justifyContent: 'center' }} accessibilityLabel={`${programs.length} programs`}>
           <Text style={[{ fontSize: 13, fontWeight: '700', color: c.link }, tnum]}>{programs.length}</Text>
         </View>

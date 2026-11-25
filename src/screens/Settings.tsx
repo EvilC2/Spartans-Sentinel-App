@@ -16,7 +16,7 @@ import { useTheme, ThemePref } from '../ThemeContext';
 import { colors, fonts, shadow, tnum, G135 } from '../theme';
 import { Icon, IconName } from '../components/Icon';
 import { ClubCoin, SectionHeader } from '../components/Chrome';
-import { useProfile, fullName } from '../ProfileContext';
+import { useProfile, fullName, isTeacher, gradeLabel } from '../ProfileContext';
 import { backendConfigured } from '../supabase';
 import { MIN_PASSWORD } from '../auth';
 import { ask } from '../confirm';
@@ -77,14 +77,14 @@ export function SettingsSection({ onEdit }: { onEdit: (w: EditWhat) => void }) {
       </Text>
       <View style={{ paddingHorizontal: 20 }}>
         <ListCard>
-          <Row icon="me" label="Edit profile" sub="Name, grade, pronouns, student number, photo" onPress={() => onEdit('profile')} />
-          <Row icon="calendar" label="Edit classes" sub="Day 1 and Day 2 blocks, outside the timetable" onPress={() => onEdit('classes')} />
-          <Row
+          <Row icon="me" label="Edit profile" sub={isTeacher(profile) ? 'Name and department' : 'Name, grade, pronouns, student number, photo'} onPress={() => onEdit('profile')} />
+          <Row icon="calendar" label="Edit classes" sub={isTeacher(profile) ? 'The class you teach in each block' : 'Day 1 and Day 2 blocks, outside the timetable'} onPress={() => onEdit('classes')} />
+          {!isTeacher(profile) && <Row
             icon="sparkle"
             label={catchUp?.doneAt ? 'Redo Catch Up' : 'Catch Up'}
             sub={catchUp?.doneAt ? 'Change your answers about your time at Sentinel' : `Get the badges and XP you would have earned. ${catchUp?.score || 0}% done`}
             onPress={doCatchUp}
-          />
+          />}
           <Row icon="shield" label="Account & privacy" sub={profile?.email || 'Password, who sees what, delete account'} onPress={() => setOpen('account')} last />
         </ListCard>
       </View>
@@ -517,9 +517,9 @@ const AccountSheet = ({ visible, onClose, onEdit }: { visible: boolean; onClose:
     <Sheet visible={visible} onClose={onClose} title="Account & privacy">
       {/* Who you are */}
       <ListCard>
-        <Row icon="me" label={fullName(profile) || 'Student'} sub={`Grade ${profile.grade}${profile.studentId ? ` · Student # ${profile.studentId}` : ''}`} onPress={() => onEdit('profile')} />
+        <Row icon="me" label={fullName(profile) || 'Student'} sub={isTeacher(profile) ? gradeLabel(profile) : `Grade ${profile.grade}${profile.studentId ? ` · Student # ${profile.studentId}` : ''}`} onPress={() => onEdit('profile')} />
         <Row icon="mail" label={profile.email || 'No school email'} sub="Your sign-in. Can't be changed." />
-        <Row icon="cloud" label={sync} sub={roles.length ? `App Club: ${rankLabel(roles as Role[])}` : 'Account type: student'} last />
+        <Row icon="cloud" label={sync} sub={roles.length ? `App Club: ${rankLabel(roles as Role[])}` : isTeacher(profile) ? 'Account type: teacher, waiting to be confirmed' : 'Account type: student'} last />
       </ListCard>
 
       {/* Password */}

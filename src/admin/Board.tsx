@@ -44,8 +44,8 @@ export const BoardView = ({ board, art, tone, canEdit = true }: {
         { id: 'all', label: 'All', count: items.length },
         ...info.statuses.map(s => ({ id: s.id, label: s.label, count: items.filter(i => i.status === s.id).length })),
       ]} />
-      {usedTags.length > 1 && (
-        <Seg value={tag} onChange={setTag} options={[{ id: 'all', label: `Every ${(info.tagLabel || 'tag').toLowerCase()}` }, ...usedTags.map(t => ({ id: t, label: t }))]} />
+      {usedTags.length > 1 && items.length > 6 && (
+        <Seg value={tag} onChange={setTag} options={[{ id: 'all', label: 'Any' }, ...usedTags.map(t => ({ id: t, label: t }))]} />
       )}
       {b.items === null && <Text style={{ fontSize: 13, color: c.ink3 }}>Loading…</Text>}
       {b.items !== null && shown.length === 0 && <Empty art={art} title={items.length ? 'Nothing here' : `No ${info.noun}s yet`} sub={canEdit && !items.length ? `Tap "${info.add}" to add the first one.` : undefined} />}

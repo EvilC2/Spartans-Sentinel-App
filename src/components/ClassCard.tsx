@@ -16,7 +16,7 @@ import { useTheme } from '../ThemeContext';
 import { fonts, shadow, tnum } from '../theme';
 import { Icon } from './Icon';
 import { BottomSheet, SheetScroll } from './BottomSheet';
-import { useProfile, Slot, SLOT_COLORS, teacherShort, roomShort, Course } from '../ProfileContext';
+import { useProfile, Slot, SLOT_COLORS, teacherShort, roomShort, Course, isTeacher } from '../ProfileContext';
 import { CALENDAR, toISO } from '../calendar';
 import { buildDayPlan } from '../bell';
 import { ProgramIcon, glow, wash } from './ProgramIcon';
@@ -92,7 +92,7 @@ const ClassSheet = ({ item: ref, onClose }: { item: ClassRef | null; onClose: ()
   };
   const col = glow(pr.color, mode);
   const lead = pr.kind === 'class' ? pr.slots.join('  ') : KIND_ONE[pr.kind];
-  const teacher = teacherShort(pr.teacher || '');
+  const teacher = isTeacher(profile) ? '' : teacherShort(pr.teacher || '');   // a teacher's own name says nothing here
   const room = pr.kind === 'class' && pr.room ? roomShort(pr.room) : '';
 
   return (
@@ -131,7 +131,7 @@ const ClassSheet = ({ item: ref, onClose }: { item: ClassRef | null; onClose: ()
                 contentContainerStyle={{ paddingBottom: 40 + kb }}
                 showsVerticalScrollIndicator={false}
               >
-                <ProgramBody pr={pr} onNavigate={t => { onClose(); nav.go(t); }} />
+                <ProgramBody key={`${pr.id}:${ref.slot || ''}`} pr={pr} slot={ref.slot} onNavigate={t => { onClose(); nav.go(t); }} />
               </SheetScroll>
             </View>
           </ScrollerCtx.Provider>

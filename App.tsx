@@ -1,4 +1,5 @@
 // Spartans — functioning app shell.
+// Teachers (src/teacher.ts) get their own Home and no Social tab or Catch Up.
 // Six tabs (Home, Programs, Calendar, Announcements, Social, More) plus
 // sub-screens reached from More, the header, Quick links or a program row
 // (Contacts, Homework, Me, Day view, Program). The Buzz lives on Home only. Theme
@@ -32,6 +33,8 @@ import { ContentProvider } from './src/content';
 import { FRAME_MAX_WIDTH, shadow } from './src/theme';
 import { TabBar, TabId } from './src/components/Chrome';
 import HomeScreen from './src/screens/HomeScreen';
+import TeacherHome from './src/screens/TeacherHome';
+import { useTeacher } from './src/teacher';
 import CalendarScreen from './src/screens/CalendarScreen';
 import HomeworkScreen from './src/screens/HomeworkScreen';
 import AnnouncementsScreen from './src/screens/NewsScreen';
@@ -66,6 +69,7 @@ const CATCH_UP_ASKED_KEY = 'spartans-catchup-asked-v1';
 function Shell() {
   const { c, mode } = useTheme();
   const { profile, loaded: profileLoaded, signedIn, catchUpOpen, openCatchUp, closeCatchUp } = useProfile();
+  const { teacher } = useTeacher();
   const [splashHeld, setSplashHeld] = useState(true);
   useEffect(() => {
     const t = setTimeout(() => setSplashHeld(false), SPLASH_MIN_MS);
@@ -87,7 +91,7 @@ function Shell() {
 
   // Catch Up is optional: it asks once (at first launch or right after a new
   // account), then lives on the Badges page until it's finished.
-  const catchUpDue = loaded && !!profile && signedIn && !profile.catchUp?.doneAt;
+  const catchUpDue = loaded && !!profile && signedIn && !teacher && !profile.catchUp?.doneAt;
   useEffect(() => {
     if (!catchUpDue) return;
     let gone = false;
@@ -100,7 +104,7 @@ function Shell() {
   }, [catchUpDue]);   // eslint-disable-line react-hooks/exhaustive-deps
   // Practice runs (Developer screen) open over everything and save nothing.
   const practice = useCatchUpPractice();
-  const showCatchUp = loaded && !!profile && signedIn && (catchUpOpen || !!practice);
+  const showCatchUp = loaded && !!profile && signedIn && ((catchUpOpen && !teacher) || !!practice);
   const inApp = loaded && !!profile && signedIn;
 
   // Widget and Live Activity taps (spartans://homework …) open that page.
@@ -155,11 +159,12 @@ function Shell() {
 
         {loaded && profile && signedIn && !editing && !showCatchUp && (
           <>
-            {tab === 'home' && <HomeScreen {...screenProps} />}
+            {/* Social is for students: a teacher who lands there gets Home. */}
+            {(tab === 'home' || (teacher && tab === 'social')) && (teacher ? <TeacherHome {...screenProps} /> : <HomeScreen {...screenProps} />)}
             {tab === 'programs' && <ProgramsScreen {...screenProps} />}
             {tab === 'announcements' && <AnnouncementsScreen {...screenProps} />}
             {tab === 'calendar' && <CalendarScreen {...screenProps} />}
-            {tab === 'social' && <SocialScreen {...screenProps} />}
+            {tab === 'social' && !teacher && <SocialScreen {...screenProps} />}
             {tab === 'more' && <MoreScreen {...screenProps} />}
             {tab === 'homework' && <HomeworkScreen {...screenProps} />}
             {tab === 'contacts' && <ContactsScreen {...screenProps} />}
@@ -167,7 +172,7 @@ function Shell() {
             {tab === 'me' && <ProfileScreen {...screenProps} />}
             {tab === 'map' && <MapScreen {...screenProps} />}
             {tab === 'admin' && <AdminScreen {...screenProps} />}
-            <TabBar active={tab} onNavigate={nav.go} bottomInset={insets.bottom} />
+            <TabBar active={teacher && tab === 'social' ? 'home' : tab} onNavigate={nav.go} bottomInset={insets.bottom} teacher={teacher} />
           </>
         )}
       </View>

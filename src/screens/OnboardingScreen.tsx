@@ -5,6 +5,8 @@
 //   Sign in: school email or student number (barcode scan works too) + password. Checks the
 //     Spartans account (server, cached on this device); sessions persist until Sign out.
 //   Deliberately plain: function over looks.
+//   Teachers: "I'm a teacher" on the splash → two short pages (you · your classes) with a
+//     wvschools.ca address. The staff list fills in the name. See TeacherForm.
 // ProfileEditor re-uses the same pages from Settings, split in two: Edit profile
 //   (About you · School ID · Photo) and Edit classes (Day 1 · Day 2 · Outside).
 //   No steps or review: jump between tabs, Save any time. The password is not
@@ -21,7 +23,9 @@ import { SplashBackground, SilverSpartan, SplashTitle } from '../components/Spla
 import {
   StudentProfile, emptyProfile, Slot, SLOTS, HOMEROOM_SLOT, Course, ExtraCourse, useProfile,
   fullName, EMAIL_DOMAIN, isValidEmailLocal, roomProblem, normalizeRoom, matchRooms, roomShort,
+  isTeacher, TEACHER_DOMAIN, isValidTeacherLocal, PREP, teacherName,
 } from '../ProfileContext';
+import { STAFF } from '../staff';
 import { hashPassword, MIN_PASSWORD } from '../auth';
 import { matchCourses, matchExtras, matchTeachers, teacherLabel } from '../catalog';
 import { Icon } from '../components/Icon';
@@ -53,9 +57,10 @@ const TAB_LABEL: Record<StepId, string> = {
 
 // ════════════════════════════════════════════════════════════════
 export default function OnboardingScreen({ initial, onDone, onCancel, topInset }: Props) {
-  const [mode, setMode] = useState<'splash' | 'signup' | 'signin'>(initial ? 'signup' : 'splash');
+  const [mode, setMode] = useState<Entry | 'splash'>(initial ? 'signup' : 'splash');
   if (mode === 'splash') return <Splash topInset={topInset} onEnter={m => setMode(m)} />;
   if (mode === 'signin') return <SignIn topInset={topInset} onDone={onDone} onBack={() => setMode('splash')} />;
+  if (mode === 'teacher') return <TeacherForm topInset={topInset} onDone={onDone} onBack={() => setMode('splash')} />;
   return (
     <Questionnaire
       initial={initial}
@@ -70,6 +75,7 @@ export default function OnboardingScreen({ initial, onDone, onCancel, topInset }
 // Settings → Edit profile / Edit classes.
 export function ProfileEditor({ what, onDone, onCancel, topInset }: { what: EditWhat; onDone: () => void; onCancel: () => void; topInset: number }) {
   const { profile } = useProfile();
+  if (isTeacher(profile)) return <TeacherForm initial={profile} edit={what} onDone={onDone} onCancel={onCancel} topInset={topInset} />;
   return <Questionnaire initial={profile} edit={what} onDone={onDone} onCancel={onCancel} topInset={topInset} />;
 }
 
@@ -77,7 +83,8 @@ export function ProfileEditor({ what, onDone, onCancel, topInset }: { what: Edit
 // Splash — crest + school name + Enter. Enter plays a short animation
 // (crest swells, card lifts, everything fades) and then hands off.
 // ────────────────────────────────────────────────────────────────
-const Splash = ({ topInset, onEnter }: { topInset: number; onEnter: (m: 'signup' | 'signin') => void }) => {
+type Entry = 'signup' | 'signin' | 'teacher';
+const Splash = ({ topInset, onEnter }: { topInset: number; onEnter: (m: Entry) => void }) => {
   const { c } = useTheme();
   const t = useRef(new Animated.Value(0)).current;   // 0 idle → 1 exiting
   const intro = useRef(new Animated.Value(0)).current;
@@ -87,7 +94,7 @@ const Splash = ({ topInset, onEnter }: { topInset: number; onEnter: (m: 'signup'
     Animated.timing(intro, { toValue: 1, duration: 350, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, [intro]);
 
-  const enter = (m: 'signup' | 'signin') => {
+  const enter = (m: Entry) => {
     if (busy) return;
     setBusy(true);
     Animated.timing(t, { toValue: 1, duration: 320, easing: Easing.inOut(Easing.cubic), useNativeDriver: true })
@@ -123,6 +130,16 @@ const Splash = ({ topInset, onEnter }: { topInset: number; onEnter: (m: 'signup'
           })}
         >
           <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600', letterSpacing: 0.4 }}>Sign in</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => enter('teacher')}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="I'm a teacher. Sign up with a staff email"
+          style={({ pressed }) => ({ marginTop: 16, minHeight: 44, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 7, opacity: pressed ? 0.6 : 1 })}
+        >
+          <Icon name="grad" size={17} stroke={1.9} color="rgba(255,255,255,0.9)" />
+          <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 15, fontWeight: '600' }}>I'm a teacher</Text>
         </Pressable>
       </Animated.View>
     </SplashBackground>
@@ -710,7 +727,7 @@ const SignIn = ({ topInset, onDone, onBack }: { topInset: number; onDone: () => 
           <TextInput
             value={id}
             onChangeText={setId}
-            placeholder="johnd907@edu.sd45.bc.ca or 1234567"
+            placeholder="johnd907, or your staff email"
             placeholderTextColor={c.ink4}
             autoCapitalize="none"
             autoCorrect={false}
@@ -762,6 +779,300 @@ const SignIn = ({ topInset, onDone, onBack }: { topInset: number; onDone: () => 
 };
 
 // ────────────────────────────────────────────────────────────────
+// Teachers. Sign up is two short pages:
+//   You           staff email (the staff list fills in the name), password,
+//                 and a teacher code if the App Club gave one
+//   Your classes  the eight blocks; an empty block is a prep
+// Settings re-uses them one at a time: Edit profile (name, department) and
+// Edit classes. No grade, student number or ID card anywhere.
+// The server account is made before anything is kept on this phone, so a
+// refusal shows here instead of leaving an account only this phone knows.
+// ────────────────────────────────────────────────────────────────
+const teacherStart = (): StudentProfile => ({ ...emptyProfile(), kind: 'teacher', grade: 0, pronouns: '' });
+
+const signUpProblem = (e: any) => {
+  const msg = String(e?.message || '');
+  if (/sd45/i.test(msg)) return 'Teacher sign-up is not switched on yet. Ask the App Club to run migration 0026.';
+  if (/already registered|already exists/i.test(msg)) return 'There is already an account for that email. Go back and sign in.';
+  if (/network|fetch|timeout/i.test(msg) || !msg) return 'Could not reach the server. Check your connection and try again.';
+  return msg;
+};
+
+const TeacherForm = ({ initial, edit, onDone, onCancel, onBack, topInset }: {
+  initial?: StudentProfile | null; edit?: EditWhat; onDone: () => void; onCancel?: () => void; onBack?: () => void; topInset: number;
+}) => {
+  const { c } = useTheme();
+  const { save, redeemInvite } = useProfile();
+  // A prep block is stored like a spare; here it is just an empty block.
+  const [p, setP] = useState<StudentProfile>(() => initial
+    ? { ...initial, courses: initial.courses.map(k => (k.spare ? { ...k, spare: false, name: '', room: '' } : { ...k })) }
+    : teacherStart());
+  const [start] = useState(() => JSON.stringify(p));
+  const [page, setPage] = useState<'you' | 'classes'>(edit === 'classes' ? 'classes' : 'you');
+  const [emailLocal, setEmailLocal] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [showPw, setShowPw] = useState(false);
+  const [code, setCode] = useState('');
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const emailRef = useRef<TextInput>(null);
+  const filled = useRef('|');   // the name the staff list last filled in
+
+  const set = (patch: Partial<StudentProfile>) => setP(x => ({ ...x, ...patch }));
+  const setCourse = (slot: Slot, patch: Partial<Course>) =>
+    setP(x => ({ ...x, courses: x.courses.map(k => k.slot === slot ? { ...k, ...patch } : k) }));
+
+  const emailOk = isValidTeacherLocal(emailLocal);
+  const email = emailOk ? `${emailLocal.toLowerCase()}@${TEACHER_DOMAIN}` : '';
+  const staff = email ? STAFF.find(m => m.email.toLowerCase() === email) : undefined;
+
+  // The staff list knows this address: fill in the name, unless they typed their own.
+  useEffect(() => {
+    if (!staff || initial) return;
+    setP(x => {
+      const typed = `${x.firstName}|${x.lastName}`;
+      if (typed !== '|' && typed !== filled.current) return x;
+      filled.current = `${staff.first}|${staff.last}`;
+      return { ...x, firstName: staff.first, lastName: staff.last, dept: staff.role };
+    });
+  }, [staff?.email]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  const validate = (which: 'you' | 'classes'): string | null => {
+    if (which === 'you') {
+      if (!initial) {
+        if (!emailLocal.trim()) return 'Your staff email is required.';
+        if (!emailOk) return 'Use the part of your staff email before the @, like dgrant.';
+      }
+      if (!p.firstName.trim()) return 'First name is required.';
+      if (!p.lastName.trim()) return 'Last name is required.';
+      if (!initial) {
+        if (password.length < MIN_PASSWORD) return `Password needs at least ${MIN_PASSWORD} characters.`;
+        if (confirm !== password) return 'The two passwords do not match.';
+      }
+      return null;
+    }
+    for (const k of p.courses) {
+      if (!k.name.trim()) continue;
+      const rp = roomProblem(k.room);
+      if (rp) return `Block ${k.slot} room: ${rp}.`;
+    }
+    return null;
+  };
+
+  const finish = async () => {
+    if (busy) return;
+    const pages: ('you' | 'classes')[] = edit ? [edit === 'classes' ? 'classes' : 'you'] : ['you', 'classes'];
+    for (const w of pages) {
+      const e = validate(w);
+      if (e) { setPage(w); setErr(e); return; }
+    }
+    setErr(null);
+    const me = { ...p, firstName: p.firstName.trim(), lastName: p.lastName.trim(), dept: (p.dept || '').trim() };
+    const clean: StudentProfile = {
+      ...me, kind: 'teacher', grade: 0, studentId: '',
+      email: email || initial?.email || '',
+      passwordHash: password ? hashPassword(password) : (initial?.passwordHash || ''),
+      courses: me.courses.map(k => k.name.trim()
+        ? { ...k, spare: false, name: k.name.trim(), room: k.room.trim(), teacher: teacherName(me) }
+        : { ...k, spare: true, name: PREP, teacher: '', room: '' }),
+    };
+    try {
+      setBusy(true);
+      await save(clean, password || undefined, { serverFirst: !initial });
+    } catch (e: any) {
+      setErr(signUpProblem(e));
+      return;
+    } finally {
+      setBusy(false);
+    }
+    // A code that doesn't work is not lost: Home asks for it again.
+    if (!initial && code.trim()) redeemInvite(code.trim()).catch(() => {});
+    onDone();
+  };
+
+  const next = () => {
+    const e = validate('you');
+    if (e) { setErr(e); return; }
+    setErr(null);
+    setPage('classes');
+  };
+  const cancel = async () => {
+    if (JSON.stringify(p) !== start && !(await ask('Discard changes?', 'Nothing you changed here will be saved.', 'Discard', true))) return;
+    onCancel?.();
+  };
+
+  const you = (
+    <View>
+      {!initial && (
+        <Text style={{ fontSize: 14, color: c.ink3, lineHeight: 20 }}>
+          For Sentinel staff. Post announcements to your classes and see who is in each one.
+        </Text>
+      )}
+      <Text style={labelStyleFor(c)}>Staff email</Text>
+      {initial ? (
+        <>
+          <View style={[inputStyleFor(c), { backgroundColor: c.paper2 }]}>
+            <Text style={{ fontSize: 16, color: c.ink2 }} numberOfLines={1}>{initial.email}</Text>
+          </View>
+          <Text style={{ fontSize: 12, color: c.ink4, marginTop: 6 }}>This is how you sign in, so it can't be changed.</Text>
+        </>
+      ) : (
+        <>
+          <EmailRow
+            inputRef={emailRef}
+            value={emailLocal}
+            onChangeText={v => setEmailLocal(v.replace(/[^A-Za-z.'-]/g, '').toLowerCase())}
+            domain={TEACHER_DOMAIN}
+            placeholder="dgrant"
+          />
+          {!!staff && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 }}>
+              <Icon name="check-circle" size={15} stroke={2} color={c.moss} />
+              <Text style={{ flex: 1, fontSize: 13, color: c.moss, fontWeight: '600' }}>Found you in the staff list.</Text>
+            </View>
+          )}
+          {!!emailLocal && !emailOk && (
+            <Text style={{ fontSize: 12, color: c.crimson, marginTop: 6 }}>Just the part before the @, like dgrant.</Text>
+          )}
+        </>
+      )}
+      <Field l="First name" value={p.firstName} onChange={v => set({ firstName: v })} placeholder="John" />
+      <Field l="Last name" value={p.lastName} onChange={v => set({ lastName: v })} placeholder="Doe" />
+      <Field l="Department (optional)" value={p.dept} onChange={v => set({ dept: v.slice(0, 80) })} placeholder="Science" />
+
+      {!initial && (
+        <>
+          <Text style={labelStyleFor(c)}>Password</Text>
+          <View style={[inputStyleFor(c), { flexDirection: 'row', alignItems: 'center', paddingVertical: 0 }]}>
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder={`At least ${MIN_PASSWORD} characters`}
+              placeholderTextColor={c.ink4}
+              secureTextEntry={!showPw}
+              autoCapitalize="none"
+              autoCorrect={false}
+              accessibilityLabel="Password"
+              style={{ flex: 1, fontSize: 16, color: c.ink, paddingVertical: 11 }}
+            />
+            <Pressable onPress={() => setShowPw(v => !v)} hitSlop={8}>
+              <Text style={{ fontSize: 13, color: c.navy700, fontWeight: '600' }}>{showPw ? 'Hide' : 'Show'}</Text>
+            </Pressable>
+          </View>
+          <Text style={{ fontSize: 12, color: c.ink4, marginTop: 6 }}>A new password for this app, not your school one.</Text>
+          <ConfirmPassword
+            visible={password.length > 0}
+            value={confirm}
+            onChange={setConfirm}
+            show={showPw}
+            match={confirm.length > 0 && confirm === password}
+            mismatch={confirm.length > 0 && confirm !== password}
+          />
+          <Field l="Teacher code (optional)" value={code} onChange={v => setCode(v.replace(/\s/g, '').toUpperCase().slice(0, 16))} placeholder="From the App Club" autoCap="characters" />
+          <Text style={{ fontSize: 12, color: c.ink4, marginTop: 6, lineHeight: 17 }}>
+            With a code you can post right away. Without one, the App Club confirms you are a teacher first, usually within a day.
+          </Text>
+        </>
+      )}
+    </View>
+  );
+
+  const classes = (
+    <View>
+      <Text style={{ fontSize: 14, color: c.ink3, lineHeight: 20 }}>
+        Type the class you teach in each block. Leave a block empty if it is your prep. You can change these any time.
+      </Text>
+      {([1, 2] as const).map(day => (
+        <View key={day}>
+          <Text style={{ fontSize: 17, fontWeight: '700', color: c.ink, letterSpacing: -0.3, marginTop: 20 }}>Day {day}</Text>
+          {SLOTS.filter(sl => sl.startsWith(`${day}-`)).map(slot => {
+            const k = p.courses.find(x => x.slot === slot)!;
+            const has = !!k.name.trim();
+            return (
+              <View key={slot} style={{ borderWidth: 1, borderColor: c.line, borderRadius: 12, paddingHorizontal: 12, paddingBottom: 12, marginTop: 10, backgroundColor: c.paper2 }}>
+                <AutoField
+                  l={`Block ${slot}`}
+                  value={k.name}
+                  onChange={v => setCourse(slot, { name: v })}
+                  suggest={q => matchCourses(q, undefined, { lastBlock: slot.endsWith('-4') })}
+                  placeholder="Class, or leave empty for prep"
+                />
+                {has && (
+                  <AutoField
+                    l="Room"
+                    value={k.room}
+                    onChange={v => setCourse(slot, { room: normalizeRoom(v) })}
+                    suggest={matchRooms}
+                    placeholder="213, 149A or PORT"
+                    autoCap="characters"
+                    error={roomProblem(k.room)}
+                  />
+                )}
+              </View>
+            );
+          })}
+        </View>
+      ))}
+    </View>
+  );
+
+  if (edit) {
+    return (
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: c.paper }}>
+        <View style={{ paddingTop: Math.max(topInset, 20) + 6, paddingHorizontal: 16, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: c.line, backgroundColor: c.paper }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', height: 40 }}>
+            <Pressable onPress={cancel} hitSlop={10} accessibilityRole="button" style={{ minWidth: 64 }}>
+              <Text style={{ fontSize: 16, color: c.ink2 }}>Cancel</Text>
+            </Pressable>
+            <Text style={{ flex: 1, textAlign: 'center', fontSize: 17, fontWeight: '700', color: c.ink, letterSpacing: -0.3 }}>
+              {page === 'you' ? 'Edit profile' : 'My classes'}
+            </Text>
+            <Pressable onPress={finish} disabled={busy} hitSlop={10} accessibilityRole="button" style={{ minWidth: 64, alignItems: 'flex-end', opacity: busy ? 0.5 : 1 }}>
+              <Text style={{ fontSize: 16, color: c.navy700, fontWeight: '700' }}>{busy ? 'Saving…' : 'Save'}</Text>
+            </Pressable>
+          </View>
+        </View>
+        <ScrollView contentContainerStyle={{ paddingTop: 18, paddingHorizontal: 20, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
+          {page === 'you' ? you : classes}
+          {!!err && <Text style={{ color: c.crimson, marginTop: 14, fontSize: 13, fontWeight: '500' }}>{err}</Text>}
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 24 }}>
+            <Btn label="Cancel" onPress={cancel} secondary />
+            <Btn label={busy ? 'Saving…' : 'Save changes'} onPress={finish} />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
+  }
+
+  return (
+    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: c.paper }}>
+      <ScrollView contentContainerStyle={{ paddingTop: Math.max(topInset, 20) + 16, paddingHorizontal: 20, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
+        <Text style={{ fontSize: 11, letterSpacing: 1.4, textTransform: 'uppercase', fontWeight: '700', color: c.ink3 }}>
+          Teachers · Step {page === 'you' ? 1 : 2} of 2
+        </Text>
+        <Text style={{ fontFamily: fonts.serif, fontSize: 28, color: c.ink, marginTop: 4, marginBottom: 12 }}>
+          {page === 'you' ? 'Welcome to Spartans' : 'Your classes'}
+        </Text>
+        {page === 'you' ? you : classes}
+        {!!err && <Text style={{ color: c.crimson, marginTop: 14, fontSize: 13, fontWeight: '500' }}>{err}</Text>}
+        {page === 'you' ? (
+          <View style={{ gap: 10, marginTop: 24 }}>
+            <Btn label="Next" onPress={next} />
+            {!!onBack && <Btn label="Back" onPress={onBack} secondary />}
+          </View>
+        ) : (
+          <View style={{ flexDirection: 'row', gap: 10, marginTop: 24 }}>
+            <Btn label="Back" onPress={() => { setErr(null); setPage('you'); }} secondary />
+            <Btn label={busy ? 'Creating…' : 'Create my account'} onPress={finish} />
+          </View>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+};
+
+// ────────────────────────────────────────────────────────────────
 // Form bits, hoisted so inputs keep identity (and focus) across renders.
 // ────────────────────────────────────────────────────────────────
 type Palette = ReturnType<typeof useTheme>['c'];
@@ -805,13 +1116,12 @@ const Field = ({ l, value, onChange, placeholder, keyboard, autoCap, error }: {
 // value (or placeholder). The mirror lives in the full-width row, not inside
 // the fitted wrapper, so its measurement is never clipped by the input's own
 // width (that was why the suffix used to stick).
-const EmailRow = ({ inputRef, value, onChangeText }: {
-  inputRef: React.RefObject<TextInput | null>; value: string; onChangeText: (v: string) => void;
+const EmailRow = ({ inputRef, value, onChangeText, domain = EMAIL_DOMAIN, placeholder = 'johnd907' }: {
+  inputRef: React.RefObject<TextInput | null>; value: string; onChangeText: (v: string) => void; domain?: string; placeholder?: string;
 }) => {
   const { c } = useTheme();
   const [w, setW] = useState(0);
   const [rowW, setRowW] = useState(0);
-  const placeholder = 'johnd907';
   const shown = value || placeholder;
   const SUFFIX_W = 150;   // rough width of the suffix; the input never grows past the row minus this
   const inputW = Math.min(Math.max(28, w + 6), Math.max(60, rowW - SUFFIX_W));
@@ -838,10 +1148,10 @@ const EmailRow = ({ inputRef, value, onChangeText }: {
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="email-address"
-        accessibilityLabel="School email, before the @"
+        accessibilityLabel={domain === EMAIL_DOMAIN ? 'School email, before the @' : 'Staff email, before the @'}
         style={{ fontSize: 16, color: c.ink, paddingVertical: 11, width: inputW, paddingHorizontal: 0 }}
       />
-      <Text numberOfLines={1} style={{ fontSize: 16, color: c.ink4, flexShrink: 1 }}>@{EMAIL_DOMAIN}</Text>
+      <Text numberOfLines={1} style={{ fontSize: 16, color: c.ink4, flexShrink: 1 }}>@{domain}</Text>
     </Pressable>
   );
 };

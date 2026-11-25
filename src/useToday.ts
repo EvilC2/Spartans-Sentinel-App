@@ -30,6 +30,23 @@ export const useNow = () => {
   return now;
 };
 
+// The same clock for screens that only show minutes: it re-renders them once a
+// minute, not once a second (which made typing on them stutter).
+export const useMinute = () => {
+  const { offsetMs } = usePreviewTime();
+  const [now, setNow] = useState(() => resolveNow(new Date(), offsetMs));
+  useEffect(() => {
+    const tick = () => setNow(prev => {
+      const next = resolveNow(new Date(), offsetMs);
+      return Math.floor(prev.getTime() / 60_000) === Math.floor(next.getTime() / 60_000) ? prev : next;
+    });
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [offsetMs]);
+  return now;
+};
+
 export type TodayState = {
   now: Date;
   iso: string;

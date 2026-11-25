@@ -27,6 +27,7 @@ export type Slot = '1-1' | '1-2' | '1-3' | '1-4' | '2-1' | '2-2' | '2-3' | '2-4'
 export const SLOTS: Slot[] = ['1-1', '1-2', '1-3', '1-4', '2-1', '2-2', '2-3', '2-4'];
 export const HOMEROOM_SLOT: Slot = '1-1';
 export const EMAIL_DOMAIN = 'edu.sd45.bc.ca';
+export const TEACHER_DOMAIN = 'wvschools.ca';   // staff addresses; these accounts are teachers (migration 0026)
 
 export type Course = {
   slot: Slot;
@@ -48,10 +49,15 @@ export type ExtraCourse = { name: string; teacher: string; kind?: ExtraKind };
 // send it, kept until it has been.
 export type CatchUpState = { score: number; doneAt?: string; answers?: Answers; claimed?: string[]; pending?: boolean };
 
+// One shape for students and teachers. A teacher (`kind: 'teacher'`) has no
+// grade (0), no student number, and `courses` holds the blocks they teach,
+// with a prep block stored the way a student's spare is.
 export type StudentProfile = {
+  kind?: 'student' | 'teacher';   // missing = student
+  dept?: string;          // teachers: "Science"
   firstName: string;
   lastName: string;
-  grade: number;          // 8–12
+  grade: number;          // 8–12; 0 for a teacher
   pronouns?: string;
   studentId?: string;
   email?: string;         // full address, e.g. johnd907@edu.sd45.bc.ca
@@ -85,13 +91,22 @@ export const emptyProfile = (): StudentProfile => ({
 export const fullName = (p: StudentProfile) => [p.firstName, p.lastName].filter(Boolean).join(' ');
 export const initials = (p: StudentProfile) =>
   ((p.firstName[0] || '') + (p.lastName[0] || '')).toUpperCase() || '?';
-export const gradeLabel = (p: StudentProfile) => `Grade ${p.grade}`;
+export const isTeacher = (p: StudentProfile | null | undefined) => p?.kind === 'teacher';
+export const gradeLabel = (p: StudentProfile) => isTeacher(p) ? (p.dept ? `Teacher · ${p.dept}` : 'Teacher') : `Grade ${p.grade}`;
+// A teacher's prep block: no class. Stored like a spare so every screen skips it.
+export const PREP = 'Prep';
+// "Last, First", the way students' timetables name a teacher (src/catalog.ts).
+export const teacherName = (p: StudentProfile) => [p.lastName.trim(), p.firstName.trim()].filter(Boolean).join(', ');
 export const courseAt = (p: StudentProfile, slot: Slot) => p.courses.find(c => c.slot === slot);
 export const homeroom = (p: StudentProfile) => courseAt(p, HOMEROOM_SLOT)?.room || '';
 
 // School email local part: first name + last initial + 3 digits, e.g. "johnd907".
 export const EMAIL_LOCAL_RE = /^[a-z]+\d{3}$/i;
 export const isValidEmailLocal = (v: string) => EMAIL_LOCAL_RE.test(v);
+// Staff addresses are a first initial and last name ("dgrant"), sometimes with
+// a dot or a hyphen. Never three digits at the end: that is a student.
+export const TEACHER_LOCAL_RE = /^[a-z][a-z.'-]*[a-z]$/i;
+export const isValidTeacherLocal = (v: string) => TEACHER_LOCAL_RE.test(v);
 
 // Rooms are 3 digits starting with the floor (1, 2 or 3), optionally with a
 // letter (149A, 149B), or one of the named spaces below. The named list is a
@@ -232,7 +247,10 @@ type Ctx = {
   signedIn: boolean;
   online: boolean;            // last backend call succeeded (false = running on cache)
   roles: Role[];              // App Club Admin roles bound to this account (server-issued)
-  save: (p: StudentProfile, password?: string) => Promise<void>;   // sign up / edit; also signs in
+  // sign up / edit; also signs in. `serverFirst` (teacher sign-up): make the
+  // server account before anything is kept here, so a refusal leaves no account
+  // that only exists on this phone.
+  save: (p: StudentProfile, password?: string, opts?: { serverFirst?: boolean }) => Promise<void>;
   signIn: (identifier: string, password: string) => Promise<string | null>; // null = ok, else error text
   signOut: () => Promise<void>;                         // keeps the account on the device
   clear: () => Promise<void>;                           // deletes the account from the device
@@ -264,6 +282,8 @@ const ProfileCtx = createContext<Ctx>({
 const fromRemote = (r: RemoteProfile, local: StudentProfile | null): StudentProfile => ({
   ...(local || emptyProfile()),
   firstName: r.first_name, lastName: r.last_name, grade: r.grade,
+  // A server without 0026 sends no kind: keep what this phone knows.
+  ...(r.kind ? { kind: r.kind } : {}), ...(r.kind === 'teacher' ? { dept: r.dept || local?.dept || '' } : {}),
   pronouns: r.pronouns || local?.pronouns, studentId: r.student_id || local?.studentId,
   email: r.email, artonaUrl: r.artona_url || local?.artonaUrl, friendCode: r.friend_code || local?.friendCode,
   courses: Array.isArray(r.timetable) && r.timetable.length === SLOTS.length ? r.timetable : (local?.courses || emptyCourses()),
@@ -283,6 +303,7 @@ const toRemote = (p: StudentProfile) => ({
   first_name: p.firstName, last_name: p.lastName, grade: p.grade,
   pronouns: p.pronouns || null, student_id: p.studentId || null, artona_url: p.artonaUrl || null,
   timetable: p.courses, extras: p.extraCourses, pinned_badges: p.pinnedBadges || [],
+  ...(isTeacher(p) ? { dept: p.dept?.trim() || null } : {}),   // only teachers: the column arrives with 0026
 });   // avatar goes up on its own (setAvatar), so a server without 0014 can't fail a save
 
 // A photo on this phone as bytes for upload. Native: the file in the app's
@@ -304,7 +325,8 @@ const toEmail = (identifier: string, local: StudentProfile | null): string | nul
   if (!id) return null;
   if (id.includes('@')) return id;
   if (/^\d+$/.test(id)) return id === (local?.studentId || '') ? (local?.email || null) : null;
-  return `${id}@${EMAIL_DOMAIN}`;
+  // "johnd907" is a student; "dgrant" (no digits) is a teacher.
+  return `${id}@${EMAIL_LOCAL_RE.test(id) ? EMAIL_DOMAIN : TEACHER_DOMAIN}`;
 };
 
 // Everything the app keeps on the device for one student. Theme stays: it is
@@ -324,7 +346,7 @@ export const ProfileProvider = ({ children, onReset }: { children: React.ReactNo
   latest.current = profile;
   const lastProgress = useRef<Promise<unknown>>(Promise.resolve());
 
-  useEffect(() => { setXpGrade(profile?.grade ?? 8); }, [profile?.grade]);
+  useEffect(() => { setXpGrade(profile?.grade || 8); }, [profile?.grade]);
 
   const cacheRoles = (r: Role[]) => { setRoles(r); AsyncStorage.setItem(ROLES_KEY, JSON.stringify(r)).catch(() => {}); };
 
@@ -398,7 +420,17 @@ export const ProfileProvider = ({ children, onReset }: { children: React.ReactNo
   // Sign up (no session yet) or update (session exists). Throws with a
   // readable message if the server refuses; the local copy is saved first so
   // nothing typed is lost.
-  const save = async (p: StudentProfile, password?: string) => {
+  const save = async (p: StudentProfile, password?: string, opts?: { serverFirst?: boolean }) => {
+    const signUp = (pw: string) => remoteAuth.signUp(p.email!, pw, {
+      first_name: p.firstName, last_name: p.lastName, grade: p.grade,
+      pronouns: p.pronouns, student_id: p.studentId,
+      ...(isTeacher(p) ? { dept: p.dept } : {}),
+    });
+    let made = false;
+    if (opts?.serverFirst && backendConfigured && p.email && password && !(await remoteAuth.session().catch(() => null))) {
+      await signUp(password);
+      made = true;
+    }
     setProfile(p);
     setSignedIn(true);
     await AsyncStorage.multiSet([[KEY, JSON.stringify(p)], [SESSION_KEY, '1']]);
@@ -408,15 +440,15 @@ export const ProfileProvider = ({ children, onReset }: { children: React.ReactNo
       if (!session) {
         // Editing while signed in on the cached account only (offline sign-in):
         // the change is saved on this device; nothing to send yet.
+        // `made`: the account exists but email confirmation is on, so there
+        // is no session yet; the timetable is pushed on first sign-in.
+        if (made) { setOnline(true); return; }
         if (!password) { setOnline(false); return; }
-        const res = await remoteAuth.signUp(p.email, password, {
-          first_name: p.firstName, last_name: p.lastName, grade: p.grade,
-          pronouns: p.pronouns, student_id: p.studentId,
-        });
+        const res = await signUp(password);
         // Email confirmation still on → no session yet. The account exists;
         // the timetable is pushed on first sign-in.
         if (!res.session) { setOnline(true); return; }
-      } else if (password) {
+      } else if (password && !made) {
         await remoteAuth.updatePassword(password);
       }
       await remoteProfile.update(toRemote(p));
@@ -446,6 +478,7 @@ export const ProfileProvider = ({ children, onReset }: { children: React.ReactNo
     if (!backendConfigured) return localSignIn(identifier, password);
     const email = toEmail(identifier, profile);
     if (!email) return 'Use your school email (johnd907 or the full address).';
+    const teacherEmail = email.endsWith(`@${TEACHER_DOMAIN}`);
     try {
       await remoteAuth.signIn(email, password);
     } catch (e: any) {
@@ -456,7 +489,10 @@ export const ProfileProvider = ({ children, onReset }: { children: React.ReactNo
     }
     const same = (profile?.email || '').toLowerCase() === email;
     if (!same) await clearEarned();
-    const base = { ...(same && profile ? profile : emptyProfile()), email, passwordHash: hashPassword(password) };
+    const base: StudentProfile = {
+      ...(same && profile ? profile : { ...emptyProfile(), ...(teacherEmail ? { kind: 'teacher' as const, grade: 0, pronouns: '' } : {}) }),
+      email, passwordHash: hashPassword(password),
+    };
     setProfile(base);
     setSignedIn(true);
     await AsyncStorage.multiSet([[KEY, JSON.stringify(base)], [SESSION_KEY, '1']]);

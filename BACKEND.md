@@ -206,8 +206,33 @@ Run `0016_five_teams_roles.sql` first, on its own, then `0017_five_teams.sql`
   Android checklists, campaigns, HR check-ins, student council, decisions).
 - Badge grantors: `award_badge_many()`, `program_roster()`, `find_many()`;
   students claim QR badges with `claim_badge_code()`.
-- Teacher accounts: sign-up only accepts @edu.sd45.bc.ca emails today, so a
-  Teacher Sponsor has to use a student-style account until teacher sign-up exists.
+- Teacher accounts: see *Teachers (0026)* below.
+
+### Teachers (0026)
+
+Run `0026_teachers.sql` after 0025. Then redeploy `send-push` and add a
+Database Webhook on `program_posts` (INSERT) pointing at it, same as the others
+in NOTIFICATIONS.md, so students get a phone alert for a class post.
+
+- Sign-up takes `@wvschools.ca` addresses. The server sets `profiles.kind` to
+  `teacher` from the address (never from the app) and the account can't change
+  it. A teacher's `grade` is 0; `dept` is their department.
+- **Confirming.** Email confirmation is off, so an address proves nothing. A new
+  teacher account can look around, but posting and class lists need the
+  `teacher` role (0021). It comes from a teacher code (App Club → Clubs &
+  programs → Teachers → Make a teacher code), or from a top role tapping
+  Confirm in that same tab, which lists who is waiting (`pending_teachers()`).
+  If Supabase mail is ever shown to reach `wvschools.ca`, an emailed code could
+  replace this.
+- `my_class_rosters()` — for each block a confirmed teacher teaches: the
+  students with that class, in that block, in their own timetable (and that
+  teacher, or no teacher, named). Name and grade only.
+- `program_posts.slot` — a teacher's post can go to one block of a class. The
+  server stamps `teacher_key` (their last name) and `from_teacher`. Rows stay
+  readable by anyone signed in; the app shows a one-block post only to that
+  block's students (`seesPost` in `src/clubs.ts`).
+- Teachers and students can't be friends (trigger on `friend_requests`), and
+  teachers don't get the default App Club friends.
 
 ### Storage
 

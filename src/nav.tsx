@@ -23,6 +23,7 @@ export type Focus =
   | { kind: 'buzz'; id: string }                      // Home: that slide in The Buzz
   | { kind: 'menu'; id: string }                      // Cafeteria: that item
   | { kind: 'request'; id: string }                   // Social: that friend request
+  | { kind: 'friend'; id: string }                    // Social: that friend's card
   | { kind: 'badges' };                               // Profile: the Badges sheet
 type FocusReq = Focus & { at: number };
 

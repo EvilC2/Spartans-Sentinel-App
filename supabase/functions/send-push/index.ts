@@ -6,6 +6,8 @@
 //   announcements   INSERT, UPDATE   only rows with push = true   → topic "announcements"
 //   friend_requests INSERT           → the receiver, topic "friends"
 //   badge_awards    INSERT           awarded by App Club (not banner claims) → topic "badges"
+//   program_posts   INSERT           a post inside a class, club or team (0021, 0026) → the
+//                                    students in it who left Announcements alerts on
 //   posts           INSERT, UPDATE   App Club Admin posts (migration 0008) with data.push and
 //                                    the "bell" place, when they go live. Scheduled posts push
 //                                    when published, so the admin screen only offers push for
@@ -20,7 +22,12 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 const db = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!);
 
 type Payload = { type: 'INSERT' | 'UPDATE' | 'DELETE'; table: string; record: any; old_record: any };
-type Message = { title: string; body: string; topic: string; user?: string; action: unknown; channelId: string };
+// `program`: a post inside one program (migration 0026). It goes to the
+// students in that program (or that one block of it), not to a topic's whole list.
+type Message = {
+  title: string; body: string; topic: string; user?: string; action: unknown; channelId: string;
+  program?: { key: string; slot: string | null; teacher: string | null; author: string | null };
+};
 
 const becameLive = (r: any, old: any) =>
   r?.status === 'published' && old?.status !== 'published';
@@ -56,6 +63,14 @@ const messageFor = async ({ type, table, record: r, old_record: old }: Payload):
       const tab = r.kind === 'news' ? 'announcements' : r.kind === 'event' ? 'calendar' : r.kind === 'menu' ? 'lunch' : 'home';
       return { title, body, topic, action: { kind: 'tab', tab }, channelId: 'school' };
     }
+    case 'program_posts':
+      if (type !== 'INSERT') return null;
+      return {
+        title: r.title,
+        body: [r.author_name, (r.body || '').slice(0, 160)].filter(Boolean).join(': ') || 'Open Spartans to read it.',
+        topic: 'announcements', action: { kind: 'tab', tab: 'announcements' }, channelId: 'school',
+        program: { key: r.program_key, slot: r.slot ?? null, teacher: r.teacher_key ?? null, author: r.author ?? null },
+      };
     case 'friend_requests':
       if (type !== 'INSERT' || r.status !== 'pending') return null;
       return { title: `${await nameOf(r.from_user)} wants to be friends`, body: 'Tap to answer.', topic: 'friends',
@@ -73,7 +88,9 @@ Deno.serve(async req => {
   const msg = await messageFor(payload);
   if (!msg) return new Response('skip');
 
-  const { data: targets, error } = await db.rpc('push_targets', { p_topic: msg.topic, p_user: msg.user ?? null });
+  const { data: targets, error } = msg.program
+    ? await db.rpc('push_targets_program', { p_key: msg.program.key, p_slot: msg.program.slot, p_teacher: msg.program.teacher, p_author: msg.program.author })
+    : await db.rpc('push_targets', { p_topic: msg.topic, p_user: msg.user ?? null });
   if (error) return new Response(error.message, { status: 500 });
   const tokens = [...new Set((targets as { token: string }[]).map(t => t.token))];
 

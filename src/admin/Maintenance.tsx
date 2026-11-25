@@ -170,6 +170,8 @@ export const Posts = ({ onOpen, editable, onNew, kinds: only }: { onOpen: (p: Po
   [mine, kind, phase, q, store.now]);
   const list = byTitle(q, filtered, p => titleOf(p) || '');
   const count = (ph: Phase) => mine.filter(p => (kind === 'all' || p.kind === kind) && phaseOf(p, store.now) === ph).length;
+  const phases = ([['live', 'Live'], ['scheduled', 'Scheduled'], ['draft', 'Drafts'], ['ended', 'Ended']] as [Phase, string][])
+    .filter(([id]) => count(id) > 0 || phase === id);
   const make = () => canMake.length === 1 ? onNew(canMake[0]) : setPicking(true);
 
   return (
@@ -186,17 +188,15 @@ export const Posts = ({ onOpen, editable, onNew, kinds: only }: { onOpen: (p: Po
         <Hint text={`You can't post this yet. Ask the ${TEAMS.maintenance.label} Manager for the job.`} />
       )}
 
-      <Search value={q} onChange={setQ} placeholder="Search posts" />
+      {mine.length > 5 && <Search value={q} onChange={setQ} placeholder={`Search ${mine.length} posts`} />}
       {searching ? <FoundLine n={list.length} q={q} onClear={() => setQ('')} /> : (
         <>
           {kinds.length > 1 && (
             <Seg value={kind} onChange={v => setKind(v)} options={[{ id: 'all' as const, label: 'Every kind' }, ...kinds.map(k => ({ id: k, label: KINDS[k].label }))]} />
           )}
-          <Seg value={phase} onChange={v => setPhase(v)} options={[
-            { id: 'all' as const, label: 'All' },
-            ...([['live', 'Live'], ['scheduled', 'Scheduled'], ['draft', 'Drafts'], ['ended', 'Ended']] as [Phase, string][])
-              .filter(([id]) => count(id) > 0 || phase === id).map(([id, label]) => ({ id, label, count: count(id) })),
-          ]} />
+          {phases.length > 1 && <Seg value={phase} onChange={v => setPhase(v)} options={[
+            { id: 'all' as const, label: 'All' }, ...phases.map(([id, label]) => ({ id, label, count: count(id) })),
+          ]} />}
         </>
       )}
 

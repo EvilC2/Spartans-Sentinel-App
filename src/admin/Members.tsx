@@ -26,7 +26,7 @@ import {
   TEAMS, TEAM_ORDER, TOP, TeamId, ALL_ROLES, canAssign, clubRoles, isLead, jobOf, roleLabel, roleArt, teamOf,
 } from '../ranks';
 import { Toggle } from '../screens/Settings';
-import { Act, Card, Choice, ClubSheet, Empty, Fold, FoundLine, Group, Hint, PeopleFinder, PersonRow, Result, Search, Seg, Step } from './ui';
+import { Act, Card, Choice, ClubSheet, Empty, Fold, FoundLine, Group, Hint, PeopleFinder, PersonRow, Result, Row, Search, Seg, Step } from './ui';
 import { byTitle, matches, usePeopleSearch } from './search';
 
 export type Person = { id: string; name: string; email: string; grade?: number; roles: Role[]; since?: string; by?: string | null; me?: boolean; teacher?: boolean };
@@ -319,7 +319,7 @@ const PersonSheet = ({ p, scope, myRoles, onClose, onSet }: {
 const RoleSwitch = ({ role, on, disabled, note, onChange }: { role: Role; on: boolean; disabled?: boolean; note?: string; onChange: (v: boolean) => void }) => {
   const { c } = useTheme();
   const job = jobOf(role);
-  const sub = role === 'owner' ? 'Everything, every team' : isLead(role) ? 'Every job on the team, approvals, members' : job?.sub || '';
+  const sub = role === 'owner' ? 'Everything, every team' : isLead(role) ? 'Every job, approvals and members' : job?.sub || '';
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingVertical: 9, paddingHorizontal: 16 }}>
       <View style={{ flex: 1, minWidth: 0 }}>
@@ -351,7 +351,7 @@ export const RolePicker = ({ value, onPick, scope, myRoles }: { value: Role | nu
           sub={value && g.roles.includes(value) ? (isLead(value) ? 'Manager' : roleLabel(value)) : `${g.roles.length} role${g.roles.length === 1 ? '' : 's'}`}>
           {g.roles.map(r => (
             <Choice key={r} on={value === r} onPress={() => onPick(r)} label={isLead(r) ? 'Manager' : roleLabel(r)}
-              sub={isLead(r) ? 'Every job on the team, approvals, members' : jobOf(r)?.sub} />
+              sub={isLead(r) ? 'Every job, approvals and members' : jobOf(r)?.sub} />
           ))}
         </Fold>
       ))}
@@ -393,7 +393,14 @@ const InviteSheet = ({ visible, scope, myRoles, live, find, add, onClose }: {
   return (
     <ClubSheet visible={visible} onClose={onClose} title="Invite someone" sub={scope === 'all' ? 'Pick the role first, then who' : `To ${TEAMS[scope].label}`}>
       <Step n={1} text="What will they do?" />
-      <RolePicker value={role} onPick={r => { setRole(r); setCode(null); setMsg(null); }} scope={scope} myRoles={myRoles} />
+      {role ? (
+        <Group>
+          <Row art={roleArt(role)} label={roleLabel(role)} sub={isLead(role) ? 'Every job, approvals and members' : job?.sub}
+            trailing={<Act label="Change" small tone="plain" onPress={() => { setRole(null); setCode(null); setMsg(null); }} />} />
+        </Group>
+      ) : (
+        <RolePicker value={role} onPick={r => { setRole(r); setCode(null); setMsg(null); }} scope={scope} myRoles={myRoles} />
+      )}
 
       {role && (
         <>

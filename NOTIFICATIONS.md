@@ -127,6 +127,9 @@ banners but has no phone notifications. To get real ones:
    - In Supabase → Database → Webhooks, add four webhooks pointing at the
      `send-push` function: `popups` (insert, update), `announcements`
      (insert, update), `friend_requests` (insert), `badge_awards` (insert).
+   - For class, club and team posts (migration 0026): one more webhook,
+     `program_posts` (insert). It goes to the students in that program, or
+     in that one block when a teacher posts to a single class.
 3. Queued content (publish later) does not trigger a push when its time
    comes; only publishing now does. If that matters, add a `pg_cron` job
    later.

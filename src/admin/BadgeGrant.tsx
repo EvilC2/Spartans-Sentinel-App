@@ -106,7 +106,7 @@ const BadgePick = ({ value, onPick }: { value: Badge | null; onPick: (b: Badge |
           <Text style={{ fontSize: 16, fontWeight: '800', color: c.ink }}>{value.title}</Text>
           <Text numberOfLines={2} style={{ fontSize: 12.5, color: c.ink3, marginTop: 1 }}>{RARITY[value.rarity].label} · {value.desc}</Text>
         </View>
-        <Act label="Change" small tone="plain" onPress={() => onPick(null)} />
+        <View><Act label="Change" small tone="plain" onPress={() => onPick(null)} /></View>
       </View>
     );
   }
@@ -116,7 +116,7 @@ const BadgePick = ({ value, onPick }: { value: Badge | null; onPick: (b: Badge |
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {list.map(b => (
           <Pressable key={b.id} onPress={() => onPick(b)} accessibilityRole="button" accessibilityLabel={b.title}
-            style={({ pressed }) => ({ width: '31%', alignItems: 'center', gap: 4, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line2, opacity: pressed ? 0.7 : 1 })}>
+            style={({ pressed }) => ({ width: '31.4%', alignItems: 'center', gap: 4, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 16, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line2, opacity: pressed ? 0.7 : 1 })}>
             <BadgeArt badge={b} size={52} />
             <Text numberOfLines={2} style={{ fontSize: 12, fontWeight: '700', color: c.ink, textAlign: 'center' }}>{b.title}</Text>
           </Pressable>
@@ -203,7 +203,7 @@ export const AwardGrant = () => {
       {badge && (
         <Card>
           <Step n={2} text="Who earned it?" />
-          <PeopleFinder s={who} skip={picked.map(p => p.id)}
+          <PeopleFinder bare s={who} skip={picked.map(p => p.id)}
             action={p => <Act label="Add" small tone="soft" onPress={() => { setPicked(x => [...x, p]); who.clear(); }} />} />
           {picked.length > 0 && (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
@@ -295,7 +295,7 @@ export const ListGrant = () => {
                   <Text style={{ fontSize: 15, fontWeight: '700', color: c.ink }}>{group}</Text>
                   <Text style={[{ fontSize: 12.5, color: c.ink3 }, tnum]}>{people === null ? 'Finding everyone…' : `${people.length} students on Spartans`}</Text>
                 </View>
-                <Act label="Change" small tone="plain" onPress={() => { setGroup(null); setPeople(null); }} />
+                <View><Act label="Change" small tone="plain" onPress={() => { setGroup(null); setPeople(null); }} /></View>
               </View>
             ) : (
               <>

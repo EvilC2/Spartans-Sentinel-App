@@ -258,10 +258,24 @@ const ManagerSheet = ({ program, onClose, m }: { program: string | null; onClose
 };
 
 // ── Teachers (top roles) ────────────────────────────────────────
+// A teacher who signs up with a staff address waits here until a top role
+// confirms them (migration 0026): the address alone proves nothing, because
+// sign-up doesn't check the inbox. A teacher code skips the wait.
+type Waiting = { id: string; name: string; email: string; dept: string; at: string };
+
 const Teachers = () => {
   const { c } = useTheme();
   const t = usePeople();
   const teachers = (t.people || []).filter(p => p.roles.includes('teacher'));
+  const [waiting, setWaiting] = useState<Waiting[]>([]);
+  const loadWaiting = async () => {
+    if (!t.live) { setWaiting([]); return; }
+    try {
+      const { teachers: api } = await import('../backend');
+      setWaiting((await api.pending()).map(r => ({ id: r.id, name: `${r.first_name} ${r.last_name}`.trim() || r.email, email: r.email, dept: r.dept || '', at: r.created_at })));
+    } catch { setWaiting([]); }   // a server without 0026 has nobody waiting
+  };
+  useEffect(() => { loadWaiting(); }, [t.live]);   // eslint-disable-line react-hooks/exhaustive-deps
   const who = usePeopleSearch(t.find);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -281,6 +295,18 @@ const Teachers = () => {
     <>
       <Hint icon="grad" text="Teachers keep the club list, pick who runs each program, and can post to any program. They don't get App Club jobs." />
       {!!t.err && <Hint text={t.err} warn />}
+      {waiting.length > 0 && (
+        <Group title="Waiting to be confirmed" note="Signed up with a staff email. Confirm only people you know are teachers at Sentinel.">
+          {waiting.map(w => (
+            <PersonRow key={w.id} person={w.name} sub={[w.dept, w.email].filter(Boolean).join(' · ')}
+              trailing={<Act small label="Confirm" disabled={busy}
+                onPress={async () => {
+                  if (!(await ask(`Confirm ${w.name} as a teacher?`, `${w.email} will be able to post to any class or club and see who is in their classes.`, 'Confirm'))) return;
+                  run(async () => { await t.add({ id: w.id, name: w.name, email: w.email, teacher: true }, ['teacher']); await loadWaiting(); });
+                }} />} />
+          ))}
+        </Group>
+      )}
       <PeopleFinder s={who} placeholder="Find a teacher by name or email" none="Nobody found. If they don't have Spartans yet, make an invite code below."
         action={p => {
           const has = teachers.some(x => x.id === p.id);
@@ -296,7 +322,7 @@ const Teachers = () => {
         </Group>
       ) : <Empty icon="grad" title="No teachers yet" sub="Find one above, or make an invite code." />}
       <Group title="Not on Spartans yet?">
-        <Row icon="mail" label="Make an invite code" sub="One use, for 14 days. They enter it in App Club." onPress={invite} />
+        <Row icon="mail" label="Make a teacher code" sub="One use, for 14 days. They type it when they sign up as a teacher." onPress={invite} />
       </Group>
       {!!code && (
         <Card>

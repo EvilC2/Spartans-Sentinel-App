@@ -38,6 +38,8 @@ export type RemoteProfile = {
   catch_up_score?: number;              // migration 0019: 0-100, 100 once finished
   catch_up_answers?: Record<string, string | string[]>;
   catch_up_done_at?: string | null;
+  kind?: 'student' | 'teacher';         // migration 0026: set by the server from the email address
+  dept?: string | null;                 // migration 0026: a teacher's department
 };
 
 export type BuzzItem = {
@@ -83,7 +85,7 @@ const rpc = async <T,>(fn: string, args: Record<string, unknown>): Promise<T> =>
 
 // ── Auth ─────────────────────────────────────────────────────────
 export const auth = {
-  signUp: async (email: string, password: string, meta: { first_name: string; last_name: string; grade: number; pronouns?: string; student_id?: string }) =>
+  signUp: async (email: string, password: string, meta: { first_name: string; last_name: string; grade: number; pronouns?: string; student_id?: string; dept?: string }) =>
     unwrap(await supabase.auth.signUp({ email, password, options: { data: meta } })),
   signIn: async (email: string, password: string) => {
     const r = await supabase.auth.signInWithPassword({ email, password });
@@ -114,7 +116,7 @@ export const profile = {
     if (!id) return null;
     return unwrap(await supabase.from('profiles').select('*').eq('id', id).single());
   },
-  update: async (patch: Partial<Omit<RemoteProfile, 'id' | 'email' | 'friend_code' | 'xp_total'>>) => {
+  update: async (patch: Partial<Omit<RemoteProfile, 'id' | 'email' | 'friend_code' | 'xp_total' | 'kind'>>) => {
     const id = await auth.userId();
     if (!id) throw new Error('Not signed in');
     return unwrap(await supabase.from('profiles').update(patch).eq('id', id).select().single());
@@ -470,6 +472,9 @@ export const clubs = {
 export type ProgramPostRow = {
   id: string; program_key: string; title: string; body: string; pinned: boolean;
   author: string | null; author_name: string | null; created_at: string; updated_at: string;
+  slot?: string | null;          // migration 0026: one block of the class, or null for everyone in it
+  teacher_key?: string | null;   // migration 0026: that block's teacher (last name, lowercased)
+  from_teacher?: boolean;        // migration 0026: a teacher wrote it
 };
 
 export const programPosts = {
@@ -482,7 +487,8 @@ export const programPosts = {
     supabase.from('program_posts').select('*').in('program_key', keys)
       .order('created_at', { ascending: false }).limit(300).then(unwrap) as Promise<ProgramPostRow[]>,
   // staff, or a manager of this program (can_post_program); the server stamps the author
-  add: (p: Pick<ProgramPostRow, 'program_key' | 'title' | 'body' | 'pinned'>) =>
+  // `slot` (teachers only, 0026) sends it to one block; leave it out for the whole program
+  add: (p: Pick<ProgramPostRow, 'program_key' | 'title' | 'body' | 'pinned'> & { slot?: string }) =>
     supabase.from('program_posts').insert(p).select().single().then(unwrap) as Promise<ProgramPostRow>,
   update: (id: string, p: Partial<Pick<ProgramPostRow, 'title' | 'body' | 'pinned'>>) =>
     supabase.from('program_posts').update(p).eq('id', id).select().single().then(unwrap) as Promise<ProgramPostRow>,
@@ -506,6 +512,17 @@ export const programManagers = {
   mine: () => rpc<string[]>('my_programs_to_manage', {}),
   // staff: people search for picking a manager
   find: (q: string) => rpc<Person[]>('find_people_staff', { q }),
+};
+
+// ── Teachers (migration 0026) ────────────────────────────────────
+export type RosterRow = { slot: string; id: string; first_name: string; last_name: string; grade: number };
+export type PendingTeacher = { id: string; first_name: string; last_name: string; email: string; dept: string | null; created_at: string };
+
+export const teachers = {
+  // a confirmed teacher: the students in each block they teach
+  rosters: () => rpc<RosterRow[]>('my_class_rosters', {}),
+  // top roles: teacher accounts nobody has confirmed yet
+  pending: () => rpc<PendingTeacher[]>('pending_teachers', {}),
 };
 
 // ── Push ─────────────────────────────────────────────────────────

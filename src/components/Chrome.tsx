@@ -141,7 +141,7 @@ export const ClubCoin = ({ size = 38 }: { size?: number }) => (
     <LinearGradient colors={['#B98A3B', '#D9B061']} start={G135.start} end={G135.end}
       style={{ flex: 1, borderRadius: size / 2, alignItems: 'center', justifyContent: 'center' }}>
       <Image source={BRAND.navy} resizeMode="contain" accessibilityIgnoresInvertColors
-        style={{ width: size * 0.64, height: size * 0.64, tintColor: '#14243A' }} />
+        style={{ width: size * 0.68, height: size * 0.68, tintColor: '#14243A' }} />
     </LinearGradient>
   </LinearGradient>
 );
@@ -315,11 +315,15 @@ const TABS: { id: TabId; label: string; icon: IconName }[] = [
   { id: 'more', label: 'More', icon: 'grid' },
 ];
 
+// Teachers: no Social tab, and Programs reads "Classes".
 export const TabBar = ({
-  active, onNavigate, bottomInset = 0,
-}: { active: TabId; onNavigate: (t: TabId) => void; bottomInset?: number }) => {
+  active, onNavigate, bottomInset = 0, teacher = false,
+}: { active: TabId; onNavigate: (t: TabId) => void; bottomInset?: number; teacher?: boolean }) => {
   const { c } = useTheme();
   const lit = tabFor(active);
+  const tabs = teacher
+    ? TABS.filter(t => t.id !== 'social').map(t => t.id === 'programs' ? { ...t, label: 'Classes' } : t)
+    : TABS;
   return (
     <BlurView
       intensity={60}
@@ -334,7 +338,7 @@ export const TabBar = ({
         flexDirection: 'row', justifyContent: 'space-around',
       }}
     >
-      {TABS.map(tab => {
+      {tabs.map(tab => {
         const on = tab.id === lit;
         return (
           <Pressable

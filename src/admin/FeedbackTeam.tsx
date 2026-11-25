@@ -206,7 +206,7 @@ export const FeedbackTeam = ({ canDelete, source = 'app', inbox: given }: { canD
           : <Empty title={status === 'new' ? 'All caught up' : 'Nothing here'} />
       )}
       <View style={{ gap: 10 }}>
-        {shown.map(f => <FeedbackCard key={f.id} f={f} onPress={() => setOpen(f)} />)}
+        {shown.map(f => <FeedbackCard key={f.id} f={f} showStatus={searching || status === 'all'} onPress={() => setOpen(f)} />)}
       </View>
 
       <FeedbackSheet f={open} canDelete={canDelete} onClose={() => setOpen(null)}
@@ -226,7 +226,7 @@ const useKindTone = () => {
   } as Record<FeedbackKind, { fg: string; bg: string }>;
 };
 
-const FeedbackCard = ({ f, onPress }: { f: FeedbackRow; onPress: () => void }) => {
+const FeedbackCard = ({ f, showStatus, onPress }: { f: FeedbackRow; showStatus: boolean; onPress: () => void }) => {
   const { c } = useTheme();
   const tone = useKindTone()[f.kind];
   const k = FEEDBACK_KINDS.find(x => x.id === f.kind)!;
@@ -237,7 +237,7 @@ const FeedbackCard = ({ f, onPress }: { f: FeedbackRow; onPress: () => void }) =
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Icon name={k.icon} size={16} stroke={2.1} color={tone.fg} />
         <Text numberOfLines={1} style={{ flex: 1, fontSize: 14, fontWeight: '600', color: c.ink2 }}>{k.label} <Text style={{ fontWeight: '400', color: c.ink3 }}>· {f.area}</Text></Text>
-        <Pill text={st.label} tone={statusOf(f) === 'done' ? 'moss' : statusOf(f) === 'doing' ? 'sky' : 'ink'} />
+        {showStatus && <Pill text={st.label} tone={statusOf(f) === 'done' ? 'moss' : statusOf(f) === 'doing' ? 'sky' : 'ink'} />}
       </View>
       <Text numberOfLines={3} style={{ fontSize: 15.5, color: f.message ? c.ink : c.ink3, lineHeight: 21 }}>{f.message || 'No message'}</Text>
       <Text numberOfLines={1} style={[{ fontSize: 13, color: c.ink3 }, tnum]}>{[fromLabel(f), f.said_by, f.heard_at, ago(f.created_at)].filter(Boolean).join(' · ')}</Text>

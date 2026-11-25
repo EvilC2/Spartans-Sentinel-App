@@ -11,7 +11,7 @@
 //                 of what student council asked the club for.
 
 import React, { useMemo, useState } from 'react';
-import { View, Text, Image, Linking } from 'react-native';
+import { View, Text, Image, ImageSourcePropType, Linking } from 'react-native';
 import { useTheme } from '../ThemeContext';
 import { tnum } from '../theme';
 import { useContent, phaseOf } from '../content';
@@ -100,6 +100,18 @@ const NextDecision = ({ board, open, onAll }: { board: ReturnType<typeof useBoar
       </Card>
     </View>
   );
+};
+
+// Page rows that count what's waiting on them. Only drawn for people who may
+// open the page, so nobody else's phone asks the server for it.
+type Counted = { art: ImageSourcePropType; label: string; sub: string; onPress: () => void };
+export const DecisionsRow = (p: Counted) => {
+  const b = useBoard('decisions');
+  return <Row {...p} count={(b.items || []).filter(i => i.status === 'open').length} />;
+};
+export const InboxRow = ({ source, ...p }: Counted & { source: 'app' | 'real' }) => {
+  const inbox = useFeedbackInbox();
+  return <Row {...p} count={(inbox.rows || []).filter(r => (r.source || 'app') === source && (r.status || 'new') === 'new').length} />;
 };
 
 export const Decisions = ({ canDecide }: { canDecide: boolean }) => (

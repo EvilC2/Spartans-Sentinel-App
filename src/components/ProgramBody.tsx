@@ -17,6 +17,12 @@
 //                 these in App Club → Clubs & programs), course-book text as
 //                 headings and bullets, school events
 // Clubs, teams and ensembles have no coursework: Announcements · About only.
+//
+// A teacher opening a class they teach (src/teacher.ts) gets it from their
+// side: Announcements · Students · About, no Homework or Grades. Students is
+// who has the class in that block on Spartans. A post goes to that block only
+// unless they pick the whole course. With the class in two blocks, a switch on
+// top picks which one.
 
 import React, { useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, TextInput, Alert, Platform, ScrollView, Image } from 'react-native';
@@ -27,9 +33,10 @@ import * as Clipboard from 'expo-clipboard';
 import { nextOccurrence, useClassSheet } from './ClassCard';
 import { ClassHomework, splitDone, HomeworkTone, Section as HomeworkSection, useHomeworkSections } from './HomeworkList';
 import { glow, onGlow } from './ProgramIcon';
-import { useProfile } from '../ProfileContext';
+import { useProfile, Slot } from '../ProfileContext';
+import { RosterStudent, useRosters, useTeacher } from '../teacher';
 import { useHomework, useGrades, TERMS, Term, termAverage } from '../stores';
-import { useNow, resolveNow } from '../useToday';
+import { useMinute, resolveNow } from '../useToday';
 import { usePreviewTime } from '../PreviewTime';
 import { useNav } from '../nav';
 import { findTarget } from '../map/data';
@@ -40,24 +47,30 @@ import { Program, programHomework, programNews, programSchoolEvents, hasCoursewo
 import { useContent, PostOf } from '../content';
 import { tagColor } from './Cards';
 import { ask } from '../confirm';
-import { Club, ProgramPost as OwnPost, clubFor, useCanPost, useClubs, useProgramPosts } from '../clubs';
+import { Club, NewPost, ProgramPost as OwnPost, clubFor, programKey, useCanPost, useClubs, useProgramPosts } from '../clubs';
 import type { TabId } from './Chrome';
 
 const DOW3 = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-type Tab = 'homework' | 'grades' | 'announcements' | 'about';
+type Tab = 'homework' | 'grades' | 'announcements' | 'students' | 'about';
 
 // onFadeEnd: how far down (in this view) the card's colour fade should run: the
 // top of the tabs.
-export const ProgramBody = ({ pr: raw, onNavigate, onEditTimetable, onFadeEnd }: { pr: Program; onNavigate: (t: TabId) => void; onEditTimetable?: () => void; onFadeEnd?: (y: number) => void }) => {
+export const ProgramBody = ({ pr: raw, slot: focus, onNavigate, onEditTimetable, onFadeEnd }: { pr: Program; slot?: Slot; onNavigate: (t: TabId) => void; onEditTimetable?: () => void; onFadeEnd?: (y: number) => void }) => {
   const { c, mode } = useTheme();
   // Everything below draws in the program colour, brightened on the dark theme.
   const pr = { ...raw, color: glow(raw.color, mode) };
   const on = onGlow(mode);
   const { profile, save } = useProfile();
-  const todayIso = toISO(useNow());
+  const todayIso = toISO(useMinute());
   const hw = useHomework();
   const { gradesFor } = useGrades();
-  const coursework = hasCoursework(pr);
+  // A teacher has no homework or marks of their own to keep here.
+  const { teacher, confirmed, classes } = useTeacher();
+  const mine = useMemo(() => teacher ? classes.filter(k => programKey(k.name) === programKey(raw.name)) : [], [teacher, classes, raw.name]);
+  const teaching = mine.length > 0;
+  const [slot, setSlot] = useState<Slot | undefined>(focus && mine.some(k => k.slot === focus) ? focus : mine[0]?.slot);
+  const rosters = useRosters();
+  const coursework = hasCoursework(pr) && !teacher;
   const { inPlace } = useContent();
   const posts = useMemo(() => inPlace('news').filter((p): p is PostOf<'news'> => p.kind === 'news')
     .map(p => ({ ...p.data, id: p.id, at: Date.parse(p.startsAt || p.createdAt) })), [inPlace]);
@@ -65,8 +78,10 @@ export const ProgramBody = ({ pr: raw, onNavigate, onEditTimetable, onFadeEnd }:
   const own = useProgramPosts(raw.name);
   const canPost = useCanPost(raw.name);
   const club = clubFor(useClubs().clubs, raw.name);
-  const postCount = own.posts.length + news.length;
-  const [tab, setTab] = useState<Tab>(coursework ? 'homework' : postCount || canPost ? 'announcements' : 'about');
+  // In a class you teach: this block's posts, and the ones for the whole course.
+  const ownPosts = teaching && slot ? own.posts.filter(p => !p.slot || p.slot === slot) : own.posts;
+  const postCount = ownPosts.length + news.length;
+  const [tab, setTab] = useState<Tab>(coursework ? 'homework' : postCount || canPost || teaching ? 'announcements' : 'about');
   // Four tabs don't fit a phone: the row scrolls, and follows the one you pick.
   const tabRow = useRef<ScrollView>(null);
   const pick = (t: Tab) => {
@@ -95,7 +110,20 @@ export const ProgramBody = ({ pr: raw, onNavigate, onEditTimetable, onFadeEnd }:
 
   return (
     <View style={{ paddingHorizontal: 16, paddingBottom: 14 }}>
-      <NextClass pr={pr} />
+      <NextClass pr={teaching && slot ? { ...pr, slots: [slot], room: classes.find(k => k.slot === slot)?.room || pr.room } : pr} />
+      {mine.length > 1 && (
+        <View accessibilityRole="tablist" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
+          {mine.map(k => {
+            const picked = k.slot === slot;
+            return (
+              <Pressable key={k.slot} onPress={() => setSlot(k.slot)} accessibilityRole="tab" accessibilityState={{ selected: picked }}
+                style={({ pressed }) => ({ minHeight: 40, paddingHorizontal: 14, borderRadius: 12, justifyContent: 'center', backgroundColor: picked ? pr.color : c.paper2, opacity: pressed ? 0.7 : 1 })}>
+                <Text style={[{ fontSize: 14, fontWeight: '700', color: picked ? on : c.ink2 }, tnum]}>Block {k.slot}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
 
       <View onLayout={e => onFadeEnd?.(e.nativeEvent.layout.y)} style={{ marginTop: 16, borderBottomWidth: 1, borderBottomColor: c.line2 }}>
         <ScrollView ref={tabRow} horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 14 }} style={{ marginBottom: -1 }}>
@@ -112,6 +140,11 @@ export const ProgramBody = ({ pr: raw, onNavigate, onEditTimetable, onFadeEnd }:
           <TabBtn label="Announcements" on={tab === 'announcements'} color={pr.color} onPress={() => pick('announcements')}
             badge={postCount ? <CountDot n={postCount} color={pr.color} ink={on} /> : undefined}
           />
+          {teaching && !!slot && (
+            <TabBtn label="Students" on={tab === 'students'} color={pr.color} onPress={() => pick('students')}
+              badge={confirmed && rosters.count(slot) ? <CountDot n={rosters.count(slot)} color={pr.color} ink={on} /> : undefined}
+            />
+          )}
           <TabBtn label="About" on={tab === 'about'} color={pr.color} onPress={() => pick('about')} />
         </ScrollView>
       </View>
@@ -120,7 +153,9 @@ export const ProgramBody = ({ pr: raw, onNavigate, onEditTimetable, onFadeEnd }:
 
       {coursework && tab === 'grades' && <Grades pr={pr} />}
 
-      {tab === 'announcements' && <Announcements pr={pr} news={news} own={own} canPost={canPost} onNavigate={onNavigate} />}
+      {tab === 'announcements' && <Announcements pr={pr} news={news} own={own} posts={ownPosts} canPost={canPost} slot={teaching ? slot : undefined} waiting={teaching && !confirmed} onNavigate={onNavigate} />}
+
+      {tab === 'students' && teaching && !!slot && <Students pr={pr} slot={slot} list={rosters.of(slot)} confirmed={confirmed} loaded={rosters.loaded} note={rosters.note} />}
 
       {tab === 'about' && <About pr={pr} club={club} todayIso={todayIso} onNavigate={onNavigate} />}
 
@@ -231,7 +266,11 @@ const postWhen = (at: number) => {
 
 type Own = ReturnType<typeof useProgramPosts>;
 
-const Announcements = ({ pr, news, own, canPost, onNavigate }: { pr: Program; news: ProgramPost[]; own: Own; canPost: boolean; onNavigate: (t: TabId) => void }) => {
+// `slot`: a teacher in a class they teach; posts go to that block. `posts` is
+// what to list (the block's posts and the whole course's).
+const Announcements = ({ pr, news, own, posts, canPost, slot, waiting, onNavigate }: {
+  pr: Program; news: ProgramPost[]; own: Own; posts: OwnPost[]; canPost: boolean; slot?: Slot; waiting?: boolean; onNavigate: (t: TabId) => void;
+}) => {
   const { c, mode } = useTheme();
   const { opened } = useContent();
   const [openId, setOpenId] = useState<string | null>(null);
@@ -244,14 +283,15 @@ const Announcements = ({ pr, news, own, canPost, onNavigate }: { pr: Program; ne
   const del = async (p: OwnPost) => {
     if (await ask('Delete this post?', `It comes off ${pr.name} for everyone.`, 'Delete', true)) run(() => own.remove(p.id));
   };
-  const empty = news.length === 0 && own.posts.length === 0;
+  const empty = news.length === 0 && posts.length === 0;
   return (
     <View style={{ marginTop: 6 }}>
-      {canPost && <Composer pr={pr} onPost={own.add} />}
+      {canPost && <Composer pr={pr} slot={slot} onPost={own.add} />}
+      {waiting && <Text style={{ fontSize: 14, color: c.ink2, lineHeight: 20, paddingVertical: 10 }}>You can post here once the App Club confirms you are a teacher.</Text>}
       {canPost && !!own.note && <Text style={{ fontSize: 13, color: c.ink3, lineHeight: 18, paddingBottom: 6 }}>{own.note}</Text>}
       {!!err && <Text style={{ fontSize: 13, color: c.danger, lineHeight: 18, paddingBottom: 6 }}>{err}</Text>}
-      {own.posts.map((p, i) => (
-        <OwnPostRow key={p.id} p={p} pr={pr} first={i === 0 && !canPost} open={openId === p.id} onToggle={() => toggle(p.id, false)}
+      {posts.map((p, i) => (
+        <OwnPostRow key={p.id} p={p} pr={pr} first={i === 0 && !canPost && !waiting} open={openId === p.id} onToggle={() => toggle(p.id, false)} showBlock={!!slot}
           canChange={own.canChange(p)} onPin={() => run(() => own.update(p.id, { pinned: !p.pinned }))} onDelete={() => del(p)} />
       ))}
       {empty && (
@@ -263,7 +303,7 @@ const Announcements = ({ pr, news, own, canPost, onNavigate }: { pr: Program; ne
         const isOpen = openId === n.id;
         return (
           <Pressable key={n.id} onPress={() => toggle(n.id)} accessibilityRole="button" accessibilityState={{ expanded: isOpen }} accessibilityLabel={`${n.title}, ${n.category}, ${postWhen(n.at)}. ${isOpen ? 'Close' : 'Read'}`}
-            style={({ pressed }) => ({ paddingVertical: 11, borderTopWidth: i || own.posts.length || canPost ? 1 : 0, borderTopColor: c.line2, opacity: pressed ? 0.6 : 1 })}>
+            style={({ pressed }) => ({ paddingVertical: 11, borderTopWidth: i || posts.length || canPost ? 1 : 0, borderTopColor: c.line2, opacity: pressed ? 0.6 : 1 })}>
             <Text style={{ fontSize: 12.5, fontWeight: '700', color: glow(tagColor(n.category, c), mode) }}>
               {n.category}<Text style={{ fontWeight: '500', color: c.ink3 }}>{`   ${postWhen(n.at)}`}</Text>
             </Text>
@@ -281,12 +321,13 @@ const Announcements = ({ pr, news, own, canPost, onNavigate }: { pr: Program; ne
 
 // One of the program's own posts: who posted it in the program colour, pinned
 // ones marked. Open: the whole text, and Pin / Delete for its author or staff.
-const OwnPostRow = ({ p, pr, first, open, onToggle, canChange, onPin, onDelete }: {
-  p: OwnPost; pr: Program; first: boolean; open: boolean; onToggle: () => void; canChange: boolean; onPin: () => void; onDelete: () => void;
+// A teacher's post says so; to its teacher it also says which block it went to.
+const OwnPostRow = ({ p, pr, first, open, onToggle, canChange, onPin, onDelete, showBlock }: {
+  p: OwnPost; pr: Program; first: boolean; open: boolean; onToggle: () => void; canChange: boolean; onPin: () => void; onDelete: () => void; showBlock?: boolean;
 }) => {
   const { c } = useTheme();
   const when = postWhen(Date.parse(p.createdAt));
-  const who = p.authorName || pr.name;
+  const who = [p.authorName || pr.name, p.fromTeacher ? 'Teacher' : null, showBlock ? (p.slot ? `Block ${p.slot}` : 'Every class') : null].filter(Boolean).join(' · ');
   return (
     <Pressable onPress={onToggle} accessibilityRole="button" accessibilityState={{ expanded: open }}
       accessibilityLabel={`${p.pinned ? 'Pinned. ' : ''}${p.title}, from ${who}, ${when}. ${open ? 'Close' : 'Read'}`}
@@ -315,19 +356,22 @@ const OwnPostRow = ({ p, pr, first, open, onToggle, canChange, onPin, onDelete }
 
 // Staff and the program's managers: a one-line "Post an announcement" that
 // opens into title, text, pin and Post.
-const Composer = ({ pr, onPost }: { pr: Program; onPost: (p: { title: string; body: string; pinned: boolean }) => Promise<void> }) => {
+// A teacher in their own class (`slot`) posts to that block; "Every class"
+// sends it to everyone taking the course, whoever teaches them.
+const Composer = ({ pr, slot, onPost }: { pr: Program; slot?: Slot; onPost: (p: NewPost) => Promise<void> }) => {
   const { c, mode } = useTheme();
   const on = onGlow(mode);
   const [open, setOpen] = useState(false);
+  const [everyone, setEveryone] = useState(false);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [pinned, setPinned] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const reset = () => { setTitle(''); setBody(''); setPinned(false); setErr(null); setOpen(false); };
+  const reset = () => { setTitle(''); setBody(''); setPinned(false); setEveryone(false); setErr(null); setOpen(false); };
   const post = async () => {
     setBusy(true); setErr(null);
-    try { await onPost({ title, body, pinned }); reset(); }
+    try { await onPost({ title, body, pinned, slot: slot && !everyone ? slot : null }); reset(); }
     catch (e: any) { setErr(String(e?.message || 'Could not post. Try again.')); }
     finally { setBusy(false); }
   };
@@ -344,7 +388,7 @@ const Composer = ({ pr, onPost }: { pr: Program; onPost: (p: { title: string; bo
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
           <Text style={{ fontSize: 15, fontWeight: '700', color: c.ink, letterSpacing: -0.2 }}>Post an announcement</Text>
-          <Text numberOfLines={1} style={{ fontSize: 12.5, color: c.ink3, marginTop: 1 }}>Everyone with {pr.name} sees it here</Text>
+          <Text numberOfLines={1} style={{ fontSize: 12.5, color: c.ink3, marginTop: 1 }}>{slot ? `Your block ${slot} students see it here` : `Everyone with ${pr.name} sees it here`}</Text>
         </View>
       </Pressable>
     );
@@ -356,6 +400,19 @@ const Composer = ({ pr, onPost }: { pr: Program; onPost: (p: { title: string; bo
         returnKeyType="next" style={[input, { fontWeight: '700' }]} accessibilityLabel="Post title" />
       <TextInput value={body} onChangeText={setBody} placeholder="What does everyone need to know?" placeholderTextColor={c.ink4} maxLength={4000}
         multiline style={[input, { minHeight: 88, textAlignVertical: 'top' }]} accessibilityLabel="Post text" />
+      {!!slot && (
+        <View accessibilityRole="radiogroup" style={{ flexDirection: 'row', gap: 8 }}>
+          {([[false, `My block ${slot}`], [true, `Every ${pr.name} class`]] as [boolean, string][]).map(([all, label]) => {
+            const picked = everyone === all;
+            return (
+              <Pressable key={label} onPress={() => setEveryone(all)} accessibilityRole="radio" accessibilityState={{ selected: picked }}
+                style={({ pressed }) => ({ flexShrink: 1, minHeight: 40, paddingHorizontal: 12, borderRadius: 12, justifyContent: 'center', backgroundColor: picked ? pr.color : c.surface, opacity: pressed ? 0.7 : 1 })}>
+                <Text numberOfLines={1} style={{ fontSize: 13.5, fontWeight: picked ? '700' : '600', color: picked ? on : c.ink2 }}>{label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      )}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <Pressable onPress={() => setPinned(v => !v)} accessibilityRole="switch" accessibilityState={{ checked: pinned }} accessibilityLabel="Pin to top"
           style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 5, height: 32, paddingHorizontal: 11, borderRadius: 16, backgroundColor: pinned ? pr.color : c.surface, opacity: pressed ? 0.6 : 1 })}>
@@ -372,6 +429,36 @@ const Composer = ({ pr, onPost }: { pr: Program; onPost: (p: { title: string; bo
         </Pressable>
       </View>
       {!!err && <Text style={{ fontSize: 13, color: c.danger, lineHeight: 18 }}>{err}</Text>}
+    </View>
+  );
+};
+
+// ── Students (a teacher's own class) ────────────────────────────
+// Who has this class, in this block, on Spartans. It is not the official class
+// list: it only knows students who use the app and filled in their timetable.
+const Students = ({ pr, slot, list, confirmed, loaded, note }: { pr: Program; slot: Slot; list: RosterStudent[]; confirmed: boolean; loaded: boolean; note: string | null }) => {
+  const { c } = useTheme();
+  const quiet = { fontSize: 14.5, lineHeight: 21, color: c.ink2, paddingVertical: 12 } as const;
+  if (!confirmed) return <Text style={quiet}>Your class list shows here once the App Club confirms you are a teacher.</Text>;
+  if (note) return <Text style={quiet}>{note}</Text>;
+  if (!loaded) return <Text style={[quiet, { color: c.ink3 }]}>Loading…</Text>;
+  if (!list.length) {
+    return <Text style={quiet}>Nobody has {pr.name} in block {slot} on Spartans yet. Students show up here once they add it, in this block, to their own timetable.</Text>;
+  }
+  return (
+    <View style={{ marginTop: 6 }}>
+      <Text style={[{ fontSize: 13, color: c.ink3, paddingVertical: 8 }, tnum]}>
+        {list.length} {list.length === 1 ? 'student has' : 'students have'} this class on Spartans. MyEdBC is still the official list.
+      </Text>
+      {list.map((st, i) => (
+        <View key={st.id} style={{ minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, borderTopWidth: i ? 1 : 0, borderTopColor: c.line2 }}>
+          <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: c.paper2, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: c.ink2 }}>{st.name.split(/\s+/).map(w => w[0] || '').slice(0, 2).join('').toUpperCase()}</Text>
+          </View>
+          <Text numberOfLines={1} style={{ flex: 1, fontSize: 15.5, fontWeight: '600', color: c.ink, letterSpacing: -0.2 }}>{st.name}</Text>
+          {!!st.grade && <Text style={[{ fontSize: 13, color: c.ink3 }, tnum]}>Grade {st.grade}</Text>}
+        </View>
+      ))}
     </View>
   );
 };

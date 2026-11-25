@@ -13,7 +13,7 @@
 // and says which is which. Homework days get a grey dot, quiz/test days a diamond.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Pressable, ScrollView, Animated, Easing, TextInput, Keyboard, Platform, useWindowDimensions, PanResponder } from 'react-native';
+import { View, Text, Pressable, ScrollView, Animated, Easing, LayoutAnimation, TextInput, Keyboard, Platform, useWindowDimensions, PanResponder } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 import { useTheme } from '../ThemeContext';
 import { fonts, shadow, tnum } from '../theme';
@@ -26,7 +26,7 @@ import {
 } from '../calendar';
 import { buildDayPlan, fmt12, toMin } from '../bell';
 import { useProfile, roomShort, teacherShort } from '../ProfileContext';
-import { useNow } from '../useToday';
+import { useMinute } from '../useToday';
 import { toISO } from '../calendar';
 import { useEvents, PersonalEvent, useHomework } from '../stores';
 import { usePosted } from '../content';
@@ -113,7 +113,7 @@ const weekLabel = (anchorIso: string) => {
 export default function CalendarScreen({ topInset }: ScreenProps) {
   const { c, mode: scheme } = useTheme();
   const nav = useNav();
-  const now = useNow();
+  const now = useMinute();
   const todayIso = toISO(now);
   const { width } = useWindowDimensions();
   const [mode, setMode] = useState<Mode>('month');
@@ -349,6 +349,8 @@ export default function CalendarScreen({ topInset }: ScreenProps) {
         visible={adding !== null}
         initial={editorInitial}
         onClose={() => setAdding(null)}
+        // Land on the day it went to, so you can see it was added.
+        onSaved={iso => { setSelected(iso); setMi(monthIndexFor(iso)); }}
       />
     </ScrollView>
     </View>
@@ -506,7 +508,7 @@ const WeekView = ({ todayIso, anchorIso, weekOff, nonce, selected, onSelect, onV
   const { profile } = useProfile();
   const { eventsOn } = useEvents();
   const sheet = useClassSheet();
-  const now = useNow();
+  const now = useMinute();
   const scroll = useRef<ScrollView>(null);
   const BEFORE = 10, AFTER = 15;
   const days = useMemo(() => weekdaysAround(anchorIso, BEFORE, AFTER), [anchorIso]);
@@ -607,7 +609,7 @@ const DaySheet = ({ d, isToday, onEditEvent, asDay = false, spot, bring }: { d?:
   const hw = useHomework();
   const club = usePosted('event', 'calendar');
   const sheet = useClassSheet();
-  const now = useNow();
+  const now = useMinute();
   const a = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -918,12 +920,12 @@ type Strip = 'date' | 'time' | 'class' | 'dateFull' | 'timeFull' | null;
 const QUICK_TIMES = ['08:00', '12:00', '15:00', '18:00', '21:00', '23:59'];
 const DOW2 = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-const EventEditor = ({ visible, initial, onClose }: { visible: boolean; initial?: Partial<PersonalEvent>; onClose: () => void }) => {
+const EventEditor = ({ visible, initial, onClose, onSaved }: { visible: boolean; initial?: Partial<PersonalEvent>; onClose: () => void; onSaved: (iso: string) => void }) => {
   const { c } = useTheme();
   const { add, update } = useEvents();
   const hw = useHomework();
   const { profile } = useProfile();
-  const now = useNow();
+  const now = useMinute();
   const todayIso = toISO(now);
   const kb = useKeyboardHeight();
   const { height: screenH } = useWindowDimensions();
@@ -937,6 +939,13 @@ const EventEditor = ({ visible, initial, onClose }: { visible: boolean; initial?
   const [kindPicked, setKindPicked] = useState(false);
   const [strip, setStrip] = useState<Strip>(null);
   const [err, setErr] = useState(false);
+  const [dayPicked, setDayPicked] = useState(false);
+  const input = useRef<TextInput>(null);
+  // New homework is due tomorrow unless a later day is selected; a new event is
+  // on the selected day.
+  const startDay = (w: AddWhat) => editing ? initial?.iso || todayIso
+    : w === 'event' ? initial?.iso || todayIso
+    : initial?.iso && initial.iso > todayIso ? initial.iso : addDays(todayIso, 1);
 
   // Reset the form only when the sheet opens. This screen re-renders every
   // second (the clock), and `initial` used to arrive as a new object each
@@ -948,8 +957,8 @@ const EventEditor = ({ visible, initial, onClose }: { visible: boolean; initial?
     if (!opening) return;
     setWhat(editing ? 'event' : 'homework');
     setTitle(initial?.title || '');
-    // New homework is due tomorrow unless a later day is selected.
-    setIso(initial?.iso && (editing || initial.iso > todayIso) ? initial.iso : editing ? todayIso : addDays(todayIso, 1));
+    setIso(startDay(editing ? 'event' : 'homework'));
+    setDayPicked(editing);
     setTime(initial?.time || undefined);
     setCls(initial?.className || '');
     setKind(undefined);
@@ -964,15 +973,20 @@ const EventEditor = ({ visible, initial, onClose }: { visible: boolean; initial?
   const shownKind = kindPicked ? kind : guessKind(title);
 
   const save = () => {
-    if (!title.trim()) { setErr(true); return; }
+    if (!title.trim()) { setErr(true); input.current?.focus(); return; }
     if (isHw) hw.add(cls, title.trim(), day, { time, ...(kindPicked ? { kind: kind ?? null } : {}) });
     else if (editing) update(initial!.id!, { title: title.trim(), iso: day, time, className: cls || undefined });
     else add({ title: title.trim(), iso: day, time, className: cls || undefined });
     onClose();
+    onSaved(day);
   };
 
-  const toggle = (k: Strip) => setStrip(cur => (cur === k || (k === 'date' && cur === 'dateFull') || (k === 'time' && cur === 'timeFull') ? null : k));
-  const full = (k: 'dateFull' | 'timeFull') => { Keyboard.dismiss(); setStrip(k); };
+  // Strips open and close smoothly above the keyboard. The full pickers need its
+  // room, so it goes away for them and comes back when you are done.
+  const fold = () => { if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.create(180, 'easeInEaseOut', 'opacity')); };
+  const pickDay = (d: string) => { setIso(d); setDayPicked(true); };
+  const toggle = (k: Strip) => { fold(); setStrip(cur => (cur === k || (k === 'date' && cur === 'dateFull') || (k === 'time' && cur === 'timeFull') ? null : k)); };
+  const full = (k: 'dateFull' | 'timeFull') => { Keyboard.dismiss(); fold(); setStrip(k); };
   const days = Array.from({ length: 14 }, (_, i) => addDays(todayIso, i));
   const ready = !!title.trim();
 
@@ -995,7 +1009,10 @@ const EventEditor = ({ visible, initial, onClose }: { visible: boolean; initial?
   );
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} bottom={kb} style={[{ maxHeight: sheetHeight(screenH, kb), backgroundColor: c.paper, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 12, paddingBottom: kb ? 10 : Platform.OS === 'ios' ? 30 : 16 }, shadow.lg]}>
+    <BottomSheet visible={visible} onClose={onClose} ride onShown={() => { if (!editing) input.current?.focus(); }} style={[{ maxHeight: sheetHeight(screenH, kb), backgroundColor: c.paper, borderTopLeftRadius: 24, borderTopRightRadius: 24, paddingTop: 8, paddingBottom: Platform.OS === 'ios' ? 30 : 16 }, shadow.lg]}>
+        <View style={{ alignItems: 'center', paddingBottom: 8 }}>
+          <View style={{ width: 40, height: 5, borderRadius: 3, backgroundColor: c.line }} />
+        </View>
         {/* Homework | Event */}
         <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 }}>
           {editing ? (
@@ -1005,7 +1022,7 @@ const EventEditor = ({ visible, initial, onClose }: { visible: boolean; initial?
               {([['homework', 'Homework'], ['event', 'Event']] as [AddWhat, string][]).map(([k, l]) => {
                 const on = what === k;
                 return (
-                  <Pressable key={k} onPress={() => { setWhat(k); if (k === 'event' && strip === 'class') setStrip(null); }} accessibilityRole="tab" accessibilityState={{ selected: on }}
+                  <Pressable key={k} onPress={() => { if (on) return; fold(); setWhat(k); setErr(false); if (!dayPicked) setIso(startDay(k)); }} accessibilityRole="tab" accessibilityState={{ selected: on }}
                     style={[{ height: 32, paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: on ? c.surface : 'transparent' }, on ? shadow.sm : shadow.none]}>
                     <Text style={{ fontSize: 14, fontWeight: on ? '700' : '500', color: on ? c.ink : c.ink3 }}>{l}</Text>
                   </Pressable>
@@ -1023,12 +1040,16 @@ const EventEditor = ({ visible, initial, onClose }: { visible: boolean; initial?
         {/* The line, and the button that saves it */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 18, paddingRight: 14, paddingTop: 8 }}>
           <TextInput
+            ref={input}
             value={title}
+            // Typing again needs the full pickers out of the way.
+            onFocus={() => { if (strip === 'dateFull' || strip === 'timeFull') { fold(); setStrip(null); } }}
             onChangeText={v => { setTitle(v); if (err) setErr(false); }}
             placeholder={err ? 'Give it a name first' : isHw ? 'What’s due?' : 'What’s happening?'}
             placeholderTextColor={err ? c.danger : c.ink4}
-            autoFocus={!editing}
             returnKeyType="done"
+            // Return with nothing typed keeps the keyboard up.
+            submitBehavior="submit"
             onSubmitEditing={save}
             accessibilityLabel={isHw ? 'Homework' : 'Event'}
             style={[{ flex: 1, fontSize: 21, fontWeight: '500', letterSpacing: -0.3, color: c.ink, paddingVertical: 12 }, Platform.OS === 'web' ? ({ outlineStyle: 'none' } as object) : null]}
@@ -1050,7 +1071,7 @@ const EventEditor = ({ visible, initial, onClose }: { visible: boolean; initial?
         {/* One strip of choices for the open pill */}
         {strip === 'date' && (
           <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="always" contentContainerStyle={{ gap: 6, paddingHorizontal: 16, paddingVertical: 6 }}>
-            {days.map((d, i) => choice(d, String(fromISO(d).getDate()), d === day, () => setIso(d), i === 0 ? 'Today' : DOW2[fromISO(d).getDay()]))}
+            {days.map((d, i) => choice(d, String(fromISO(d).getDate()), d === day, () => pickDay(d), i === 0 ? 'Today' : DOW2[fromISO(d).getDay()]))}
             {choice('more', 'More', false, () => full('dateFull'))}
           </ScrollView>
         )}
@@ -1067,7 +1088,7 @@ const EventEditor = ({ visible, initial, onClose }: { visible: boolean; initial?
             {classes.map(k => choice(k, k, cls === k, () => setCls(k)))}
           </ScrollView>
         )}
-        {strip === 'dateFull' && <View style={{ paddingHorizontal: 16 }}><DueFields due={day} todayIso={todayIso} onDue={setIso} /></View>}
+        {strip === 'dateFull' && <View style={{ paddingHorizontal: 16 }}><DueFields due={day} todayIso={todayIso} onDue={d => { pickDay(d); fold(); setStrip(null); input.current?.focus(); }} /></View>}
         {strip === 'timeFull' && <View style={{ paddingHorizontal: 16, paddingTop: 6 }}><TimeFields time={time} onTime={setTime} /></View>}
     </BottomSheet>
   );

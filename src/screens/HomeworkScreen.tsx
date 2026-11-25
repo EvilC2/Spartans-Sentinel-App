@@ -32,7 +32,7 @@ import {
 import { useHomework, classKey } from '../stores';
 import { useFocus } from '../nav';
 import { Spot } from '../components/Spot';
-import { useNow } from '../useToday';
+import { useMinute } from '../useToday';
 import { toISO } from '../calendar';
 import { HomeworkItem, Program } from '../programs';
 import type { ScreenProps } from '../../App';
@@ -50,7 +50,7 @@ type Moving = { id: string; title: string; drag: boolean };
 export default function HomeworkScreen({ topInset }: ScreenProps) {
   const { c } = useTheme();
   const hw = useHomework();
-  const todayIso = toISO(useNow());
+  const todayIso = toISO(useMinute());
   const { height: screenH } = useWindowDimensions();
   const { scroller, kb, rootProps, scrollProps } = useHomeworkScroller(topInset);
 

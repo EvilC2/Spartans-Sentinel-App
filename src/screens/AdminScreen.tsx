@@ -37,7 +37,7 @@ import { Members } from '../admin/Members';
 import { JoinClub, Redeem } from '../admin/JoinClub';
 import { AwardGrant, ListGrant, QrGrant } from '../admin/BadgeGrant';
 import { DeveloperScreen } from '../admin/DevPages';
-import { Decisions, Marketing, HrPage, SchoolContacts, StucoPage, TopHome } from '../admin/ExecPages';
+import { Decisions, DecisionsRow, HrPage, InboxRow, Marketing, SchoolContacts, StucoPage, TopHome } from '../admin/ExecPages';
 import { RoleCard } from '../admin/RoleCard';
 import { ClubsPrograms } from '../admin/ClubsPage';
 import { ViewAsBar, ViewAsButton, ViewAsSheet } from '../admin/ViewAs';
@@ -83,7 +83,7 @@ const PAGES: PageDef[] = [
   postPage('popups', 'mnt.popups', ['popup']),
   // Badge
   jobPage('badges', 'badges', 'bdg.creator', g => <BadgeTeam canApprove={leads(g.roles, 'badges')} />,
-    { label: 'Badges', sub: 'Design new ones and edit the rest' }),
+    { label: 'Design badges', sub: 'Make new ones and edit the rest' }),
   jobPage('badges', 'badge_award', 'bdg.award', () => <AwardGrant />,
     { label: 'Give to students', sub: 'Pick a badge and who earned it', section: 'Give out badges' }),
   jobPage('badges', 'badge_list', 'bdg.list', () => <ListGrant />,
@@ -212,7 +212,7 @@ export default function AdminScreen({ topInset }: ScreenProps) {
   const card = (
     <RoleCard tier={tier} role={cardRole} foot={cardFoot} art={cardArt}
       name={profile ? fullName(profile) || 'You' : 'You'} initials={profile ? initials(profile) : '?'} photo={profile?.photoUri}
-      sub={sponsorView || (!inClub && staff) ? 'Teacher' : profile?.grade ? `Grade ${profile.grade}` : undefined} />
+      sub={!inClub ? undefined : sponsorView ? 'Teacher' : profile?.grade ? `Grade ${profile.grade}` : undefined} />
   );
 
   // ── Rows ──
@@ -223,14 +223,19 @@ export default function AdminScreen({ topInset }: ScreenProps) {
     for (const x of store.posts) if (p.kinds.includes(x.kind)) n[phaseOf(x, store.now)]++;
     return [n.live && `${n.live} live`, n.scheduled && `${n.scheduled} scheduled`, n.draft && `${n.draft} draft${n.draft === 1 ? '' : 's'}`].filter(Boolean).join(', ') || 'Nothing live';
   };
-  const pageRow = (p: PageDef) => <Row key={p.id} art={p.art} label={p.label} sub={rowSub(p)} count={countFor(p)} onPress={() => openPage(p.id)} />;
+  const pageRow = (p: PageDef) => {
+    const row = { art: p.art, label: p.label, sub: rowSub(p), onPress: () => openPage(p.id) };
+    if (p.id === 'exe.decisions') return <DecisionsRow key={p.id} {...row} />;
+    if (p.id === 'fb.digital' || p.id === 'fb.real') return <InboxRow key={p.id} source={p.id === 'fb.real' ? 'real' : 'app'} {...row} />;
+    return <Row key={p.id} {...row} count={countFor(p)} />;
+  };
   // A team's pages, under their headings.
   const pageGroups = (list: PageDef[]) => [...new Set(list.map(p => p.section))].map(sec => (
     <Group key={sec || 'main'} title={sec}>{list.filter(p => p.section === sec).map(pageRow)}</Group>
   ));
   const ledTeams = TEAM_ORDER.filter(t => TEAMS[t].lead && roles.includes(TEAMS[t].lead!));
   const memberRow = (t: TeamId) => (
-    <Row key={t} icon="users" label={ledTeams.length > 1 ? `${TEAMS[t].label} members` : 'Members'} sub="Who's on the team, their jobs, and invites" onPress={() => openPage(`members.${t}`)} />
+    <Row key={t} icon="users" label={ledTeams.length > 1 ? `${TEAMS[t].label} members` : 'Members'} sub="Who's on the team, and invites" onPress={() => openPage(`members.${t}`)} />
   );
   const clubsPage = visible.find(p => p.id === 'school.clubs');
   const workTeams = myTeams.filter(t => t !== 'developer' && visible.some(p => p.team === t));

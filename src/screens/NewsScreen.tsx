@@ -81,7 +81,7 @@ export default function AnnouncementsScreen({ onNavigate, topInset }: Props) {
     return true;
   }, [news]);
   const readPost = (pr: Program, p: ProgramPost) =>
-    setReading({ eyebrow: pr.name, tone: glow(pr.color, mode), title: p.title, body: p.body, author: p.authorName || 'Program lead', when: timeOf(Date.parse(p.createdAt)).full });
+    setReading({ eyebrow: pr.name, tone: glow(pr.color, mode), title: p.title, body: p.body, author: p.authorName || 'Program lead', role: p.fromTeacher ? 'Teacher' : undefined, when: timeOf(Date.parse(p.createdAt)).full });
 
   const showSchool = show === ALL || show === SCHOOL;
   const shownGroups = show === ALL ? groups : groups.filter(g => g.pr.id === show);
@@ -222,7 +222,7 @@ const ProgramCard = ({ p, tone, onPress }: { p: ProgramPost; tone: string; onPre
       <View style={{ paddingVertical: 14, paddingLeft: 18, paddingRight: 16 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
           {p.pinned && <Icon name="pin" size={11} stroke={2.2} color={c.gold} />}
-          <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 12.5, fontWeight: '600', color: c.ink3 }}>{p.authorName || 'Program lead'}</Text>
+          <Text numberOfLines={1} style={{ flexShrink: 1, fontSize: 12.5, fontWeight: '600', color: c.ink3 }}>{[p.authorName || 'Program lead', p.fromTeacher ? 'Teacher' : null].filter(Boolean).join(' · ')}</Text>
           <View style={{ flex: 1 }} />
           <Text style={{ fontSize: 12.5, color: c.ink4 }}>{time}</Text>
         </View>

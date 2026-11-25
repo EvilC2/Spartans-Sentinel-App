@@ -16,17 +16,24 @@
 // Modals opened from the sheet go in `over`, not `children`: touches in a nested
 // Modal pass through its React parents, so a swipe there would drag this sheet.
 //
+// `ride` is for a small sheet you type in: it slides up by itself and rides the
+// keyboard at the keyboard's own speed, instead of jumping by its height. Focus
+// the input from `onShown`; focusing while iOS is still presenting the sheet
+// makes the keyboard start, stop and start again. Leave TUCK of extra bottom
+// padding: it sits behind the keyboard.
+//
 // Full-height pages use RN's pageSheet Modal with `allowSwipeDismissal`, where
 // iOS does all of this itself.
 
 import React, { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-  Animated, Easing, GestureResponderEvent, Modal, NativeScrollEvent, NativeSyntheticEvent, PanResponder,
-  Pressable, ScrollView, ScrollViewProps, StyleProp, StyleSheet, View, ViewStyle,
+  Animated, Easing, GestureResponderEvent, Keyboard, Modal, NativeScrollEvent, NativeSyntheticEvent, PanResponder,
+  Platform, Pressable, ScrollView, ScrollViewProps, StyleProp, StyleSheet, View, ViewStyle,
 } from 'react-native';
 
 const START = 8;          // pt of downward travel before the sheet takes the touch
 const FLICK = 0.75;       // pt per ms
+const TUCK = Platform.OS === 'ios' ? 20 : 0;
 const BOUNCE_FROM = 48;   // the list bounces again once it's this far from its top
 
 type SheetApi = { setTop: (y: number) => void; setLocked: (on: boolean) => void };
@@ -36,10 +43,12 @@ const SheetCtx = createContext<SheetApi>({ setTop: () => {}, setLocked: () => {}
 // it is still being watched, is dragging the sheet, or is none of our business.
 type Touch = { state: 'watch' | 'drag' | 'off'; x: number; y: number; from: number; lastY: number; lastT: number; v: number };
 
-export const BottomSheet = ({ visible = true, onClose, bottom = 0, dim = 0.35, style, over, children }: {
-  visible?: boolean; onClose: () => void; bottom?: number; dim?: number; style?: StyleProp<ViewStyle>; over?: React.ReactNode; children: React.ReactNode;
+export const BottomSheet = ({ visible = true, onClose, bottom = 0, dim = 0.35, ride, onShown, style, over, children }: {
+  visible?: boolean; onClose: () => void; bottom?: number; ride?: boolean; onShown?: () => void; dim?: number; style?: StyleProp<ViewStyle>; over?: React.ReactNode; children: React.ReactNode;
 }) => {
   const y = useRef(new Animated.Value(0)).current;
+  const lift = useRef(new Animated.Value(0)).current;   // how far the keyboard has pushed it up
+  const lifted = useRef(0);
   const [h, setH] = useState(0);
   const height = useRef(0);
   const listTop = useRef(0);      // how far the list inside is scrolled
@@ -56,13 +65,32 @@ export const BottomSheet = ({ visible = true, onClose, bottom = 0, dim = 0.35, s
     locked.current = false;
     touch.current = null;
     listTop.current = 0;
-    y.setValue(0);
-  }, [visible, y]);
+    lift.setValue(0);
+    lifted.current = 0;
+    y.setValue(ride ? 360 : 0);
+  }, [visible, y, lift, ride]);
+
+  // Keyboard up, down, or a different height (emoji, suggestions).
+  useEffect(() => {
+    if (!ride || !visible || Platform.OS !== 'ios') return;
+    const to = (v: number, ms?: number) => {
+      lifted.current = v;
+      Animated.timing(lift, { toValue: v, duration: ms || 250, easing: Easing.bezier(0.17, 0.59, 0.4, 0.98), useNativeDriver: true }).start();
+    };
+    const a = Keyboard.addListener('keyboardWillShow', e => to(Math.max(0, e.endCoordinates.height - TUCK), e.duration));
+    const b = Keyboard.addListener('keyboardWillHide', e => to(0, e.duration));
+    return () => { a.remove(); b.remove(); };
+  }, [ride, visible, lift]);
+  const shown = () => {
+    if (ride) Animated.timing(y, { toValue: 0, duration: 240, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+    onShown?.();
+  };
 
   const settle = () => Animated.spring(y, { toValue: 0, useNativeDriver: true, speed: 22, bounciness: 0 }).start();
   const leave = () => {
     leaving.current = true;
-    Animated.timing(y, { toValue: height.current || 600, duration: 190, easing: Easing.out(Easing.quad), useNativeDriver: true })
+    if (ride) Keyboard.dismiss();
+    Animated.timing(y, { toValue: (height.current || 600) + lifted.current, duration: 190, easing: Easing.out(Easing.quad), useNativeDriver: true })
       .start(() => close.current());
   };
 
@@ -118,7 +146,7 @@ export const BottomSheet = ({ visible = true, onClose, bottom = 0, dim = 0.35, s
   }), []);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType={ride ? 'fade' : 'slide'} onShow={shown} onRequestClose={onClose}>
       <Animated.View style={[StyleSheet.absoluteFill, {
         backgroundColor: `rgba(14,34,56,${dim})`,
         opacity: y.interpolate({ inputRange: [0, Math.max(1, h)], outputRange: [1, 0], extrapolate: 'clamp' }),
@@ -133,7 +161,7 @@ export const BottomSheet = ({ visible = true, onClose, bottom = 0, dim = 0.35, s
           onTouchEnd={end}
           onTouchCancel={cancel}
           onLayout={e => { height.current = e.nativeEvent.layout.height + bottom; setH(height.current); }}
-          style={[style, { transform: [{ translateY: y }] }]}
+          style={[style, { transform: [{ translateY: ride ? Animated.subtract(y, lift) : y }] }]}
         >
           <SheetCtx.Provider value={api}>{children}</SheetCtx.Provider>
         </Animated.View>

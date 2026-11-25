@@ -17,6 +17,7 @@ import { onGlow } from '../components/ProgramIcon';
 import { PAGES, Page, pageTone } from '../pages';
 import { usePins } from '../stores';
 import { BadgesSheet } from './BadgesScreen';
+import { useTeacher } from '../teacher';
 import type { ScreenProps } from '../../App';
 
 const PIN_ART = require('../../assets/pages/pin.png');
@@ -32,8 +33,11 @@ export default function MoreScreen({ onNavigate, topInset }: ScreenProps) {
     else if (p.action === 'badges') setBadges(true);
     else if (p.soon) { setSoon(`${p.label} is coming in ${p.soon.toLowerCase()}.`); setTimeout(() => setSoon(null), 2200); }
   };
-  const live = PAGES.filter(p => !p.soon);
-  const later = PAGES.filter(p => p.soon);
+  // Homework, Grades and University are the students' own; a teacher doesn't get them.
+  const { teacher } = useTeacher();
+  const pages = teacher ? PAGES.filter(p => !['homework', 'grades', 'university'].includes(p.id)) : PAGES;
+  const live = pages.filter(p => !p.soon);
+  const later = pages.filter(p => p.soon);
   const pinned = live.filter(p => pins.includes(p.id));
 
   return (
